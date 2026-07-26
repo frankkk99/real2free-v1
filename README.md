@@ -14,7 +14,6 @@
 - การ์ดหนัง responsive, อันดับยอดนิยม, badge คุณภาพ และรายการโปรด
 - modal รายละเอียดหนัง
 - รองรับ reduced motion และ keyboard focus
-- GitHub Actions ตรวจ production build
 
 ## เริ่มใช้งาน
 
