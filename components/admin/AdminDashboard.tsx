@@ -94,7 +94,10 @@ export default function AdminDashboard() {
     const supabase = getSupabaseBrowserClient();
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     const response = await fetch("/api/admin/stats", {
       cache: "no-store",
@@ -135,8 +138,8 @@ export default function AdminDashboard() {
       </div>
       <nav className="adminSideNav">
         <Link className="active" href="/admin"><Gauge /><span>ภาพรวม</span></Link>
+        <Link href="/admin/content"><Film /><span>คลังหนัง</span></Link>
         <Link href="/admin/extractors/movie2freehd"><SearchCode /><span>Movie2FreeHD</span></Link>
-        <button type="button" disabled><Film /><span>คลังหนัง</span><small>เร็ว ๆ นี้</small></button>
         <button type="button" disabled><PlaySquare /><span>Player Center</span><small>เร็ว ๆ นี้</small></button>
         <button type="button" disabled><Settings /><span>ตั้งค่าเว็บไซต์</span><small>เร็ว ๆ นี้</small></button>
       </nav>
