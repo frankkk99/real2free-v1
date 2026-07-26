@@ -1,0 +1,42 @@
+name: Diagnostic Build
+
+on:
+  pull_request:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install and build with captured output
+        id: diagnostic
+        shell: bash
+        run: |
+          set +e
+          npm install > diagnostic.log 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            npm run build >> diagnostic.log 2>&1
+            status=$?
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "" >> diagnostic.log
+          echo "EXIT_STATUS=$status" >> diagnostic.log
+          exit 0
+      - name: Upload diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostic
+          path: diagnostic.log
+          if-no-files-found: error
+          retention-days: 1
+      - name: Fail when install or build failed
+        if: steps.diagnostic.outputs.status != '0'
+        run: exit 1
