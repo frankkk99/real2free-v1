@@ -1,10 +1,10 @@
 import AdminGuard from "@/components/admin/AdminGuard";
-import Movie2FreeHDExtractor from "@/components/admin/Movie2FreeHDExtractor";
+import Movie2FreeHDWorkbench from "@/components/admin/Movie2FreeHDWorkbench";
 
 export default function Movie2FreeHDExtractorPage() {
   return (
     <AdminGuard>
-      <Movie2FreeHDExtractor />
+      <Movie2FreeHDWorkbench />
     </AdminGuard>
   );
 }
