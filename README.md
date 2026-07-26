@@ -1,6 +1,6 @@
 # REAL2FREE v1
 
-เว็บหนังและซีรีส์แบบ responsive สร้างด้วย Next.js + TypeScript พร้อมหน้าเว็บไซต์ โหมดมืด/สว่าง ระบบหลังบ้าน และ Movie2FreeHD Extractor ที่เชื่อมกับ Supabase
+เว็บหนังและซีรีส์แบบ responsive สร้างด้วย Next.js + TypeScript พร้อมหน้าเว็บไซต์ โหมดมืด/สว่าง ระบบหลังบ้าน คลังหนัง และ Movie2FreeHD Extractor ที่เชื่อมกับ Supabase
 
 ## ส่วนที่พร้อมใช้งาน
 
@@ -27,8 +27,22 @@
 ```text
 /admin                                  ระบบหลังบ้าน
 /admin/login                            เข้าสู่ระบบผู้ดูแล
+/admin/content                          คลังหนังและ Player
 /admin/extractors/movie2freehd          Movie2FreeHD Extractor
 ```
+
+### คลังหนังหลังบ้าน
+
+- อ่านข้อมูลจริงจาก `content_titles` และ `players`
+- ค้นหาชื่อไทย ชื่ออังกฤษ ชื่อเดิม และ IMDb ID
+- กรองตามแหล่งข้อมูลและสถานะ
+- แบ่งหน้าครั้งละ 36 รายการ รองรับฐานข้อมูลขนาดใหญ่
+- แสดงจำนวน Player พร้อมใช้ต่อเรื่อง
+- เปิด Modal ดูเรื่องย่อ Metadata และ Player ทั้งหมด
+- ทดสอบลิงก์ Player ในแท็บใหม่แบบไม่ส่ง referrer
+- เปลี่ยนสถานะหนังเป็น แสดงผล / ซ่อน / มีปัญหา / ฉบับร่าง
+- เปลี่ยนสถานะ Player เป็น พร้อมใช้ / ยังไม่ตรวจ / เสีย / หมดอายุ
+- Responsive 6 การ์ดบนจอใหญ่ และ 3 การ์ดบนมือถือ
 
 ### Movie2FreeHD Extractor
 
@@ -150,12 +164,15 @@ npm start
 app/
   admin/
     admin.css
+    content.css
     layout.tsx
     login/page.tsx
     page.tsx
+    content/page.tsx
     extractors/movie2freehd/page.tsx
   api/admin/
     stats/route.ts
+    content/route.ts
     movie2freehd/route.ts
   globals.css
   layout.tsx
@@ -164,6 +181,7 @@ components/
   admin/
     AdminGuard.tsx
     AdminDashboard.tsx
+    AdminContentManager.tsx
     Movie2FreeHDExtractor.tsx
   MovieHome.tsx
 lib/
