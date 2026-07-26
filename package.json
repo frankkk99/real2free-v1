@@ -1,6 +1,6 @@
 {
   "name": "real2free-v1",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "hls.js": "^1.6.13",
     "lucide-react": "^0.468.0",
     "next": "^15.5.7",
     "react": "^19.1.1",
