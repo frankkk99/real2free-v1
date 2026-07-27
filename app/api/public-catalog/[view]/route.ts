@@ -49,8 +49,6 @@ export async function GET(
     if (!isInternalPlatformParam(key)) upstream.searchParams.append(key, value);
   });
 
-  // Supabase publishable keys are API keys, not JWTs. They must be sent in
-  // the apikey header only or the gateway rejects the request as Invalid JWT.
   const upstreamHeaders = new Headers({
     apikey: SUPABASE_PUBLISHABLE_KEY,
   });
@@ -66,6 +64,17 @@ export async function GET(
       headers: upstreamHeaders,
       cache: "no-store",
     });
+    const body = await response.arrayBuffer();
+
+    if (!response.ok) {
+      const errorText = new TextDecoder().decode(body).slice(0, 1200);
+      console.error("Public catalog upstream error", {
+        status: response.status,
+        view,
+        query: upstream.search,
+        error: errorText,
+      });
+    }
 
     const responseHeaders = new Headers({
       "cache-control": "private, no-cache, no-store, max-age=0, must-revalidate",
@@ -76,7 +85,7 @@ export async function GET(
       if (value) responseHeaders.set(name, value);
     });
 
-    return new NextResponse(response.body, {
+    return new NextResponse(body, {
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,
