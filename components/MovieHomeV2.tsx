@@ -3,26 +3,18 @@
 import {
   Bookmark,
   Calendar,
-  CalendarDays,
-  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Film,
   Flame,
-  Heart,
   History,
   Home,
-  Info,
-  Languages,
   LoaderCircle,
-  Menu,
   Moon,
   Play,
   RotateCcw,
   Search,
-  ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
   Star,
   Sun,
@@ -34,7 +26,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   cleanCatalogSearch,
-  contentTypeLabel,
   FAVORITES_KEY,
   HISTORY_KEY,
   mapPublicCatalogRow,
@@ -43,7 +34,17 @@ import {
   type PublicCatalogItem,
   type PublicCatalogRow,
 } from "@/lib/public-catalog";
+import {
+  languageFilterOptions,
+  parseSmartCatalogSearch,
+  sortModeOptions,
+  type CatalogLanguageFilter,
+  type CatalogSortMode,
+} from "@/lib/smart-catalog-search";
+import CatalogDetailModal from "./CatalogDetailModal";
+import CatalogPosterCard from "./CatalogPosterCard";
 import HomeQuickFilters, { type HomeQuickView } from "./HomeQuickFilters";
+import SmartCatalogHeader from "./SmartCatalogHeader";
 import styles from "./MovieHomeV2.module.css";
 
 type Theme = "dark" | "light";
@@ -72,11 +73,15 @@ const genreFilters = [
   { value: "Action", label: "แอ็กชัน" },
   { value: "Adventure", label: "ผจญภัย" },
   { value: "Comedy", label: "ตลก" },
+  { value: "Crime", label: "อาชญากรรม" },
   { value: "Drama", label: "ดราม่า" },
+  { value: "Family", label: "ครอบครัว" },
   { value: "Fantasy", label: "แฟนตาซี" },
   { value: "Horror", label: "สยองขวัญ" },
+  { value: "Mystery", label: "ลึกลับ" },
   { value: "Romance", label: "โรแมนติก" },
   { value: "Science Fiction", label: "ไซไฟ" },
+  { value: "Thriller", label: "ระทึกขวัญ" },
   { value: "Animation", label: "แอนิเมชัน" },
 ];
 
@@ -106,172 +111,10 @@ function releaseTimestamp(item: PublicCatalogItem) {
   return new Date(item.releaseDate || item.updatedAt).getTime() || 0;
 }
 
-function releaseLabel(value: string | null, year: number | null) {
-  if (!value) return year ? String(year) : "ไม่ระบุ";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return year ? String(year) : "ไม่ระบุ";
-  return new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", year: "numeric" }).format(date);
-}
-
-function isRecentlyAdded(item: PublicCatalogItem) {
-  const updated = new Date(item.updatedAt).getTime();
-  return Number.isFinite(updated) && Date.now() - updated <= 30 * 24 * 60 * 60 * 1000;
-}
-
 function SkeletonGrid() {
   return (
     <div className={styles.skeletonGrid} aria-hidden="true">
       {Array.from({ length: 18 }).map((_, index) => <span key={index}><i /><b /><em /></span>)}
-    </div>
-  );
-}
-
-function PosterCard({
-  movie,
-  favorite,
-  rank,
-  onOpen,
-  onPlay,
-  onFavorite,
-  onPrefetch,
-}: {
-  movie: PublicCatalogItem;
-  favorite: boolean;
-  rank?: number;
-  onOpen: () => void;
-  onPlay: () => void;
-  onFavorite: () => void;
-  onPrefetch: () => void;
-}) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const firstLabel = movie.players.find((player) => player.label)?.label || "";
-
-  return (
-    <article className={styles.card} onPointerEnter={onPrefetch}>
-      <button className={styles.posterButton} type="button" onClick={onOpen} aria-label={`ดูข้อมูล ${movie.thaiTitle}`}>
-        <span className={styles.poster}>
-          {movie.posterUrl && !imageFailed ? (
-            <img
-              src={movie.posterUrl}
-              alt={movie.thaiTitle}
-              loading="lazy"
-              decoding="async"
-              sizes="(max-width: 560px) 31vw, (max-width: 900px) 22vw, 13vw"
-              referrerPolicy="no-referrer"
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <span className={styles.posterFallback}><Film /><strong>{movie.thaiTitle}</strong></span>
-          )}
-          <span className={styles.posterShade} />
-          {rank ? <span className={styles.rank}>{rank}</span> : null}
-          {isRecentlyAdded(movie) ? <span className={styles.newBadge}>ใหม่</span> : null}
-          {firstLabel ? <span className={styles.audioBadge}>{firstLabel}</span> : null}
-          <span className={styles.playHover} onClick={(event) => { event.stopPropagation(); onPlay(); }}>
-            <Play fill="currentColor" />
-            <small>รับชม</small>
-          </span>
-        </span>
-      </button>
-
-      <button
-        className={`${styles.cardFavorite} ${favorite ? styles.cardFavoriteActive : ""}`}
-        type="button"
-        onClick={onFavorite}
-        aria-label={favorite ? "นำออกจากรายการโปรด" : "เพิ่มในรายการโปรด"}
-      >
-        <Heart fill={favorite ? "currentColor" : "none"} />
-      </button>
-
-      <button className={styles.cardTitle} type="button" onClick={onOpen}>{movie.thaiTitle}</button>
-      <div className={styles.cardMeta}>
-        <span>{movie.year || contentTypeLabel(movie.contentType)}</span>
-        <span><Star fill="currentColor" /> {movie.rating ? movie.rating.toFixed(1) : "-"}</span>
-      </div>
-    </article>
-  );
-}
-
-function DetailModal({
-  movie,
-  favorite,
-  onClose,
-  onWatch,
-  onFavorite,
-}: {
-  movie: PublicCatalogItem;
-  favorite: boolean;
-  onClose: () => void;
-  onWatch: () => void;
-  onFavorite: () => void;
-}) {
-  const labels = [...new Set(movie.players.map((player) => player.label).filter(Boolean))].slice(0, 4);
-  const meta = [contentTypeLabel(movie.contentType), movie.year ? String(movie.year) : "", runtimeLabel(movie.runtime)].filter(Boolean);
-
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
-
-  return (
-    <div className={styles.modalBackdrop} role="presentation" onMouseDown={onClose}>
-      <section className={styles.modal} role="dialog" aria-modal="true" aria-label={`ข้อมูล ${movie.thaiTitle}`} onMouseDown={(event) => event.stopPropagation()}>
-        <div className={styles.modalHero}>
-          {movie.backdropUrl ? <img src={movie.backdropUrl} alt="" referrerPolicy="no-referrer" /> : null}
-          <span className={styles.modalHeroShade} />
-          <button className={styles.modalClose} type="button" onClick={onClose} aria-label="ปิด"><X /></button>
-
-          <div className={styles.modalHeroContent}>
-            <span className={styles.modalEyebrow}><Play fill="currentColor" /> พร้อมรับชม</span>
-            <h2>{movie.thaiTitle}</h2>
-            {movie.title !== movie.thaiTitle ? <h3>{movie.title}</h3> : null}
-            <div className={styles.modalMeta}>{meta.map((entry) => <span key={entry}>{entry}</span>)}</div>
-          </div>
-        </div>
-
-        <div className={styles.modalContent}>
-          <div className={styles.modalPoster}>
-            {movie.posterUrl ? <img src={movie.posterUrl} alt={movie.thaiTitle} referrerPolicy="no-referrer" /> : <Film />}
-          </div>
-
-          <div className={styles.modalBody}>
-            <div className={styles.modalTopline}>
-              <div className={styles.modalRating}><Star fill="currentColor" /><strong>{movie.rating ? movie.rating.toFixed(1) : "-"}</strong><span>คะแนน</span></div>
-              <div className={styles.modalReady}><ShieldCheck /><strong>{movie.players.length}</strong><span>ตัวเลือกรับชม</span></div>
-            </div>
-
-            <section className={styles.modalOverview}>
-              <span><Info /> เรื่องย่อ</span>
-              <p>{movie.overview || "เรื่องนี้พร้อมให้คุณรับชมแล้ว"}</p>
-            </section>
-
-            <div className={styles.modalFacts}>
-              <div><CalendarDays /><span><small>วันที่เข้าฉาย</small><strong>{releaseLabel(movie.releaseDate, movie.year)}</strong></span></div>
-              <div><Clock3 /><span><small>ความยาว</small><strong>{runtimeLabel(movie.runtime) || "ไม่ระบุ"}</strong></span></div>
-              <div><Languages /><span><small>รูปแบบ</small><strong>{labels[0] || "พร้อมรับชม"}</strong></span></div>
-            </div>
-
-            <div className={styles.modalTags}>
-              {movie.genres.slice(0, 6).map((genre) => <span key={genre}>{genre}</span>)}
-              {labels.map((label) => <span key={label} className={styles.languageTag}>{label}</span>)}
-            </div>
-
-            <div className={styles.modalActions}>
-              <button className={styles.watchButton} type="button" onClick={onWatch}>
-                <span><Play fill="currentColor" /></span>
-                <span><strong>ไปหน้ารับชม</strong><small>กดเล่นครั้งเดียว ระบบจะเลือกตัวรับชมให้อัตโนมัติ</small></span>
-                <ChevronRight />
-              </button>
-              <button className={`${styles.favoriteAction} ${favorite ? styles.favoriteActionActive : ""}`} type="button" onClick={onFavorite}>
-                <Heart fill={favorite ? "currentColor" : "none"} /> {favorite ? "บันทึกแล้ว" : "เพิ่มรายการโปรด"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
@@ -284,6 +127,8 @@ export default function MovieHomeV2() {
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("ทั้งหมด");
   const [year, setYear] = useState("ทั้งหมด");
+  const [language, setLanguage] = useState<CatalogLanguageFilter>("ทั้งหมด");
+  const [sortMode, setSortMode] = useState<CatalogSortMode>("updated");
   const [items, setItems] = useState<PublicCatalogItem[]>([]);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
@@ -295,7 +140,6 @@ export default function MovieHomeV2() {
   const [history, setHistory] = useState<string[]>([]);
   const [selectedMovie, setSelectedMovie] = useState<PublicCatalogItem | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const requestRef = useRef(0);
@@ -319,18 +163,26 @@ export default function MovieHomeV2() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setQuery(cleanCatalogSearch(queryInput)), 280);
+    const timer = window.setTimeout(() => setQuery(cleanCatalogSearch(queryInput)), 260);
     return () => window.clearTimeout(timer);
   }, [queryInput]);
 
   useEffect(() => {
-    document.body.style.overflow = selectedMovie || mobileMenuOpen || filterOpen ? "hidden" : "";
+    document.body.style.overflow = selectedMovie || mobileMenuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [filterOpen, mobileMenuOpen, selectedMovie]);
+  }, [mobileMenuOpen, selectedMovie]);
+
+  const parsedSearch = useMemo(() => parseSmartCatalogSearch(query), [query]);
+  const titleQuery = parsedSearch.text;
+  const effectiveViewMode: ViewMode = viewMode === "home" && parsedSearch.viewMode ? parsedSearch.viewMode : viewMode;
+  const effectiveGenre = genre === "ทั้งหมด" ? parsedSearch.genre || "ทั้งหมด" : genre;
+  const effectiveYear = year === "ทั้งหมด" ? parsedSearch.year || "ทั้งหมด" : year;
+  const effectiveLanguage: CatalogLanguageFilter = language === "ทั้งหมด" ? parsedSearch.language || "ทั้งหมด" : language;
+  const effectiveSort: CatalogSortMode = viewMode === "popular" ? "rating" : viewMode === "new" ? "release" : sortMode;
 
   const cacheKey = useMemo(
-    () => `real2free-catalog:${viewMode}:${query}:${genre}:${year}`,
-    [genre, query, viewMode, year],
+    () => `real2free-catalog:${effectiveViewMode}:${titleQuery}:${effectiveGenre}:${effectiveYear}:${effectiveLanguage}:${effectiveSort}`,
+    [effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, titleQuery],
   );
 
   const fetchCatalog = useCallback(async (targetPage: number, append: boolean) => {
@@ -370,11 +222,13 @@ export default function MovieHomeV2() {
       const countOptions = targetPage === 0 ? { count: "exact" as const } : undefined;
       let builder = supabase.from("real2free_public_titles").select(PUBLIC_CATALOG_FIELDS, countOptions);
 
-      if (query) builder = builder.or(`title_th.ilike.%${query}%,title_en.ilike.%${query}%`);
-      if (genre !== "ทั้งหมด") builder = builder.contains("genres", [genre]);
-      if (year !== "ทั้งหมด") builder = year === "ก่อน 2020" ? builder.lt("year", 2020) : builder.eq("year", Number(year));
-      if (viewMode === "movie" || viewMode === "series") builder = builder.eq("content_type", viewMode);
-      if (viewMode === "anime") builder = builder.overlaps("genres", ["Animation", "Anime"]);
+      if (titleQuery) builder = builder.or(`title_th.ilike.%${titleQuery}%,title_en.ilike.%${titleQuery}%`);
+      if (effectiveGenre !== "ทั้งหมด") builder = builder.contains("genres", [effectiveGenre]);
+      if (effectiveYear !== "ทั้งหมด") builder = effectiveYear === "ก่อน 2020" ? builder.lt("year", 2020) : builder.eq("year", Number(effectiveYear));
+      if (effectiveViewMode === "movie" || effectiveViewMode === "series") builder = builder.eq("content_type", effectiveViewMode);
+      if (effectiveViewMode === "anime") builder = builder.overlaps("genres", ["Animation", "Anime"]);
+      if (effectiveLanguage === "dub_th" || effectiveLanguage === "sub_th") builder = builder.contains("players", [{ group_key: effectiveLanguage }]);
+      if (effectiveLanguage === "backup") builder = builder.contains("players", [{ role: "backup" }]);
 
       if (viewMode === "favorites") {
         const ids = [...favorites];
@@ -403,10 +257,12 @@ export default function MovieHomeV2() {
         builder = builder.in("id", history.slice(0, 300));
       }
 
-      if (viewMode === "popular") {
+      if (effectiveSort === "rating") {
         builder = builder.order("rating", { ascending: false, nullsFirst: false }).order("vote_count", { ascending: false, nullsFirst: false });
-      } else if (viewMode === "new") {
+      } else if (effectiveSort === "release") {
         builder = builder.order("release_date", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false });
+      } else if (effectiveSort === "title") {
+        builder = builder.order("title_th", { ascending: true, nullsFirst: false });
       } else {
         builder = builder.order("updated_at", { ascending: false });
       }
@@ -459,7 +315,7 @@ export default function MovieHomeV2() {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [cacheKey, favorites, genre, history, query, viewMode, year]);
+  }, [cacheKey, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, favorites, history, titleQuery, viewMode]);
 
   useEffect(() => {
     void fetchCatalog(0, false);
@@ -531,15 +387,24 @@ export default function MovieHomeV2() {
     setQuery("");
     setGenre("ทั้งหมด");
     setYear("ทั้งหมด");
+    setLanguage("ทั้งหมด");
+    setSortMode("updated");
     setViewMode("home");
   };
 
-  const hasFilters = Boolean(query || genre !== "ทั้งหมด" || year !== "ทั้งหมด" || viewMode !== "home");
+  const hasFilters = Boolean(
+    query
+    || genre !== "ทั้งหมด"
+    || year !== "ทั้งหมด"
+    || language !== "ทั้งหมด"
+    || sortMode !== "updated"
+    || viewMode !== "home",
+  );
 
   const renderCards = (movies: PublicCatalogItem[], ranked = false) => (
     <div className={styles.grid}>
       {movies.map((movie, index) => (
-        <PosterCard
+        <CatalogPosterCard
           key={movie.id}
           movie={movie}
           rank={ranked ? index + 1 : undefined}
@@ -556,32 +421,40 @@ export default function MovieHomeV2() {
     </div>
   );
 
+  const languageLabel = languageFilterOptions.find((option) => option.value === language)?.label;
+  const sortLabel = sortModeOptions.find((option) => option.value === sortMode)?.label;
+  const isDefaultHome = viewMode === "home"
+    && !query
+    && genre === "ทั้งหมด"
+    && year === "ทั้งหมด"
+    && language === "ทั้งหมด"
+    && sortMode === "updated";
+
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <button className={styles.mobileMenuButton} type="button" onClick={() => setMobileMenuOpen(true)} aria-label="เปิดเมนู"><Menu /></button>
-        <button className={styles.brandButton} type="button" onClick={() => chooseMode("home")}><Brand /></button>
+      <SmartCatalogHeader
+        theme={theme}
+        viewMode={viewMode}
+        queryInput={queryInput}
+        genre={genre}
+        year={year}
+        language={language}
+        sortMode={sortMode}
+        items={items}
+        genreOptions={genreFilters}
+        yearOptions={yearFilters}
+        onViewChange={chooseMode}
+        onQueryChange={setQueryInput}
+        onGenreChange={setGenre}
+        onYearChange={setYear}
+        onLanguageChange={setLanguage}
+        onSortChange={setSortMode}
+        onClearFilters={clearAll}
+        onToggleTheme={toggleTheme}
+        onOpenMenu={() => setMobileMenuOpen(true)}
+      />
 
-        <nav className={styles.nav} aria-label="เมนูหลัก">
-          {mainNav.map((item) => (
-            <button key={item.mode} className={viewMode === item.mode ? styles.navActive : ""} type="button" onClick={() => chooseMode(item.mode)}>
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className={styles.headerActions}>
-          <label className={styles.searchBox}>
-            <Search />
-            <input value={queryInput} onChange={(event) => setQueryInput(event.target.value)} placeholder="ค้นหาหนังหรือซีรีส์" />
-            {queryInput ? <button type="button" onClick={() => setQueryInput("")} aria-label="ล้างคำค้น"><X /></button> : null}
-          </label>
-          <button className={styles.iconButton} type="button" onClick={() => setFilterOpen(true)} aria-label="ตัวกรอง"><SlidersHorizontal /></button>
-          <button className={styles.iconButton} type="button" onClick={toggleTheme} aria-label="สลับโหมดสี">{theme === "dark" ? <Sun /> : <Moon />}</button>
-        </div>
-      </header>
-
-      {heroMovie && viewMode === "home" && !query ? (
+      {heroMovie && isDefaultHome ? (
         <section className={styles.hero}>
           {heroMovie.backdropUrl ? <img src={heroMovie.backdropUrl} alt="" fetchPriority="high" referrerPolicy="no-referrer" /> : null}
           <span className={styles.heroShade} />
@@ -621,7 +494,7 @@ export default function MovieHomeV2() {
         onViewChange={chooseMode}
         onYearChange={setYear}
         onGenreChange={setGenre}
-        onOpenMore={() => setFilterOpen(true)}
+        onOpenMore={() => document.querySelector<HTMLButtonElement>('[aria-label="เปิดตัวกรองละเอียด"]')?.click()}
         onClear={clearAll}
       />
 
@@ -632,8 +505,11 @@ export default function MovieHomeV2() {
             <h2>{loading && !items.length ? "กำลังเตรียมรายการ" : `${total.toLocaleString("th-TH")} รายการ`}</h2>
           </div>
           <div className={styles.activeFilters}>
+            {parsedSearch.labels.length ? <button type="button" onClick={() => setQueryInput("")}>{parsedSearch.labels.join(" • ")}<X /></button> : null}
             {genre !== "ทั้งหมด" ? <button type="button" onClick={() => setGenre("ทั้งหมด")}>{genreFilters.find((item) => item.value === genre)?.label}<X /></button> : null}
             {year !== "ทั้งหมด" ? <button type="button" onClick={() => setYear("ทั้งหมด")}>{year}<X /></button> : null}
+            {language !== "ทั้งหมด" ? <button type="button" onClick={() => setLanguage("ทั้งหมด")}>{languageLabel}<X /></button> : null}
+            {sortMode !== "updated" ? <button type="button" onClick={() => setSortMode("updated")}>{sortLabel}<X /></button> : null}
             {hasFilters ? <button className={styles.clearButton} type="button" onClick={clearAll}>ล้างทั้งหมด</button> : null}
           </div>
         </div>
@@ -644,7 +520,7 @@ export default function MovieHomeV2() {
           <SkeletonGrid />
         ) : !items.length ? (
           <div className={styles.empty}><Search /><h3>ยังไม่พบรายการ</h3><p>ลองเปลี่ยนคำค้นหรือหมวดที่เลือก</p><button type="button" onClick={clearAll}>แสดงทั้งหมด</button></div>
-        ) : viewMode === "home" && !query && genre === "ทั้งหมด" && year === "ทั้งหมด" ? (
+        ) : isDefaultHome ? (
           <>
             <div className={styles.sectionTitle}>
               <div><Clock3 /><span><strong>มาใหม่</strong><small>รายการที่เพิ่งอัปเดต</small></span></div>
@@ -659,7 +535,7 @@ export default function MovieHomeV2() {
             {renderCards(popularItems, true)}
           </>
         ) : (
-          renderCards(items, viewMode === "popular")
+          renderCards(items, effectiveSort === "rating")
         )}
 
         {hasMore && items.length ? (
@@ -671,40 +547,10 @@ export default function MovieHomeV2() {
 
       <nav className={styles.mobileBottomNav} aria-label="เมนูด้านล่าง">
         <button className={viewMode === "home" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("home")}><Home /><span>หน้าแรก</span></button>
-        <button type="button" onClick={() => document.querySelector<HTMLInputElement>(`.${styles.searchBox} input`)?.focus()}><Search /><span>ค้นหา</span></button>
+        <button type="button" onClick={() => document.getElementById("catalog-search-input")?.focus()}><Search /><span>ค้นหา</span></button>
         <button className={viewMode === "favorites" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("favorites")}><Bookmark /><span>รายการโปรด</span></button>
         <button className={viewMode === "history" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("history")}><History /><span>ดูล่าสุด</span></button>
       </nav>
-
-      {filterOpen ? (
-        <div className={styles.sheetBackdrop} role="presentation" onMouseDown={() => setFilterOpen(false)}>
-          <aside className={styles.filterSheet} onMouseDown={(event) => event.stopPropagation()}>
-            <div className={styles.sheetHeader}>
-              <div><SlidersHorizontal /><span><strong>ตัวกรอง</strong><small>เลือกได้ตามที่ต้องการ</small></span></div>
-              <button type="button" onClick={() => setFilterOpen(false)}><X /></button>
-            </div>
-            <div className={styles.filterGroup}>
-              <strong>ประเภทเนื้อหา</strong>
-              <div>
-                {[{ value: "home", label: "ทั้งหมด" }, { value: "movie", label: "ภาพยนตร์" }, { value: "series", label: "ซีรีส์" }, { value: "anime", label: "อนิเมะ" }].map((item) => (
-                  <button key={item.value} className={viewMode === item.value ? styles.filterSelected : ""} type="button" onClick={() => setViewMode(item.value as ViewMode)}>
-                    {item.label}{viewMode === item.value ? <Check /> : null}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={styles.filterGroup}>
-              <strong>แนว</strong>
-              <div>{genreFilters.map((item) => <button key={item.value} className={genre === item.value ? styles.filterSelected : ""} type="button" onClick={() => setGenre(item.value)}>{item.label}{genre === item.value ? <Check /> : null}</button>)}</div>
-            </div>
-            <div className={styles.filterGroup}>
-              <strong>ปีที่ฉาย</strong>
-              <div>{yearFilters.map((item) => <button key={item} className={year === item ? styles.filterSelected : ""} type="button" onClick={() => setYear(item)}>{item}{year === item ? <Check /> : null}</button>)}</div>
-            </div>
-            <button className={styles.applyFilters} type="button" onClick={() => setFilterOpen(false)}>แสดงรายการ</button>
-          </aside>
-        </div>
-      ) : null}
 
       {mobileMenuOpen ? (
         <div className={styles.sheetBackdrop} role="presentation" onMouseDown={() => setMobileMenuOpen(false)}>
@@ -729,7 +575,7 @@ export default function MovieHomeV2() {
       ) : null}
 
       {selectedMovie ? (
-        <DetailModal
+        <CatalogDetailModal
           movie={selectedMovie}
           favorite={favorites.has(selectedMovie.id)}
           onClose={() => setSelectedMovie(null)}
