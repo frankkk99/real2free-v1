@@ -2,39 +2,30 @@
 
 import { ExternalLink, LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PlayerKind, PublicPlayer } from "@/lib/public-catalog";
+import type { PlayerKind } from "@/lib/public-catalog";
 import styles from "./WatchPlayer.module.css";
 
-type Source = {
+export type WatchSource = {
+  key: string;
+  playerId: string;
+  playerIndex: number;
+  label: string;
   url: string;
   kind: PlayerKind;
-  isFallback: boolean;
+  externalUrl: string | null;
 };
 
-function isMeePlayerEmbed(value: string | null | undefined) {
-  if (!value) return false;
-  try {
-    const url = new URL(value);
-    const isMeePlayer = url.hostname === "meeplayer.com" || url.hostname.endsWith(".meeplayer.com");
-    return isMeePlayer && url.pathname.startsWith("/play/");
-  } catch {
-    return false;
-  }
-}
-
-function initialSource(player: PublicPlayer): Source {
-  if (
-    player.kind === "embed"
-    && isMeePlayerEmbed(player.url)
-    && player.fallbackUrl
-    && player.fallbackKind === "hls"
-  ) {
-    return { url: player.fallbackUrl, kind: "hls", isFallback: true };
-  }
-  return { url: player.url, kind: player.kind, isFallback: false };
-}
-
-function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null; onFatal: () => void }) {
+function HlsVideo({
+  url,
+  poster,
+  onReady,
+  onFatal,
+}: {
+  url: string;
+  poster: string | null;
+  onReady: () => void;
+  onFatal: () => void;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -43,13 +34,24 @@ function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null
 
     let disposed = false;
     let fatalTriggered = false;
-    let instance: { destroy: () => void } | null = null;
+    let recoveryCount = 0;
+    let instance: {
+      destroy: () => void;
+      startLoad?: () => void;
+      recoverMediaError?: () => void;
+    } | null = null;
+
     const fatal = () => {
       if (disposed || fatalTriggered) return;
       fatalTriggered = true;
       onFatal();
     };
 
+    const handleCanPlay = () => {
+      if (!disposed) onReady();
+    };
+
+    video.addEventListener("canplay", handleCanPlay);
     video.addEventListener("error", fatal);
 
     void import("hls.js")
@@ -61,20 +63,42 @@ function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null
             enableWorker: true,
             lowLatencyMode: true,
             backBufferLength: 90,
-            maxBufferLength: 30,
-            manifestLoadingTimeOut: 12000,
-            levelLoadingTimeOut: 12000,
-            fragLoadingTimeOut: 18000,
-            fetchSetup: (context, initParams) => new Request(context.url, {
-              ...initParams,
-              cache: "no-store",
-              referrerPolicy: "no-referrer",
-            }),
+            maxBufferLength: 36,
+            manifestLoadingTimeOut: 15000,
+            levelLoadingTimeOut: 15000,
+            fragLoadingTimeOut: 20000,
+            fetchSetup: (context, initParams) =>
+              new Request(context.url, {
+                ...initParams,
+                cache: "no-store",
+                referrerPolicy: "no-referrer",
+              }),
           });
+
           instance = hls;
-          hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (data.fatal) fatal();
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (disposed) return;
+            onReady();
+            void video.play().catch(() => undefined);
           });
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            if (disposed || !data.fatal) return;
+
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && recoveryCount < 1) {
+              recoveryCount += 1;
+              hls.startLoad();
+              return;
+            }
+
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR && recoveryCount < 2) {
+              recoveryCount += 1;
+              hls.recoverMediaError();
+              return;
+            }
+
+            fatal();
+          });
+
           hls.loadSource(url);
           hls.attachMedia(video);
           return;
@@ -83,6 +107,7 @@ function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null
         if (video.canPlayType("application/vnd.apple.mpegurl")) {
           video.src = url;
           video.load();
+          void video.play().catch(() => undefined);
           return;
         }
 
@@ -93,11 +118,12 @@ function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null
     return () => {
       disposed = true;
       instance?.destroy();
+      video.removeEventListener("canplay", handleCanPlay);
       video.removeEventListener("error", fatal);
       video.removeAttribute("src");
       video.load();
     };
-  }, [onFatal, url]);
+  }, [onFatal, onReady, url]);
 
   return (
     <video
@@ -113,67 +139,103 @@ function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null
   );
 }
 
+function EmbedFrame({
+  source,
+  onReady,
+  onFatal,
+}: {
+  source: WatchSource;
+  onReady: () => void;
+  onFatal: () => void;
+}) {
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    loadedRef.current = false;
+    const timer = window.setTimeout(() => {
+      if (!loadedRef.current) onFatal();
+    }, 12000);
+    return () => window.clearTimeout(timer);
+  }, [onFatal, source.key]);
+
+  return (
+    <iframe
+      className={styles.media}
+      src={source.url}
+      title={source.label || "หน้ารับชม"}
+      allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+      allowFullScreen
+      referrerPolicy="no-referrer"
+      onLoad={() => {
+        loadedRef.current = true;
+        onReady();
+      }}
+      onError={onFatal}
+    />
+  );
+}
+
 export default function WatchPlayer({
-  player,
+  source,
   poster,
+  title,
+  active,
+  switching,
   exhausted,
-  onExhausted,
+  onStart,
+  onFailed,
   onRetry,
 }: {
-  player: PublicPlayer;
+  source: WatchSource | null;
   poster: string | null;
+  title: string;
+  active: boolean;
+  switching: boolean;
   exhausted: boolean;
-  onExhausted: () => void;
+  onStart: () => void;
+  onFailed: () => void;
   onRetry: () => void;
 }) {
-  const [source, setSource] = useState<Source>(() => initialSource(player));
-  const [switching, setSwitching] = useState(false);
-  const [showEmbedHelp, setShowEmbedHelp] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setSource(initialSource(player));
-    setSwitching(false);
-    setShowEmbedHelp(false);
-  }, [player]);
+    setReady(false);
+  }, [source?.key]);
 
-  useEffect(() => {
-    if (source.kind !== "embed") return;
-    const timer = window.setTimeout(() => setShowEmbedHelp(true), 9000);
-    return () => window.clearTimeout(timer);
-  }, [source.kind, source.url]);
+  const handleReady = useCallback(() => setReady(true), []);
+  const handleFailed = useCallback(() => onFailed(), [onFailed]);
 
-  const moveToFallback = useCallback(() => {
-    if (!source.isFallback && player.fallbackUrl && player.fallbackKind) {
-      if (player.fallbackKind === "embed" && isMeePlayerEmbed(player.fallbackUrl)) {
-        onExhausted();
-        return;
-      }
+  if (!active) {
+    return (
+      <button className={styles.posterState} type="button" onClick={onStart} aria-label={`เริ่มรับชม ${title}`}>
+        {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
+        <span className={styles.posterShade} />
+        <span className={styles.startContent}>
+          <span className={styles.startButton}><Play fill="currentColor" /></span>
+          <strong>เริ่มรับชม</strong>
+          <small>กดครั้งเดียว ระบบจะเลือกตัวรับชมให้ต่อเนื่อง</small>
+        </span>
+      </button>
+    );
+  }
 
-      setSwitching(true);
-      window.setTimeout(() => {
-        setSource({
-          url: player.fallbackUrl as string,
-          kind: player.fallbackKind as PlayerKind,
-          isFallback: true,
-        });
-        setSwitching(false);
-        setShowEmbedHelp(false);
-      }, 280);
-      return;
-    }
-    onExhausted();
-  }, [onExhausted, player.fallbackKind, player.fallbackUrl, source.isFallback]);
-
-  if (exhausted) {
-    const openUrl = player.fallbackUrl || player.url;
+  if (exhausted || !source) {
     return (
       <div className={styles.failedState}>
-        <RotateCcw />
-        <strong>ยังเปิดเรื่องนี้ไม่ได้</strong>
-        <p>ตัวรับชมทั้งหมดของเรื่องนี้ยังไม่ตอบสนอง</p>
-        <div className={styles.failedActions}>
-          <button type="button" onClick={onRetry}><RefreshCw /> ลองอีกครั้ง</button>
-          <a href={openUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"><ExternalLink /> เปิดแยกหน้าต่าง</a>
+        {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
+        <span className={styles.failedShade} />
+        <div className={styles.failedContent}>
+          <RotateCcw />
+          <strong>ยังเปิดเรื่องนี้ไม่ได้</strong>
+          <p>ตัวรับชมของเรื่องนี้ยังไม่ตอบสนองในขณะนี้</p>
+          <div className={styles.failedActions}>
+            <button type="button" onClick={onRetry}><RefreshCw /> ลองใหม่ทั้งหมด</button>
+            {source?.externalUrl ? (
+              <a href={source.externalUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
+                <ExternalLink /> เปิดแยกหน้าต่าง
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
     );
@@ -181,26 +243,17 @@ export default function WatchPlayer({
 
   return (
     <div className={styles.shell}>
-      {switching ? (
-        <div className={styles.switching}><LoaderCircle /><span>กำลังสลับตัวรับชม...</span></div>
-      ) : source.kind === "hls" ? (
-        <HlsVideo key={source.url} url={source.url} poster={poster} onFatal={moveToFallback} />
+      {source.kind === "hls" ? (
+        <HlsVideo key={source.key} url={source.url} poster={poster} onReady={handleReady} onFatal={handleFailed} />
       ) : (
-        <iframe
-          key={source.url}
-          className={styles.media}
-          src={source.url}
-          title="หน้ารับชม"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-          allowFullScreen
-          referrerPolicy="no-referrer"
-        />
+        <EmbedFrame key={source.key} source={source} onReady={handleReady} onFatal={handleFailed} />
       )}
 
-      {showEmbedHelp && !switching ? (
-        <div className={styles.embedHelp}>
-          <span><Play /> ภาพยังไม่ขึ้น?</span>
-          <button type="button" onClick={moveToFallback}>{player.fallbackUrl && !source.isFallback ? "ลองตัวเลือกสำรอง" : "ลองตัวรับชมถัดไป"}</button>
+      {switching || !ready ? (
+        <div className={styles.loadingLayer}>
+          {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
+          <span />
+          <div><LoaderCircle /><strong>{switching ? "กำลังสลับตัวรับชม..." : "กำลังเตรียมการรับชม..."}</strong></div>
         </div>
       ) : null}
     </div>
