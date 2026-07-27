@@ -3,14 +3,10 @@
 import {
   ArrowLeft,
   CalendarDays,
-  Check,
-  ChevronRight,
-  CircleCheck,
   Clock3,
   Film,
   Heart,
   Info,
-  Languages,
   Layers3,
   Play,
   RotateCcw,
@@ -39,6 +35,7 @@ import {
   type PublicEpisodeRow,
   type PublicPlayer,
 } from "@/lib/public-catalog";
+import PlayerChoicePanel from "./PlayerChoicePanel";
 import SeriesEpisodeBrowser from "./SeriesEpisodeBrowser";
 import WatchPlayer, { type WatchSource } from "./WatchPlayer";
 import styles from "./WatchExperience.module.css";
@@ -512,61 +509,17 @@ export default function WatchExperience({ id }: { id: string }) {
             </div>
           </article>
 
-          <aside className={styles.choiceCard}>
-            <div className={styles.choiceHeading}>
-              <div>
-                <span><CircleCheck /> ตัวเลือกรับชม</span>
-                <h3>{activeEpisode ? `ตอน ${activeEpisode.episodeNumber} • เลือกภาษาและตัวสำรอง` : "เลือกภาษาและตัวสำรอง"}</h3>
-              </div>
-              <span>{allCurrentPlayers.length} ตัวเลือก</span>
-            </div>
-
-            {playerGroups.length > 1 || playerGroups[0]?.key !== "default" ? (
-              <div className={styles.languageGroups} aria-label="เลือกภาษา">
-                {playerGroups.map((group) => (
-                  <button
-                    key={group.key}
-                    className={group.key === activeGroup?.key ? styles.languageGroupActive : ""}
-                    type="button"
-                    onClick={() => selectGroup(group.key)}
-                  >
-                    <Languages />
-                    <span><strong>{group.label}</strong><small>{group.players.length} ตัวเลือก{group.hasBackup ? " • มีสำรอง" : ""}</small></span>
-                    {group.key === activeGroup?.key ? <Check /> : <ChevronRight />}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            <div className={styles.groupSummary}>
-              <span>{activeGroup?.label || "ตัวเลือกรับชม"}</span>
-              <small>ระบบจะเริ่มจากตัวหลักและไล่สำรองตามลำดับ</small>
-            </div>
-
-            <div className={styles.playerChoices}>
-              {currentPlayers.map((player, index) => {
-                const available = sources.some((source) => source.playerIndex === index);
-                const active = index === activePlayerIndex;
-                const choiceLabel = player.role === "backup" ? `สำรอง ${player.backupIndex || index}` : "ตัวหลัก";
-                return (
-                  <button
-                    key={player.id}
-                    className={active ? styles.playerChoiceActive : ""}
-                    type="button"
-                    disabled={!available}
-                    onClick={() => selectPlayer(index)}
-                  >
-                    <span className={styles.choiceIcon}>{active ? <Check /> : <Play />}</span>
-                    <span className={styles.choiceText}>
-                      <strong>{choiceLabel}</strong>
-                      <small>{active ? (playRequested ? "กำลังใช้งาน" : "พร้อมเริ่ม") : available ? "พร้อมเป็นตัวสำรอง" : "ยังไม่พร้อม"}</small>
-                    </span>
-                    <ChevronRight />
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
+          <PlayerChoicePanel
+            groups={playerGroups}
+            activeGroupKey={activeGroup?.key || "default"}
+            currentPlayers={currentPlayers}
+            activePlayerIndex={activePlayerIndex}
+            playRequested={playRequested}
+            episodeNumber={activeEpisode?.episodeNumber}
+            isAvailable={(playerIndex) => sources.some((source) => source.playerIndex === playerIndex)}
+            onSelectGroup={selectGroup}
+            onSelectPlayer={selectPlayer}
+          />
         </section>
       </div>
     </main>
