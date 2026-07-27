@@ -1,0 +1,251 @@
+.card {
+  align-self: start;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 22px;
+  background: rgba(7,18,34,.76);
+  box-shadow: 0 20px 60px rgba(0,0,0,.23);
+  backdrop-filter: blur(20px);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 13px;
+}
+
+.heading > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #78bdff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.heading > div > span svg {
+  width: 14px;
+  height: 14px;
+}
+
+.heading h3 {
+  margin: 7px 0 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.heading > span {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+  color: #8294ad;
+  font-size: 9px;
+}
+
+.groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 7px;
+  margin-bottom: 11px;
+}
+
+.groups button,
+.choices button {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.032);
+  color: rgba(255,255,255,.8);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: 150ms ease;
+}
+
+.groups button {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border-radius: 13px;
+}
+
+.groups button:hover,
+.choices button:hover:not(:disabled) {
+  border-color: rgba(73,176,255,.34);
+  background: rgba(73,176,255,.07);
+}
+
+.groups button > svg:first-child {
+  width: 16px;
+  height: 16px;
+  color: #5aafff;
+}
+
+.groups button > svg:last-child {
+  width: 15px;
+  height: 15px;
+  color: #61748f;
+}
+
+.groups strong,
+.groups small,
+.choiceText strong,
+.choiceText small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groups strong {
+  color: white;
+  font-size: 11px;
+}
+
+.groups small {
+  margin-top: 3px;
+  color: #71839e;
+  font-size: 8px;
+}
+
+.groups button.groupActive {
+  border-color: rgba(29,155,255,.56);
+  background: linear-gradient(135deg, rgba(11,132,255,.2), rgba(11,132,255,.07));
+}
+
+.groups button.groupActive > svg:first-child,
+.groups button.groupActive > svg:last-child {
+  color: #8bcbff;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 31px;
+  margin-bottom: 7px;
+  padding: 0 3px;
+}
+
+.summary span {
+  color: #dce8f8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.summary small {
+  color: #71839e;
+  font-size: 8px;
+  text-align: right;
+}
+
+.choices {
+  display: grid;
+  gap: 8px;
+}
+
+.choices button {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 14px;
+}
+
+.choices button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.choiceIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.055);
+  color: #5aafff;
+}
+
+.choiceIcon svg,
+.choices button > svg {
+  width: 15px;
+  height: 15px;
+}
+
+.choices button > svg {
+  color: #61748f;
+}
+
+.choiceText {
+  min-width: 0;
+}
+
+.choiceText strong {
+  color: white;
+  font-size: 11px;
+}
+
+.choiceText small {
+  margin-top: 3px;
+  color: #71839e;
+  font-size: 8px;
+}
+
+.choices button.choiceActive {
+  border-color: rgba(29,155,255,.56);
+  background: linear-gradient(135deg, rgba(11,132,255,.2), rgba(11,132,255,.07));
+}
+
+.choiceActive .choiceIcon {
+  background: #0b84ff;
+  color: white;
+}
+
+@media (max-width: 980px) {
+  .card {
+    order: -1;
+  }
+
+  .choices {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .card {
+    padding: 13px;
+    border-radius: 17px;
+  }
+
+  .heading h3 {
+    font-size: 14px;
+  }
+
+  .groups {
+    grid-template-columns: 1fr;
+  }
+
+  .choices {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .summary small {
+    max-width: 60%;
+  }
+}
+
+@media (max-width: 430px) {
+  .choices {
+    grid-template-columns: 1fr;
+  }
+}
