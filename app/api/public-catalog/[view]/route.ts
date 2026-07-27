@@ -29,7 +29,9 @@ const FORWARDED_RESPONSE_HEADERS = [
 
 function isInternalPlatformParam(key: string) {
   const normalized = key.toLocaleLowerCase("en-US");
-  return normalized.startsWith("_") || normalized.startsWith("x-vercel-");
+  return normalized === "view"
+    || normalized.startsWith("_")
+    || normalized.startsWith("x-vercel-");
 }
 
 export async function GET(
