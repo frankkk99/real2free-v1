@@ -24,12 +24,17 @@ import {
   FAVORITES_KEY,
   HISTORY_KEY,
   mapPublicCatalogRow,
+  mapPublicEpisodeRow,
   PUBLIC_CATALOG_FIELDS,
+  PUBLIC_EPISODE_FIELDS,
   runtimeLabel,
   type PublicCatalogItem,
   type PublicCatalogRow,
+  type PublicEpisode,
+  type PublicEpisodeRow,
   type PublicPlayer,
 } from "@/lib/public-catalog";
+import SeriesEpisodeBrowser from "./SeriesEpisodeBrowser";
 import WatchPlayer, { type WatchSource } from "./WatchPlayer";
 import styles from "./WatchExperience.module.css";
 
@@ -102,6 +107,8 @@ function buildSources(players: PublicPlayer[]): WatchSource[] {
 
 export default function WatchExperience({ id }: { id: string }) {
   const [movie, setMovie] = useState<PublicCatalogItem | null>(null);
+  const [episodes, setEpisodes] = useState<PublicEpisode[]>([]);
+  const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [activeSourceIndex, setActiveSourceIndex] = useState(0);
@@ -115,6 +122,7 @@ export default function WatchExperience({ id }: { id: string }) {
   const retryCycleRef = useRef(0);
   const transitionRef = useRef(false);
   const transitionTimerRef = useRef<number | null>(null);
+  const playerStageRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -122,6 +130,9 @@ export default function WatchExperience({ id }: { id: string }) {
     async function load() {
       setLoading(true);
       setFailed(false);
+      setEpisodes([]);
+      setActiveEpisodeId(null);
+
       const supabase = getSupabaseBrowserClient();
       const { data, error } = await supabase
         .from("real2free_public_titles")
@@ -143,7 +154,42 @@ export default function WatchExperience({ id }: { id: string }) {
         return;
       }
 
+      let mappedEpisodes: PublicEpisode[] = [];
+      if (mapped.contentType === "series") {
+        const { data: episodeData, error: episodeError } = await supabase
+          .from("real2free_public_episodes")
+          .select(PUBLIC_EPISODE_FIELDS)
+          .eq("series_id", mapped.id)
+          .order("season_number", { ascending: true })
+          .order("episode_number", { ascending: true });
+
+        if (disposed) return;
+        if (episodeError) {
+          setFailed(true);
+          setLoading(false);
+          return;
+        }
+
+        mappedEpisodes = ((episodeData || []) as unknown as PublicEpisodeRow[])
+          .map(mapPublicEpisodeRow)
+          .filter((episode): episode is PublicEpisode => Boolean(episode));
+
+        if (!mappedEpisodes.length) {
+          setFailed(true);
+          setLoading(false);
+          return;
+        }
+      }
+
       setMovie(mapped);
+      setEpisodes(mappedEpisodes);
+
+      if (mappedEpisodes.length) {
+        const requestedEpisodeId = new URLSearchParams(window.location.search).get("episode");
+        const initialEpisode = mappedEpisodes.find((episode) => episode.id === requestedEpisodeId) || mappedEpisodes[0];
+        setActiveEpisodeId(initialEpisode.id);
+      }
+
       setLoading(false);
       setActiveSourceIndex(0);
       setPlayRequested(false);
@@ -170,19 +216,50 @@ export default function WatchExperience({ id }: { id: string }) {
     };
   }, [id]);
 
-  const sources = useMemo(() => buildSources(movie?.players || []), [movie?.players]);
+  const activeEpisode = useMemo(
+    () => episodes.find((episode) => episode.id === activeEpisodeId) || episodes[0] || null,
+    [activeEpisodeId, episodes],
+  );
+
+  const currentPlayers = useMemo(() => {
+    if (!movie) return [];
+    return movie.contentType === "series" ? activeEpisode?.players || [] : movie.players;
+  }, [activeEpisode?.players, movie]);
+
+  const sources = useMemo(() => buildSources(currentPlayers), [currentPlayers]);
   const activeSource = sources[Math.min(activeSourceIndex, Math.max(sources.length - 1, 0))] || null;
   const activePlayerIndex = activeSource?.playerIndex ?? 0;
+  const seasonCount = useMemo(() => new Set(episodes.map((episode) => episode.seasonNumber)).size, [episodes]);
 
   const meta = useMemo(() => {
     if (!movie) return [];
+    if (movie.contentType === "series") {
+      return [
+        contentTypeLabel(movie.contentType),
+        movie.year ? String(movie.year) : "",
+        episodes.length ? `${episodes.length.toLocaleString("th-TH")} ตอน` : "",
+        seasonCount > 1 ? `${seasonCount} ซีซัน` : "",
+      ].filter(Boolean);
+    }
+
     return [
       contentTypeLabel(movie.contentType),
       movie.year ? String(movie.year) : "",
       runtimeLabel(movie.runtime),
       movie.players.length > 1 ? `${movie.players.length} ตัวเลือกรับชม` : "พร้อมรับชม",
     ].filter(Boolean);
-  }, [movie]);
+  }, [episodes.length, movie, seasonCount]);
+
+  useEffect(() => {
+    if (!activeEpisodeId) return;
+    failedKeysRef.current = new Set();
+    retryCycleRef.current = 0;
+    transitionRef.current = false;
+    setActiveSourceIndex(0);
+    setAllExhausted(false);
+    setSwitching(false);
+    setPlayerSession((current) => current + 1);
+  }, [activeEpisodeId]);
 
   const startPlayback = useCallback(() => {
     failedKeysRef.current = new Set();
@@ -254,6 +331,14 @@ export default function WatchExperience({ id }: { id: string }) {
     setPlayerSession((current) => current + 1);
   };
 
+  const selectEpisode = (episode: PublicEpisode) => {
+    setActiveEpisodeId(episode.id);
+    const url = new URL(window.location.href);
+    url.searchParams.set("episode", episode.id);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    window.requestAnimationFrame(() => playerStageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   const toggleFavorite = () => {
     if (!movie) return;
     setFavorite((current) => {
@@ -280,7 +365,7 @@ export default function WatchExperience({ id }: { id: string }) {
     );
   }
 
-  if (failed || !movie || !sources.length) {
+  if (failed || !movie || !sources.length || (movie.contentType === "series" && !episodes.length)) {
     return (
       <main className={styles.statePage}>
         <RotateCcw />
@@ -290,6 +375,10 @@ export default function WatchExperience({ id }: { id: string }) {
       </main>
     );
   }
+
+  const playerPoster = activeEpisode?.stillUrl || movie.backdropUrl;
+  const playerTitle = activeEpisode ? `${movie.thaiTitle} ตอน ${activeEpisode.episodeNumber}` : movie.thaiTitle;
+  const detailRuntime = activeEpisode?.runtime || movie.runtime;
 
   return (
     <main className={styles.page}>
@@ -313,14 +402,21 @@ export default function WatchExperience({ id }: { id: string }) {
           <h1>{movie.thaiTitle}</h1>
           {movie.title !== movie.thaiTitle ? <h2>{movie.title}</h2> : null}
           <div className={styles.titleMeta}>{meta.map((entry) => <span key={entry}>{entry}</span>)}</div>
+          {activeEpisode ? (
+            <div className={styles.titleMeta}>
+              <span>ซีซัน {activeEpisode.seasonNumber}</span>
+              <span>ตอน {activeEpisode.episodeNumber}</span>
+              <span>{activeEpisode.title}</span>
+            </div>
+          ) : null}
         </section>
 
-        <section className={styles.playerStage}>
+        <section ref={playerStageRef} className={styles.playerStage}>
           <WatchPlayer
-            key={`${activeSource?.key || "none"}-${playerSession}`}
+            key={`${activeEpisode?.id || "movie"}-${activeSource?.key || "none"}-${playerSession}`}
             source={activeSource}
-            poster={movie.backdropUrl}
-            title={movie.thaiTitle}
+            poster={playerPoster}
+            title={playerTitle}
             active={playRequested}
             switching={switching}
             exhausted={allExhausted}
@@ -333,11 +429,15 @@ export default function WatchExperience({ id }: { id: string }) {
             <span className={styles.playbackIcon}><ShieldCheck /></span>
             <div>
               <strong>{!playRequested ? "พร้อมเมื่อคุณกดเล่น" : switching ? "กำลังเลือกตัวรับชมที่เหมาะสม" : allExhausted ? "รอการลองใหม่" : "ระบบดูแลการสลับให้อัตโนมัติ"}</strong>
-              <small>เมื่อแหล่งรับชมหนึ่งเปิดไม่ได้ ระบบจะไปตัวถัดไปทันที</small>
+              <small>{activeEpisode ? `กำลังเลือกตอน ${activeEpisode.episodeNumber} หากตัวหนึ่งเปิดไม่ได้จะไปตัวถัดไปทันที` : "เมื่อแหล่งรับชมหนึ่งเปิดไม่ได้ ระบบจะไปตัวถัดไปทันที"}</small>
             </div>
-            <span className={styles.sourceCount}>{activePlayerIndex + 1}/{movie.players.length}</span>
+            <span className={styles.sourceCount}>{activePlayerIndex + 1}/{currentPlayers.length}</span>
           </div>
         </section>
+
+        {movie.contentType === "series" ? (
+          <SeriesEpisodeBrowser episodes={episodes} activeEpisodeId={activeEpisode?.id || null} onSelect={selectEpisode} />
+        ) : null}
 
         <section className={styles.lowerGrid}>
           <article className={styles.infoCard}>
@@ -349,17 +449,17 @@ export default function WatchExperience({ id }: { id: string }) {
               <div className={styles.infoHeading}>
                 <div>
                   <span><Info /> รายละเอียดเรื่อง</span>
-                  <h2>{movie.thaiTitle}</h2>
+                  <h2>{activeEpisode ? `${movie.thaiTitle} ตอน ${activeEpisode.episodeNumber}` : movie.thaiTitle}</h2>
                 </div>
                 <div className={styles.rating}><Star fill="currentColor" /><strong>{movie.rating ? movie.rating.toFixed(1) : "-"}</strong></div>
               </div>
 
-              <p>{movie.overview || "เรื่องนี้พร้อมให้คุณรับชมแล้ว"}</p>
+              <p>{activeEpisode?.overview || movie.overview || "เรื่องนี้พร้อมให้คุณรับชมแล้ว"}</p>
 
               <div className={styles.detailFacts}>
-                <div><CalendarDays /><span><small>วันที่เข้าฉาย</small><strong>{releaseLabel(movie.releaseDate, movie.year)}</strong></span></div>
-                <div><Clock3 /><span><small>ความยาว</small><strong>{runtimeLabel(movie.runtime) || "ไม่ระบุ"}</strong></span></div>
-                <div><Layers3 /><span><small>ประเภท</small><strong>{contentTypeLabel(movie.contentType)}</strong></span></div>
+                <div><CalendarDays /><span><small>{activeEpisode ? "วันที่ออกอากาศ" : "วันที่เข้าฉาย"}</small><strong>{activeEpisode?.airDate ? releaseLabel(activeEpisode.airDate, movie.year) : releaseLabel(movie.releaseDate, movie.year)}</strong></span></div>
+                <div><Clock3 /><span><small>ความยาว</small><strong>{runtimeLabel(detailRuntime) || "ไม่ระบุ"}</strong></span></div>
+                <div><Layers3 /><span><small>ประเภท</small><strong>{activeEpisode ? `ซีซัน ${activeEpisode.seasonNumber} • ตอน ${activeEpisode.episodeNumber}` : contentTypeLabel(movie.contentType)}</strong></span></div>
               </div>
 
               <div className={styles.genres}>{movie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
@@ -370,13 +470,13 @@ export default function WatchExperience({ id }: { id: string }) {
             <div className={styles.choiceHeading}>
               <div>
                 <span><CircleCheck /> ตัวเลือกรับชม</span>
-                <h3>เลือกภาษา หรือปล่อยให้ระบบเลือก</h3>
+                <h3>{activeEpisode ? `ตอน ${activeEpisode.episodeNumber} • เลือกภาษา หรือปล่อยให้ระบบเลือก` : "เลือกภาษา หรือปล่อยให้ระบบเลือก"}</h3>
               </div>
-              <span>{movie.players.length} ตัวเลือก</span>
+              <span>{currentPlayers.length} ตัวเลือก</span>
             </div>
 
             <div className={styles.playerChoices}>
-              {movie.players.map((player, index) => {
+              {currentPlayers.map((player, index) => {
                 const available = sources.some((source) => source.playerIndex === index);
                 const active = index === activePlayerIndex;
                 return (
