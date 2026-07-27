@@ -51,6 +51,7 @@ export default function WatchExperience({ id }: { id: string }) {
   const [activePlayerIndex, setActivePlayerIndex] = useState(0);
   const [failedPlayerIndexes, setFailedPlayerIndexes] = useState<Set<number>>(new Set());
   const [allExhausted, setAllExhausted] = useState(false);
+  const [playerSession, setPlayerSession] = useState(0);
   const [favorite, setFavorite] = useState(false);
 
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function WatchExperience({ id }: { id: string }) {
     setActivePlayerIndex(index);
     setAllExhausted(false);
     setFailedPlayerIndexes(new Set());
+    setPlayerSession((current) => current + 1);
   };
 
   const handlePlayerExhausted = () => {
@@ -125,9 +127,17 @@ export default function WatchExperience({ id }: { id: string }) {
     const nextIndex = movie.players.findIndex((_player, index) => !updated.has(index));
     if (nextIndex >= 0) {
       setActivePlayerIndex(nextIndex);
+      setPlayerSession((current) => current + 1);
       return;
     }
     setAllExhausted(true);
+  };
+
+  const retryAllPlayers = () => {
+    setActivePlayerIndex(0);
+    setFailedPlayerIndexes(new Set());
+    setAllExhausted(false);
+    setPlayerSession((current) => current + 1);
   };
 
   const toggleFavorite = () => {
@@ -192,11 +202,12 @@ export default function WatchExperience({ id }: { id: string }) {
           </div>
 
           <WatchPlayer
-            key={`${activePlayer.id}-${activePlayerIndex}`}
+            key={`${activePlayer.id}-${activePlayerIndex}-${playerSession}`}
             player={activePlayer}
             poster={movie.backdropUrl}
             exhausted={allExhausted}
             onExhausted={handlePlayerExhausted}
+            onRetry={retryAllPlayers}
           />
 
           <div className={styles.playerControls}>
