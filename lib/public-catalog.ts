@@ -225,7 +225,7 @@ export function groupPublicPlayers(players: PublicPlayer[]): PublicPlayerGroup[]
       hasBackup: false,
     };
     current.players.push(player);
-    current.hasBackup ||= player.role === "backup" || Boolean(player.fallbackUrl);
+    current.hasBackup ||= player.role === "backup";
     groups.set(player.groupKey, current);
   });
 
