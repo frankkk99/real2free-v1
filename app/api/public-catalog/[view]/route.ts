@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
 const ALLOWED_VIEWS = new Set([
+  "real2free_public_cards",
+  "real2free_public_heroes",
   "real2free_public_titles",
   "real2free_public_episodes",
   "real2free_public_series_summary",
@@ -33,6 +35,19 @@ function isInternalPlatformParam(key: string) {
   return normalized === "view"
     || normalized.startsWith("_")
     || normalized.startsWith("x-vercel-");
+}
+
+function publicCacheControl(view: string) {
+  if (view === "real2free_public_heroes") {
+    return "public, max-age=300, s-maxage=600, stale-while-revalidate=3600";
+  }
+  if (view === "real2free_public_trailers") {
+    return "public, max-age=300, s-maxage=300, stale-while-revalidate=86400";
+  }
+  if (view === "real2free_public_cards" || view === "real2free_public_series_summary") {
+    return "public, max-age=60, s-maxage=90, stale-while-revalidate=300";
+  }
+  return "public, max-age=20, s-maxage=30, stale-while-revalidate=120";
 }
 
 export async function GET(
@@ -78,9 +93,7 @@ export async function GET(
     }
 
     const responseHeaders = new Headers({
-      "cache-control": view === "real2free_public_trailers"
-        ? "public, max-age=300, stale-while-revalidate=86400"
-        : "private, no-cache, no-store, max-age=0, must-revalidate",
+      "cache-control": publicCacheControl(view),
     });
 
     FORWARDED_RESPONSE_HEADERS.forEach((name) => {
