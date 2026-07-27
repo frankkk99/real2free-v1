@@ -1,12 +1,20 @@
 "use client";
 
 import { Film, Heart, Play, Star } from "lucide-react";
-import { contentTypeLabel, playerAvailabilityLabels, type PublicCatalogItem } from "@/lib/public-catalog";
+import { contentTypeLabel, type PublicCatalogItem } from "@/lib/public-catalog";
 import styles from "./MovieHomeV2.module.css";
 
 function isRecentlyAdded(item: PublicCatalogItem) {
   const updated = new Date(item.updatedAt).getTime();
   return Number.isFinite(updated) && Date.now() - updated <= 30 * 24 * 60 * 60 * 1000;
+}
+
+function cardLanguageBadges(movie: PublicCatalogItem) {
+  const badges: string[] = [];
+  if (movie.hasDubThai) badges.push("TH");
+  if (movie.languageCode && movie.languageCode !== "TH") badges.push(movie.languageCode);
+  if (movie.hasSubThai) badges.push("SUB");
+  return [...new Set(badges)].slice(0, 3);
 }
 
 export default function CatalogPosterCard({
@@ -26,9 +34,8 @@ export default function CatalogPosterCard({
   onFavorite: () => void;
   onPrefetch: () => void;
 }) {
-  const availability = movie.contentType === "series" && movie.episodeCount
-    ? `${movie.episodeCount.toLocaleString("th-TH")} ตอน`
-    : playerAvailabilityLabels(movie.players).slice(0, 2).join(" • ");
+  const recent = isRecentlyAdded(movie);
+  const languages = cardLanguageBadges(movie);
 
   return (
     <article className={styles.card} onPointerEnter={onPrefetch}>
@@ -47,9 +54,27 @@ export default function CatalogPosterCard({
             <span className={styles.posterFallback}><Film /><strong>{movie.thaiTitle}</strong></span>
           )}
           <span className={styles.posterShade} />
-          {rank ? <span className={styles.rank}>{rank}</span> : null}
-          {isRecentlyAdded(movie) ? <span className={styles.newBadge}>ใหม่</span> : null}
-          {availability ? <span className={styles.audioBadge}>{availability}</span> : null}
+
+          <span className={styles.posterTopBadges}>
+            <span className={styles.badgeCluster}>
+              {rank ? <span className={styles.rankBadge}>{rank}</span> : null}
+              {recent ? <span className={styles.newBadge}>ใหม่</span> : null}
+            </span>
+            {movie.contentType === "series" ? (
+              <span className={`${styles.badgeCluster} ${styles.badgeClusterRight}`}>
+                {movie.episodeCount ? <span className={styles.episodeBadge}>EP {movie.episodeCount.toLocaleString("th-TH")}</span> : null}
+                {movie.isOngoing ? <span className={styles.ongoingBadge}>ยังไม่จบ</span> : null}
+              </span>
+            ) : null}
+          </span>
+
+          <span className={styles.posterBottomBadges}>
+            <span className={styles.badgeCluster}>
+              {languages.map((language) => <span key={language} className={styles.languageBadge}>{language}</span>)}
+            </span>
+            {movie.hasBackup ? <span className={styles.backupBadge}>สำรอง</span> : null}
+          </span>
+
           <span className={styles.playHover} onClick={(event) => { event.stopPropagation(); onPlay(); }}>
             <Play fill="currentColor" />
             <small>รับชม</small>
