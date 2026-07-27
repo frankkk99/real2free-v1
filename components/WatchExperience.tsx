@@ -10,6 +10,7 @@ import {
   Film,
   Heart,
   Info,
+  Languages,
   Layers3,
   Play,
   RotateCcw,
@@ -22,12 +23,16 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   contentTypeLabel,
   FAVORITES_KEY,
+  groupPublicPlayers,
   HISTORY_KEY,
   mapPublicCatalogRow,
   mapPublicEpisodeRow,
+  playerAvailabilityLabels,
+  preferredPlayerGroup,
   PUBLIC_CATALOG_FIELDS,
   PUBLIC_EPISODE_FIELDS,
   runtimeLabel,
+  type PlayerGroupKey,
   type PublicCatalogItem,
   type PublicCatalogRow,
   type PublicEpisode,
@@ -105,10 +110,17 @@ function buildSources(players: PublicPlayer[]): WatchSource[] {
   return result;
 }
 
+function preferredAvailableGroup(groups: ReturnType<typeof groupPublicPlayers>) {
+  const usable = groups.filter((group) => buildSources(group.players).length > 0);
+  const preferredKey = preferredPlayerGroup(usable.flatMap((group) => group.players));
+  return usable.find((group) => group.key === preferredKey) || usable[0] || null;
+}
+
 export default function WatchExperience({ id }: { id: string }) {
   const [movie, setMovie] = useState<PublicCatalogItem | null>(null);
   const [episodes, setEpisodes] = useState<PublicEpisode[]>([]);
   const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<PlayerGroupKey>("default");
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [activeSourceIndex, setActiveSourceIndex] = useState(0);
@@ -132,6 +144,7 @@ export default function WatchExperience({ id }: { id: string }) {
       setFailed(false);
       setEpisodes([]);
       setActiveEpisodeId(null);
+      setSelectedGroupKey("default");
 
       const supabase = getSupabaseBrowserClient();
       const { data, error } = await supabase
@@ -188,6 +201,9 @@ export default function WatchExperience({ id }: { id: string }) {
         const requestedEpisodeId = new URLSearchParams(window.location.search).get("episode");
         const initialEpisode = mappedEpisodes.find((episode) => episode.id === requestedEpisodeId) || mappedEpisodes[0];
         setActiveEpisodeId(initialEpisode.id);
+        setSelectedGroupKey(preferredPlayerGroup(initialEpisode.players));
+      } else {
+        setSelectedGroupKey(preferredPlayerGroup(mapped.players));
       }
 
       setLoading(false);
@@ -221,15 +237,27 @@ export default function WatchExperience({ id }: { id: string }) {
     [activeEpisodeId, episodes],
   );
 
-  const currentPlayers = useMemo(() => {
+  const allCurrentPlayers = useMemo(() => {
     if (!movie) return [];
     return movie.contentType === "series" ? activeEpisode?.players || [] : movie.players;
   }, [activeEpisode?.players, movie]);
 
+  const playerGroups = useMemo(
+    () => groupPublicPlayers(allCurrentPlayers).filter((group) => buildSources(group.players).length > 0),
+    [allCurrentPlayers],
+  );
+
+  const activeGroup = useMemo(
+    () => playerGroups.find((group) => group.key === selectedGroupKey) || preferredAvailableGroup(playerGroups) || playerGroups[0] || null,
+    [playerGroups, selectedGroupKey],
+  );
+
+  const currentPlayers = activeGroup?.players || [];
   const sources = useMemo(() => buildSources(currentPlayers), [currentPlayers]);
   const activeSource = sources[Math.min(activeSourceIndex, Math.max(sources.length - 1, 0))] || null;
   const activePlayerIndex = activeSource?.playerIndex ?? 0;
   const seasonCount = useMemo(() => new Set(episodes.map((episode) => episode.seasonNumber)).size, [episodes]);
+  const availabilityLabels = useMemo(() => playerAvailabilityLabels(allCurrentPlayers), [allCurrentPlayers]);
 
   const meta = useMemo(() => {
     if (!movie) return [];
@@ -246,20 +274,32 @@ export default function WatchExperience({ id }: { id: string }) {
       contentTypeLabel(movie.contentType),
       movie.year ? String(movie.year) : "",
       runtimeLabel(movie.runtime),
-      movie.players.length > 1 ? `${movie.players.length} ตัวเลือกรับชม` : "พร้อมรับชม",
+      ...availabilityLabels,
     ].filter(Boolean);
-  }, [episodes.length, movie, seasonCount]);
+  }, [availabilityLabels, episodes.length, movie, seasonCount]);
 
-  useEffect(() => {
-    if (!activeEpisodeId) return;
+  const resetPlaybackChain = useCallback((keepPlaying: boolean) => {
     failedKeysRef.current = new Set();
     retryCycleRef.current = 0;
     transitionRef.current = false;
     setActiveSourceIndex(0);
     setAllExhausted(false);
     setSwitching(false);
+    if (keepPlaying) setPlayRequested(true);
     setPlayerSession((current) => current + 1);
-  }, [activeEpisodeId]);
+  }, []);
+
+  useEffect(() => {
+    if (!allCurrentPlayers.length) return;
+    const preferred = preferredAvailableGroup(groupPublicPlayers(allCurrentPlayers));
+    setSelectedGroupKey((current) => {
+      const available = playerGroups.some((group) => group.key === current);
+      return available ? current : preferred?.key || playerGroups[0]?.key || "default";
+    });
+    resetPlaybackChain(playRequested);
+    // Reset only when the movie episode changes. Group selection has its own explicit reset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEpisodeId, movie?.id]);
 
   const startPlayback = useCallback(() => {
     failedKeysRef.current = new Set();
@@ -318,6 +358,12 @@ export default function WatchExperience({ id }: { id: string }) {
     setPlayRequested(true);
     setPlayerSession((current) => current + 1);
   }, []);
+
+  const selectGroup = (groupKey: PlayerGroupKey) => {
+    if (groupKey === activeGroup?.key) return;
+    setSelectedGroupKey(groupKey);
+    resetPlaybackChain(playRequested);
+  };
 
   const selectPlayer = (playerIndex: number) => {
     const sourceIndex = sources.findIndex((source) => source.playerIndex === playerIndex);
@@ -413,7 +459,7 @@ export default function WatchExperience({ id }: { id: string }) {
 
         <section ref={playerStageRef} className={styles.playerStage}>
           <WatchPlayer
-            key={`${activeEpisode?.id || "movie"}-${activeSource?.key || "none"}-${playerSession}`}
+            key={`${activeEpisode?.id || "movie"}-${activeGroup?.key || "default"}-${activeSource?.key || "none"}-${playerSession}`}
             source={activeSource}
             poster={playerPoster}
             title={playerTitle}
@@ -428,10 +474,10 @@ export default function WatchExperience({ id }: { id: string }) {
           <div className={styles.playbackNote}>
             <span className={styles.playbackIcon}><ShieldCheck /></span>
             <div>
-              <strong>{!playRequested ? "พร้อมเมื่อคุณกดเล่น" : switching ? "กำลังเลือกตัวรับชมที่เหมาะสม" : allExhausted ? "รอการลองใหม่" : "ระบบดูแลการสลับให้อัตโนมัติ"}</strong>
-              <small>{activeEpisode ? `กำลังเลือกตอน ${activeEpisode.episodeNumber} หากตัวหนึ่งเปิดไม่ได้จะไปตัวถัดไปทันที` : "เมื่อแหล่งรับชมหนึ่งเปิดไม่ได้ ระบบจะไปตัวถัดไปทันที"}</small>
+              <strong>{!playRequested ? "พร้อมเมื่อคุณกดเล่น" : switching ? `กำลังลอง${activeGroup?.label || "ตัวเลือก"}สำรอง` : allExhausted ? "ยังเปิดตัวเลือกนี้ไม่ได้" : `กำลังใช้ ${activeGroup?.label || "ตัวเลือกรับชม"}`}</strong>
+              <small>ระบบจะไล่ตัวหลักและตัวสำรองในภาษาเดียวกันให้อัตโนมัติ</small>
             </div>
-            <span className={styles.sourceCount}>{activePlayerIndex + 1}/{currentPlayers.length}</span>
+            <span className={styles.sourceCount}>{Math.min(activePlayerIndex + 1, currentPlayers.length)}/{currentPlayers.length}</span>
           </div>
         </section>
 
@@ -470,15 +516,38 @@ export default function WatchExperience({ id }: { id: string }) {
             <div className={styles.choiceHeading}>
               <div>
                 <span><CircleCheck /> ตัวเลือกรับชม</span>
-                <h3>{activeEpisode ? `ตอน ${activeEpisode.episodeNumber} • เลือกภาษา หรือปล่อยให้ระบบเลือก` : "เลือกภาษา หรือปล่อยให้ระบบเลือก"}</h3>
+                <h3>{activeEpisode ? `ตอน ${activeEpisode.episodeNumber} • เลือกภาษาและตัวสำรอง` : "เลือกภาษาและตัวสำรอง"}</h3>
               </div>
-              <span>{currentPlayers.length} ตัวเลือก</span>
+              <span>{allCurrentPlayers.length} ตัวเลือก</span>
+            </div>
+
+            {playerGroups.length > 1 || playerGroups[0]?.key !== "default" ? (
+              <div className={styles.languageGroups} aria-label="เลือกภาษา">
+                {playerGroups.map((group) => (
+                  <button
+                    key={group.key}
+                    className={group.key === activeGroup?.key ? styles.languageGroupActive : ""}
+                    type="button"
+                    onClick={() => selectGroup(group.key)}
+                  >
+                    <Languages />
+                    <span><strong>{group.label}</strong><small>{group.players.length} ตัวเลือก{group.hasBackup ? " • มีสำรอง" : ""}</small></span>
+                    {group.key === activeGroup?.key ? <Check /> : <ChevronRight />}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className={styles.groupSummary}>
+              <span>{activeGroup?.label || "ตัวเลือกรับชม"}</span>
+              <small>ระบบจะเริ่มจากตัวหลักและไล่สำรองตามลำดับ</small>
             </div>
 
             <div className={styles.playerChoices}>
               {currentPlayers.map((player, index) => {
                 const available = sources.some((source) => source.playerIndex === index);
                 const active = index === activePlayerIndex;
+                const choiceLabel = player.role === "backup" ? `สำรอง ${player.backupIndex || index}` : "ตัวหลัก";
                 return (
                   <button
                     key={player.id}
@@ -489,8 +558,8 @@ export default function WatchExperience({ id }: { id: string }) {
                   >
                     <span className={styles.choiceIcon}>{active ? <Check /> : <Play />}</span>
                     <span className={styles.choiceText}>
-                      <strong>{player.label || `ตัวเลือก ${index + 1}`}</strong>
-                      <small>{active ? (playRequested ? "กำลังใช้งาน" : "พร้อมเริ่ม") : available ? "แตะเพื่อเลือก" : "ยังไม่พร้อม"}</small>
+                      <strong>{choiceLabel}</strong>
+                      <small>{active ? (playRequested ? "กำลังใช้งาน" : "พร้อมเริ่ม") : available ? "พร้อมเป็นตัวสำรอง" : "ยังไม่พร้อม"}</small>
                     </span>
                     <ChevronRight />
                   </button>
