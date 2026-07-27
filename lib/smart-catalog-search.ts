@@ -32,7 +32,7 @@ const genreRules: Array<AliasRule<string>> = [
   { value: "Fantasy", label: "แฟนตาซี", aliases: ["แฟนตาซี", "fantasy"] },
   { value: "Action", label: "แอ็กชัน", aliases: ["แอ็กชัน", "แอ็กชั่น", "แอคชั่น", "แอ็คชั่น", "บู๊", "action"] },
   { value: "Comedy", label: "ตลก", aliases: ["คอมเมดี้", "ตลก", "comedy"] },
-  { value: "Horror", label: "สยองขวัญ", aliases: ["สยองขวัญ", "หนังผี", "horror"] },
+  { value: "Horror", label: "สยองขวัญ", aliases: ["สยองขวัญ", "หนังผี", "ผี", "horror"] },
   { value: "Drama", label: "ดราม่า", aliases: ["ดราม่า", "drama"] },
   { value: "Crime", label: "อาชญากรรม", aliases: ["อาชญากรรม", "crime"] },
   { value: "Mystery", label: "ลึกลับ", aliases: ["ลึกลับ", "mystery"] },
@@ -57,6 +57,15 @@ function consumeRule<T extends string>(
 
   for (const rule of rules) {
     for (const alias of [...rule.aliases].sort((a, b) => b.length - a.length)) {
+      const containsThai = /[\u0E00-\u0E7F]/u.test(alias);
+
+      if (containsThai) {
+        const index = nextSource.indexOf(alias);
+        if (index < 0) continue;
+        nextSource = `${nextSource.slice(0, index)} ${nextSource.slice(index + alias.length)}`;
+        return { source: nextSource, value: rule.value, label: rule.label };
+      }
+
       const pattern = new RegExp(`(^|\\s)${escapeRegExp(alias)}(?=\\s|$)`, "iu");
       if (!pattern.test(nextSource)) continue;
       nextSource = nextSource.replace(pattern, " ");
@@ -75,25 +84,20 @@ export function parseSmartCatalogSearch(value: string): SmartCatalogSearch {
     .replace(/\s+/g, " ")
     .trim();
 
-  const labels: string[] = [];
-  const yearMatch = source.match(/(?:^|\s)((?:19|20)\d{2})(?=\s|$)/u);
+  const yearMatch = source.match(/((?:19|20)\d{2})/u);
   const year = yearMatch?.[1] ?? null;
-  if (year) {
-    labels.push(year);
-    source = source.replace(yearMatch[0], " ");
-  }
-
-  const view = consumeRule(source, viewRules);
-  source = view.source;
-  if (view.label) labels.push(view.label);
+  if (year) source = source.replace(year, " ");
 
   const language = consumeRule(source, languageRules);
   source = language.source;
-  if (language.label) labels.push(language.label);
 
   const genre = consumeRule(source, genreRules);
   source = genre.source;
-  if (genre.label) labels.push(genre.label);
+
+  const view = consumeRule(source, viewRules);
+  source = view.source;
+
+  const labels = [view.label, genre.label, year, language.label].filter((label): label is string => Boolean(label));
 
   return {
     text: source.replace(/\s+/g, " ").trim(),
