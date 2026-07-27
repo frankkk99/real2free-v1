@@ -8,6 +8,7 @@ const ALLOWED_VIEWS = new Set([
   "real2free_public_titles",
   "real2free_public_episodes",
   "real2free_public_series_summary",
+  "real2free_public_trailers",
 ]);
 
 const FORWARDED_REQUEST_HEADERS = [
@@ -77,7 +78,9 @@ export async function GET(
     }
 
     const responseHeaders = new Headers({
-      "cache-control": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "cache-control": view === "real2free_public_trailers"
+        ? "public, max-age=300, stale-while-revalidate=86400"
+        : "private, no-cache, no-store, max-age=0, must-revalidate",
     });
 
     FORWARDED_RESPONSE_HEADERS.forEach((name) => {
