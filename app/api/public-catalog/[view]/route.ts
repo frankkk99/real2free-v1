@@ -49,9 +49,10 @@ export async function GET(
     if (!isInternalPlatformParam(key)) upstream.searchParams.append(key, value);
   });
 
+  // Supabase publishable keys are API keys, not JWTs. They must be sent in
+  // the apikey header only or the gateway rejects the request as Invalid JWT.
   const upstreamHeaders = new Headers({
     apikey: SUPABASE_PUBLISHABLE_KEY,
-    authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
   });
 
   FORWARDED_REQUEST_HEADERS.forEach((name) => {
