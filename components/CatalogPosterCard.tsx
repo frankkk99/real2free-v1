@@ -87,6 +87,11 @@ export default function CatalogPosterCard({
         type="button"
         onClick={onFavorite}
         aria-label={favorite ? "นำออกจากรายการโปรด" : "บันทึกในรายการโปรด"}
+        style={favorite ? {
+          color: "var(--primary-bright)",
+          background: "color-mix(in srgb, var(--primary-soft) 88%, rgba(2, 9, 19, .68))",
+          borderColor: "color-mix(in srgb, var(--primary) 48%, rgba(255, 255, 255, .18))",
+        } : undefined}
       >
         <Bookmark fill={favorite ? "currentColor" : "none"} />
       </button>
