@@ -1,11 +1,97 @@
-.shell {
+.shell,
+.posterState,
+.failedState {
   position: relative;
+  display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
+  border: 0;
   border-radius: 24px;
-  background: #000;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+  background: #02060d;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .42);
+}
+
+.posterState {
+  padding: 0;
+  color: white;
+  cursor: pointer;
+  text-align: center;
+}
+
+.posterState > img,
+.failedState > img,
+.loadingLayer > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.posterState > img {
+  opacity: .58;
+  filter: saturate(.82) brightness(.7);
+  transform: scale(1.02);
+  transition: 320ms ease;
+}
+
+.posterState:hover > img {
+  filter: saturate(.95) brightness(.78);
+  transform: scale(1.045);
+}
+
+.posterShade,
+.failedShade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(11, 132, 255, .16), transparent 30%),
+    linear-gradient(180deg, rgba(2, 8, 17, .08), rgba(2, 8, 17, .78));
+}
+
+.startContent {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 24px;
+}
+
+.startButton {
+  display: grid;
+  place-items: center;
+  width: clamp(78px, 9vw, 104px);
+  height: clamp(78px, 9vw, 104px);
+  margin-bottom: 4px;
+  border: 1px solid rgba(255,255,255,.34);
+  border-radius: 50%;
+  background: rgba(255,255,255,.94);
+  color: #0b84ff;
+  box-shadow: 0 20px 55px rgba(0,0,0,.32), 0 0 0 14px rgba(255,255,255,.09);
+  transition: 180ms ease;
+}
+
+.posterState:hover .startButton {
+  transform: scale(1.06);
+  box-shadow: 0 25px 60px rgba(0,0,0,.36), 0 0 0 18px rgba(255,255,255,.1);
+}
+
+.startButton svg {
+  width: 42%;
+  height: 42%;
+  margin-left: 5px;
+}
+
+.startContent strong {
+  font-size: clamp(20px, 2.7vw, 34px);
+}
+
+.startContent small {
+  color: rgba(255,255,255,.72);
+  font-size: clamp(11px, 1.1vw, 14px);
 }
 
 .media {
@@ -16,73 +102,116 @@
   background: #000;
 }
 
-.switching,
-.failedState {
+.loadingLayer {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #02060d;
+}
+
+.loadingLayer > img {
+  opacity: .18;
+  filter: blur(3px) brightness(.55);
+  transform: scale(1.035);
+}
+
+.loadingLayer > span {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(2,8,17,.36), rgba(2,8,17,.86));
+}
+
+.loadingLayer > div {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 12px;
-  width: 100%;
-  height: 100%;
-  padding: 32px;
-  background:
-    radial-gradient(circle at 50% 35%, rgba(29, 155, 255, 0.16), transparent 34%),
-    #02060d;
+  gap: 13px;
   color: white;
   text-align: center;
 }
 
-.switching svg {
-  width: 34px;
-  height: 34px;
+.loadingLayer svg {
+  width: 38px;
+  height: 38px;
   color: #42a5ff;
-  animation: spin 900ms linear infinite;
+  animation: spin 850ms linear infinite;
 }
 
-.failedState > svg {
-  width: 52px;
-  height: 52px;
+.loadingLayer strong {
+  font-size: 14px;
+}
+
+.failedState {
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.failedState > img {
+  opacity: .22;
+  filter: blur(2px) saturate(.7);
+}
+
+.failedContent {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  gap: 11px;
+  width: min(540px, calc(100% - 32px));
+  padding: 30px;
+  text-align: center;
+}
+
+.failedContent > svg {
+  width: 48px;
+  height: 48px;
   color: #42a5ff;
 }
 
-.failedState strong {
+.failedContent strong {
   font-size: clamp(20px, 3vw, 30px);
 }
 
-.failedState p {
+.failedContent p {
   margin: 0;
-  color: #91a1ba;
+  color: #a9b6c9;
 }
 
 .failedActions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
-  margin-top: 6px;
+  gap: 9px;
+  margin-top: 5px;
 }
 
 .failedActions button,
-.failedActions a,
-.embedHelp button {
+.failedActions a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid rgba(255,255,255,.16);
+  padding: 0 17px;
+  border: 1px solid rgba(255,255,255,.15);
   border-radius: 12px;
-  background: #0b84ff;
+  background: rgba(255,255,255,.08);
   color: white;
   cursor: pointer;
   font: inherit;
+  font-size: 12px;
   font-weight: 650;
   text-decoration: none;
 }
 
 .failedActions button {
-  background: rgba(255,255,255,.08);
+  border-color: #0b84ff;
+  background: #0b84ff;
 }
 
 .failedActions svg {
@@ -90,62 +219,31 @@
   height: 17px;
 }
 
-.embedHelp {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  left: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 11px 12px 11px 16px;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 14px;
-  background: rgba(3, 11, 23, 0.84);
-  color: white;
-  box-shadow: 0 14px 35px rgba(0,0,0,.32);
-  backdrop-filter: blur(18px);
-}
-
-.embedHelp span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.embedHelp span svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
-
-.embedHelp button {
-  min-height: 36px;
-  padding: 0 13px;
-  border-radius: 9px;
-  font-size: 12px;
-}
-
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
 @media (max-width: 720px) {
-  .shell {
+  .shell,
+  .posterState,
+  .failedState {
     aspect-ratio: 16 / 10;
-    border-radius: 16px;
+    border-radius: 17px;
   }
 
-  .embedHelp {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
+  .startButton {
+    width: 72px;
+    height: 72px;
+    box-shadow: 0 16px 42px rgba(0,0,0,.34), 0 0 0 10px rgba(255,255,255,.08);
   }
 
-  .embedHelp button {
-    width: 100%;
+  .startContent strong {
+    font-size: 21px;
+  }
+
+  .startContent small {
+    max-width: 250px;
+    font-size: 11px;
   }
 
   .failedActions {
