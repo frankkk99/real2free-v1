@@ -1,0 +1,207 @@
+.dock {
+  width: min(1460px, calc(100% - 40px));
+  margin: 12px auto 0;
+  padding: 2px 0;
+  color: var(--text);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 34px;
+}
+
+.row + .row {
+  margin-top: 2px;
+}
+
+.rowLabel {
+  flex: 0 0 auto;
+  min-width: 25px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .04em;
+}
+
+.scroller,
+.yearScroller,
+.genreScroller {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.scroller::-webkit-scrollbar,
+.yearScroller::-webkit-scrollbar,
+.genreScroller::-webkit-scrollbar {
+  display: none;
+}
+
+.scroller {
+  flex: 1 1 auto;
+}
+
+.yearScroller {
+  flex: 0 1 auto;
+}
+
+.genreScroller {
+  flex: 1 1 auto;
+}
+
+.scroller button,
+.yearScroller button,
+.genreScroller button,
+.moreButton,
+.clearButton {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.scroller button:hover,
+.yearScroller button:hover,
+.genreScroller button:hover,
+.moreButton:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.scroller button:active,
+.yearScroller button:active,
+.genreScroller button:active,
+.moreButton:active,
+.clearButton:active {
+  transform: scale(.97);
+}
+
+.scroller button.active,
+.yearScroller button.active,
+.genreScroller button.active {
+  background: var(--primary-soft);
+  color: var(--primary-bright);
+  font-weight: 750;
+}
+
+.divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 17px;
+  margin: 0 3px;
+  background: var(--border);
+}
+
+.moreButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 2px;
+  background: var(--surface);
+  color: var(--primary-bright);
+}
+
+.moreButton svg {
+  width: 13px;
+  height: 13px;
+}
+
+.clearButton {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.clearButton:hover {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
+.clearButton svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (max-width: 820px) {
+  .dock {
+    width: min(100% - 24px, 1460px);
+    margin-top: 8px;
+  }
+
+  .row {
+    gap: 3px;
+    min-height: 32px;
+  }
+
+  .rowLabel {
+    min-width: 22px;
+    font-size: 8px;
+  }
+
+  .scroller button,
+  .yearScroller button,
+  .genreScroller button,
+  .moreButton,
+  .clearButton {
+    min-height: 27px;
+    padding: 0 8px;
+    border-radius: 7px;
+    font-size: 9px;
+  }
+
+  .clearButton {
+    width: 27px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .dock {
+    width: 100%;
+    margin-top: 7px;
+    padding: 0 12px;
+  }
+
+  .row {
+    overflow: hidden;
+  }
+
+  .rowLabel {
+    min-width: 20px;
+  }
+
+  .divider {
+    margin: 0 1px;
+  }
+
+  .yearScroller {
+    max-width: 45%;
+  }
+
+  .moreButton span {
+    display: none;
+  }
+
+  .moreButton {
+    width: 28px;
+    padding: 0;
+    justify-content: center;
+  }
+}
