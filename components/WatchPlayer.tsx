@@ -11,6 +11,29 @@ type Source = {
   isFallback: boolean;
 };
 
+function isMeePlayerEmbed(value: string | null | undefined) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const isMeePlayer = url.hostname === "meeplayer.com" || url.hostname.endsWith(".meeplayer.com");
+    return isMeePlayer && url.pathname.startsWith("/play/");
+  } catch {
+    return false;
+  }
+}
+
+function initialSource(player: PublicPlayer): Source {
+  if (
+    player.kind === "embed"
+    && isMeePlayerEmbed(player.url)
+    && player.fallbackUrl
+    && player.fallbackKind === "hls"
+  ) {
+    return { url: player.fallbackUrl, kind: "hls", isFallback: true };
+  }
+  return { url: player.url, kind: player.kind, isFallback: false };
+}
+
 function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null; onFatal: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -19,51 +42,58 @@ function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null
     if (!video || !url) return;
 
     let disposed = false;
+    let fatalTriggered = false;
     let instance: { destroy: () => void } | null = null;
     const fatal = () => {
-      if (!disposed) onFatal();
+      if (disposed || fatalTriggered) return;
+      fatalTriggered = true;
+      onFatal();
     };
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = url;
-      video.load();
-      video.addEventListener("error", fatal);
-      return () => {
-        disposed = true;
-        video.removeEventListener("error", fatal);
-        video.removeAttribute("src");
-        video.load();
-      };
-    }
+    video.addEventListener("error", fatal);
 
     void import("hls.js")
       .then(({ default: Hls }) => {
-        if (disposed || !Hls.isSupported()) {
-          fatal();
+        if (disposed) return;
+
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            backBufferLength: 90,
+            maxBufferLength: 30,
+            manifestLoadingTimeOut: 12000,
+            levelLoadingTimeOut: 12000,
+            fragLoadingTimeOut: 18000,
+            fetchSetup: (context, initParams) => new Request(context.url, {
+              ...initParams,
+              cache: "no-store",
+              referrerPolicy: "no-referrer",
+            }),
+          });
+          instance = hls;
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            if (data.fatal) fatal();
+          });
+          hls.loadSource(url);
+          hls.attachMedia(video);
           return;
         }
 
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-          backBufferLength: 45,
-          maxBufferLength: 30,
-          manifestLoadingTimeOut: 12000,
-          levelLoadingTimeOut: 12000,
-          fragLoadingTimeOut: 18000,
-        });
-        instance = hls;
-        hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal) fatal();
-        });
-        hls.loadSource(url);
-        hls.attachMedia(video);
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = url;
+          video.load();
+          return;
+        }
+
+        fatal();
       })
       .catch(fatal);
 
     return () => {
       disposed = true;
       instance?.destroy();
+      video.removeEventListener("error", fatal);
       video.removeAttribute("src");
       video.load();
     };
@@ -76,6 +106,7 @@ function HlsVideo({ url, poster, onFatal }: { url: string; poster: string | null
       controls
       playsInline
       preload="metadata"
+      crossOrigin="anonymous"
       poster={poster || undefined}
       referrerPolicy="no-referrer"
     />
@@ -95,15 +126,15 @@ export default function WatchPlayer({
   onExhausted: () => void;
   onRetry: () => void;
 }) {
-  const [source, setSource] = useState<Source>({ url: player.url, kind: player.kind, isFallback: false });
+  const [source, setSource] = useState<Source>(() => initialSource(player));
   const [switching, setSwitching] = useState(false);
   const [showEmbedHelp, setShowEmbedHelp] = useState(false);
 
   useEffect(() => {
-    setSource({ url: player.url, kind: player.kind, isFallback: false });
+    setSource(initialSource(player));
     setSwitching(false);
     setShowEmbedHelp(false);
-  }, [player.id, player.kind, player.url]);
+  }, [player]);
 
   useEffect(() => {
     if (source.kind !== "embed") return;
@@ -113,6 +144,11 @@ export default function WatchPlayer({
 
   const moveToFallback = useCallback(() => {
     if (!source.isFallback && player.fallbackUrl && player.fallbackKind) {
+      if (player.fallbackKind === "embed" && isMeePlayerEmbed(player.fallbackUrl)) {
+        onExhausted();
+        return;
+      }
+
       setSwitching(true);
       window.setTimeout(() => {
         setSource({
@@ -129,7 +165,7 @@ export default function WatchPlayer({
   }, [onExhausted, player.fallbackKind, player.fallbackUrl, source.isFallback]);
 
   if (exhausted) {
-    const openUrl = player.kind === "embed" ? player.url : player.fallbackUrl || player.url;
+    const openUrl = player.fallbackUrl || player.url;
     return (
       <div className={styles.failedState}>
         <RotateCcw />
