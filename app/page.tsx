@@ -1,5 +1,5 @@
-import MovieHome from "@/components/MovieHome";
+import MovieHomeV2 from "@/components/MovieHomeV2";
 
 export default function HomePage() {
-  return <MovieHome />;
+  return <MovieHomeV2 />;
 }
