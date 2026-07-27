@@ -26,6 +26,9 @@ export type PublicCatalogItem = {
   rating: number;
   voteCount: number;
   updatedAt: string;
+  episodeCount: number;
+  seasonCount: number;
+  latestEpisode: number;
   players: PublicPlayer[];
 };
 
@@ -44,6 +47,9 @@ export type PublicCatalogRow = {
   rating: number | string | null;
   vote_count: number | null;
   updated_at: string;
+  episode_count: number | string | null;
+  season_count: number | string | null;
+  latest_episode: number | string | null;
   players: unknown;
 };
 
@@ -94,7 +100,7 @@ export type PublicSeriesSummaryRow = {
 };
 
 export const PUBLIC_CATALOG_FIELDS =
-  "id,content_type,title_th,title_en,overview,release_date,year,runtime,poster_url,backdrop_url,genres,rating,vote_count,updated_at,players";
+  "id,content_type,title_th,title_en,overview,release_date,year,runtime,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,players";
 
 export const PUBLIC_EPISODE_FIELDS =
   "id,series_id,season_number,episode_number,title,overview,air_date,runtime,still_url,updated_at,players";
@@ -161,10 +167,17 @@ export function parsePublicPlayers(value: unknown): PublicPlayer[] {
 }
 
 export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | null {
-  const players = parsePublicPlayers(row.players);
-  if (!row.id || !players.length) return null;
+  const rawPlayers = parsePublicPlayers(row.players);
+  if (!row.id || !rawPlayers.length) return null;
 
+  const episodeCount = Number(row.episode_count || 0);
+  const seasonCount = Number(row.season_count || 0);
+  const latestEpisode = Number(row.latest_episode || 0);
+  const players = row.content_type === "series" && episodeCount > 0
+    ? rawPlayers.map((player, index) => index === 0 ? { ...player, label: `${episodeCount.toLocaleString("th-TH")} ตอน` } : player)
+    : rawPlayers;
   const rawGenres = Array.isArray(row.genres) ? row.genres.filter(Boolean) : [];
+
   return {
     id: row.id,
     contentType: row.content_type === "series" ? "series" : "movie",
@@ -181,6 +194,9 @@ export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | 
     rating: Number.isFinite(Number(row.rating)) ? Number(row.rating) : 0,
     voteCount: Number(row.vote_count || 0),
     updatedAt: row.updated_at,
+    episodeCount,
+    seasonCount,
+    latestEpisode,
     players,
   };
 }
