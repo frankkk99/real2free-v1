@@ -18,16 +18,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Production build
-        id: build
+      - name: Install and build
+        id: verify
         shell: bash
         run: |
           set +e
-          npm run build > build.log 2>&1
+          npm install --no-audit --no-fund > build.log 2>&1
           status=$?
+          if [ "$status" -eq 0 ]; then
+            npm run build >> build.log 2>&1
+            status=$?
+          fi
           cat build.log
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
@@ -38,6 +39,6 @@ jobs:
           name: real2free-build-log
           path: build.log
           retention-days: 1
-      - name: Fail when build fails
-        if: steps.build.outputs.status != '0'
+      - name: Fail when verification fails
+        if: steps.verify.outputs.status != '0'
         run: exit 1
