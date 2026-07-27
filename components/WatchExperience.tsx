@@ -2,18 +2,22 @@
 
 import {
   ArrowLeft,
+  CalendarDays,
   Check,
   ChevronRight,
+  CircleCheck,
+  Clock3,
   Film,
   Heart,
-  LoaderCircle,
+  Info,
+  Layers3,
   Play,
   RotateCcw,
   ShieldCheck,
   Star,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   contentTypeLabel,
@@ -24,8 +28,9 @@ import {
   runtimeLabel,
   type PublicCatalogItem,
   type PublicCatalogRow,
+  type PublicPlayer,
 } from "@/lib/public-catalog";
-import WatchPlayer from "./WatchPlayer";
+import WatchPlayer, { type WatchSource } from "./WatchPlayer";
 import styles from "./WatchExperience.module.css";
 
 function Brand() {
@@ -38,21 +43,78 @@ function Brand() {
 }
 
 function releaseLabel(value: string | null, year: number | null) {
-  if (!value) return year ? String(year) : "";
+  if (!value) return year ? String(year) : "ไม่ระบุ";
   const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return year ? String(year) : "";
-  return new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "long", year: "numeric" }).format(date);
+  if (Number.isNaN(date.getTime())) return year ? String(year) : "ไม่ระบุ";
+  return new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function isMeePlayerBlockedEmbed(value: string | null | undefined) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const isMeePlayer = url.hostname === "meeplayer.com" || url.hostname.endsWith(".meeplayer.com");
+    return isMeePlayer && url.pathname.startsWith("/play/");
+  } catch {
+    return false;
+  }
+}
+
+function isWebUrl(value: string | null | undefined) {
+  if (!value) return false;
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+function buildSources(players: PublicPlayer[]): WatchSource[] {
+  const seen = new Set<string>();
+  const result: WatchSource[] = [];
+
+  players.forEach((player, playerIndex) => {
+    const externalUrl = [player.fallbackUrl, player.url].find((value) => isWebUrl(value)) || null;
+    const choices = [
+      { url: player.url, kind: player.kind },
+      { url: player.fallbackUrl, kind: player.fallbackKind },
+    ];
+
+    choices.forEach((choice, choiceIndex) => {
+      if (!choice.url || !choice.kind || seen.has(choice.url)) return;
+      if (choice.kind === "embed" && isMeePlayerBlockedEmbed(choice.url)) return;
+
+      seen.add(choice.url);
+      result.push({
+        key: `${player.id}-${choiceIndex}-${choice.kind}`,
+        playerId: player.id,
+        playerIndex,
+        label: player.label || `ตัวเลือก ${playerIndex + 1}`,
+        url: choice.url,
+        kind: choice.kind,
+        externalUrl,
+      });
+    });
+  });
+
+  return result;
 }
 
 export default function WatchExperience({ id }: { id: string }) {
   const [movie, setMovie] = useState<PublicCatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [activePlayerIndex, setActivePlayerIndex] = useState(0);
-  const [failedPlayerIndexes, setFailedPlayerIndexes] = useState<Set<number>>(new Set());
+  const [activeSourceIndex, setActiveSourceIndex] = useState(0);
+  const [playRequested, setPlayRequested] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const [allExhausted, setAllExhausted] = useState(false);
   const [playerSession, setPlayerSession] = useState(0);
   const [favorite, setFavorite] = useState(false);
+
+  const failedKeysRef = useRef<Set<string>>(new Set());
+  const retryCycleRef = useRef(0);
+  const transitionRef = useRef(false);
+  const transitionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -83,6 +145,11 @@ export default function WatchExperience({ id }: { id: string }) {
 
       setMovie(mapped);
       setLoading(false);
+      setActiveSourceIndex(0);
+      setPlayRequested(false);
+      setAllExhausted(false);
+      failedKeysRef.current = new Set();
+      retryCycleRef.current = 0;
 
       try {
         const favorites = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]") as string[];
@@ -97,10 +164,16 @@ export default function WatchExperience({ id }: { id: string }) {
     }
 
     void load();
-    return () => { disposed = true; };
+    return () => {
+      disposed = true;
+      if (transitionTimerRef.current) window.clearTimeout(transitionTimerRef.current);
+    };
   }, [id]);
 
-  const activePlayer = movie?.players[Math.min(activePlayerIndex, Math.max(movie.players.length - 1, 0))] || null;
+  const sources = useMemo(() => buildSources(movie?.players || []), [movie?.players]);
+  const activeSource = sources[Math.min(activeSourceIndex, Math.max(sources.length - 1, 0))] || null;
+  const activePlayerIndex = activeSource?.playerIndex ?? 0;
+
   const meta = useMemo(() => {
     if (!movie) return [];
     return [
@@ -111,32 +184,73 @@ export default function WatchExperience({ id }: { id: string }) {
     ].filter(Boolean);
   }, [movie]);
 
-  const selectPlayer = (index: number) => {
-    setActivePlayerIndex(index);
+  const startPlayback = useCallback(() => {
+    failedKeysRef.current = new Set();
+    retryCycleRef.current = 0;
+    setActiveSourceIndex(0);
     setAllExhausted(false);
-    setFailedPlayerIndexes(new Set());
+    setSwitching(false);
+    setPlayRequested(true);
     setPlayerSession((current) => current + 1);
-  };
+  }, []);
 
-  const handlePlayerExhausted = () => {
-    if (!movie) return;
-    const updated = new Set(failedPlayerIndexes);
-    updated.add(activePlayerIndex);
-    setFailedPlayerIndexes(updated);
+  const handleSourceFailed = useCallback(() => {
+    if (!activeSource || transitionRef.current) return;
 
-    const nextIndex = movie.players.findIndex((_player, index) => !updated.has(index));
-    if (nextIndex >= 0) {
-      setActivePlayerIndex(nextIndex);
-      setPlayerSession((current) => current + 1);
-      return;
-    }
-    setAllExhausted(true);
-  };
+    transitionRef.current = true;
+    setSwitching(true);
 
-  const retryAllPlayers = () => {
-    setActivePlayerIndex(0);
-    setFailedPlayerIndexes(new Set());
+    transitionTimerRef.current = window.setTimeout(() => {
+      const failedKeys = new Set(failedKeysRef.current);
+      failedKeys.add(activeSource.key);
+      failedKeysRef.current = failedKeys;
+
+      const nextIndex = sources.findIndex((candidate, index) => index > activeSourceIndex && !failedKeys.has(candidate.key));
+
+      if (nextIndex >= 0) {
+        setActiveSourceIndex(nextIndex);
+        setPlayerSession((current) => current + 1);
+        setSwitching(false);
+        transitionRef.current = false;
+        return;
+      }
+
+      if (retryCycleRef.current < 1 && sources.length) {
+        retryCycleRef.current += 1;
+        failedKeysRef.current = new Set();
+        setActiveSourceIndex(0);
+        setPlayerSession((current) => current + 1);
+        setSwitching(false);
+        transitionRef.current = false;
+        return;
+      }
+
+      setAllExhausted(true);
+      setSwitching(false);
+      transitionRef.current = false;
+    }, 260);
+  }, [activeSource, activeSourceIndex, sources]);
+
+  const retryAllSources = useCallback(() => {
+    failedKeysRef.current = new Set();
+    retryCycleRef.current = 0;
+    transitionRef.current = false;
+    setActiveSourceIndex(0);
     setAllExhausted(false);
+    setSwitching(false);
+    setPlayRequested(true);
+    setPlayerSession((current) => current + 1);
+  }, []);
+
+  const selectPlayer = (playerIndex: number) => {
+    const sourceIndex = sources.findIndex((source) => source.playerIndex === playerIndex);
+    if (sourceIndex < 0) return;
+
+    failedKeysRef.current = new Set();
+    retryCycleRef.current = 0;
+    setActiveSourceIndex(sourceIndex);
+    setAllExhausted(false);
+    setSwitching(false);
     setPlayerSession((current) => current + 1);
   };
 
@@ -158,13 +272,15 @@ export default function WatchExperience({ id }: { id: string }) {
   if (loading) {
     return (
       <main className={styles.statePage}>
-        <LoaderCircle className={styles.spinner} />
-        <strong>กำลังเตรียมหน้ารับชม...</strong>
+        <div className={styles.stateSkeleton}>
+          <span />
+          <div><i /><i /><i /></div>
+        </div>
       </main>
     );
   }
 
-  if (failed || !movie || !activePlayer) {
+  if (failed || !movie || !sources.length) {
     return (
       <main className={styles.statePage}>
         <RotateCcw />
@@ -183,7 +299,7 @@ export default function WatchExperience({ id }: { id: string }) {
       </div>
 
       <header className={styles.header}>
-        <Link className={styles.backButton} href="/"><ArrowLeft /> กลับ</Link>
+        <Link className={styles.backButton} href="/"><ArrowLeft /><span>กลับหน้าแรก</span></Link>
         <Link href="/" className={styles.brandLink}><Brand /></Link>
         <button className={`${styles.favoriteButton} ${favorite ? styles.favoriteActive : ""}`} type="button" onClick={toggleFavorite}>
           <Heart fill={favorite ? "currentColor" : "none"} />
@@ -191,61 +307,98 @@ export default function WatchExperience({ id }: { id: string }) {
         </button>
       </header>
 
-      <div className={styles.layout}>
-        <section className={styles.playerColumn}>
-          <div className={styles.playerTopline}>
-            <div>
-              <span className={styles.nowWatching}><Play fill="currentColor" /> หน้ารับชม</span>
-              <h1>{movie.thaiTitle}</h1>
-            </div>
-            <span className={styles.readyBadge}><ShieldCheck /> พร้อมรับชม</span>
-          </div>
+      <div className={styles.content}>
+        <section className={styles.titleBlock}>
+          <div className={styles.eyebrow}><Play fill="currentColor" /> หน้ารับชม</div>
+          <h1>{movie.thaiTitle}</h1>
+          {movie.title !== movie.thaiTitle ? <h2>{movie.title}</h2> : null}
+          <div className={styles.titleMeta}>{meta.map((entry) => <span key={entry}>{entry}</span>)}</div>
+        </section>
 
+        <section className={styles.playerStage}>
           <WatchPlayer
-            key={`${activePlayer.id}-${activePlayerIndex}-${playerSession}`}
-            player={activePlayer}
+            key={`${activeSource?.key || "none"}-${playerSession}`}
+            source={activeSource}
             poster={movie.backdropUrl}
+            title={movie.thaiTitle}
+            active={playRequested}
+            switching={switching}
             exhausted={allExhausted}
-            onExhausted={handlePlayerExhausted}
-            onRetry={retryAllPlayers}
+            onStart={startPlayback}
+            onFailed={handleSourceFailed}
+            onRetry={retryAllSources}
           />
 
-          <div className={styles.playerControls}>
-            <div className={styles.playerChoiceHeading}>
-              <div><span>เลือกตัวรับชม</span><small>ระบบจะสลับตัวสำรองให้เมื่อจำเป็น</small></div>
-              <span>{activePlayerIndex + 1}/{movie.players.length}</span>
+          <div className={styles.playbackNote}>
+            <span className={styles.playbackIcon}><ShieldCheck /></span>
+            <div>
+              <strong>{!playRequested ? "พร้อมเมื่อคุณกดเล่น" : switching ? "กำลังเลือกตัวรับชมที่เหมาะสม" : allExhausted ? "รอการลองใหม่" : "ระบบดูแลการสลับให้อัตโนมัติ"}</strong>
+              <small>เมื่อแหล่งรับชมหนึ่งเปิดไม่ได้ ระบบจะไปตัวถัดไปทันที</small>
             </div>
-            <div className={styles.playerChoices}>
-              {movie.players.map((player, index) => (
-                <button
-                  key={player.id}
-                  className={index === activePlayerIndex ? styles.playerChoiceActive : ""}
-                  type="button"
-                  onClick={() => selectPlayer(index)}
-                >
-                  <span>{index === activePlayerIndex ? <Check /> : <Play />}</span>
-                  <div><strong>{player.label || `ตัวเลือก ${index + 1}`}</strong><small>{index === activePlayerIndex ? "กำลังใช้งาน" : "แตะเพื่อสลับ"}</small></div>
-                  <ChevronRight />
-                </button>
-              ))}
-            </div>
+            <span className={styles.sourceCount}>{activePlayerIndex + 1}/{movie.players.length}</span>
           </div>
         </section>
 
-        <aside className={styles.detailCard}>
-          <div className={styles.posterWrap}>
-            {movie.posterUrl ? <img src={movie.posterUrl} alt={movie.thaiTitle} referrerPolicy="no-referrer" /> : <Film />}
-            <span />
-          </div>
-          <div className={styles.detailBody}>
-            <div className={styles.typeLine}>{meta.map((entry) => <span key={entry}>{entry}</span>)}</div>
-            <h2>{movie.thaiTitle}</h2>
-            {movie.title !== movie.thaiTitle ? <h3>{movie.title}</h3> : null}
-            <div className={styles.ratingLine}><Star fill="currentColor" /> <strong>{movie.rating ? movie.rating.toFixed(1) : "-"}</strong><span>{releaseLabel(movie.releaseDate, movie.year)}</span></div>
-            <p>{movie.overview || "เรื่องนี้พร้อมให้คุณรับชมแล้ว"}</p>
-            <div className={styles.genres}>{movie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
-          </div>
-        </aside>
+        <section className={styles.lowerGrid}>
+          <article className={styles.infoCard}>
+            <div className={styles.posterWrap}>
+              {movie.posterUrl ? <img src={movie.posterUrl} alt={movie.thaiTitle} referrerPolicy="no-referrer" /> : <Film />}
+            </div>
+
+            <div className={styles.infoBody}>
+              <div className={styles.infoHeading}>
+                <div>
+                  <span><Info /> รายละเอียดเรื่อง</span>
+                  <h2>{movie.thaiTitle}</h2>
+                </div>
+                <div className={styles.rating}><Star fill="currentColor" /><strong>{movie.rating ? movie.rating.toFixed(1) : "-"}</strong></div>
+              </div>
+
+              <p>{movie.overview || "เรื่องนี้พร้อมให้คุณรับชมแล้ว"}</p>
+
+              <div className={styles.detailFacts}>
+                <div><CalendarDays /><span><small>วันที่เข้าฉาย</small><strong>{releaseLabel(movie.releaseDate, movie.year)}</strong></span></div>
+                <div><Clock3 /><span><small>ความยาว</small><strong>{runtimeLabel(movie.runtime) || "ไม่ระบุ"}</strong></span></div>
+                <div><Layers3 /><span><small>ประเภท</small><strong>{contentTypeLabel(movie.contentType)}</strong></span></div>
+              </div>
+
+              <div className={styles.genres}>{movie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
+            </div>
+          </article>
+
+          <aside className={styles.choiceCard}>
+            <div className={styles.choiceHeading}>
+              <div>
+                <span><CircleCheck /> ตัวเลือกรับชม</span>
+                <h3>เลือกภาษา หรือปล่อยให้ระบบเลือก</h3>
+              </div>
+              <span>{movie.players.length} ตัวเลือก</span>
+            </div>
+
+            <div className={styles.playerChoices}>
+              {movie.players.map((player, index) => {
+                const available = sources.some((source) => source.playerIndex === index);
+                const active = index === activePlayerIndex;
+                return (
+                  <button
+                    key={player.id}
+                    className={active ? styles.playerChoiceActive : ""}
+                    type="button"
+                    disabled={!available}
+                    onClick={() => selectPlayer(index)}
+                  >
+                    <span className={styles.choiceIcon}>{active ? <Check /> : <Play />}</span>
+                    <span className={styles.choiceText}>
+                      <strong>{player.label || `ตัวเลือก ${index + 1}`}</strong>
+                      <small>{active ? (playRequested ? "กำลังใช้งาน" : "พร้อมเริ่ม") : available ? "แตะเพื่อเลือก" : "ยังไม่พร้อม"}</small>
+                    </span>
+                    <ChevronRight />
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+        </section>
       </div>
     </main>
   );
