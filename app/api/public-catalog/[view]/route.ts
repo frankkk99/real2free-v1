@@ -27,6 +27,11 @@ const FORWARDED_RESPONSE_HEADERS = [
   "range-unit",
 ];
 
+function isInternalPlatformParam(key: string) {
+  const normalized = key.toLocaleLowerCase("en-US");
+  return normalized.startsWith("_") || normalized.startsWith("x-vercel-");
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ view: string }> },
@@ -38,7 +43,9 @@ export async function GET(
   }
 
   const upstream = new URL(`/rest/v1/${view}`, SUPABASE_URL);
-  request.nextUrl.searchParams.forEach((value, key) => upstream.searchParams.append(key, value));
+  request.nextUrl.searchParams.forEach((value, key) => {
+    if (!isInternalPlatformParam(key)) upstream.searchParams.append(key, value);
+  });
 
   const upstreamHeaders = new Headers({
     apikey: SUPABASE_PUBLISHABLE_KEY,
