@@ -32,6 +32,19 @@ export type PublicHeroItem = {
   isWatchReady: boolean;
 };
 
+const genreLabels: Record<string, string> = {
+  Action: "แอ็กชัน",
+  Adventure: "ผจญภัย",
+  Animation: "แอนิเมชัน",
+  Comedy: "ตลก",
+  Drama: "ดราม่า",
+  Fantasy: "แฟนตาซี",
+  Horror: "สยองขวัญ",
+  Romance: "โรแมนติก",
+  "Science Fiction": "ไซไฟ",
+  Thriller: "ระทึกขวัญ",
+};
+
 export const PUBLIC_HERO_FIELDS =
   "id,catalog_id,title_th,title_en,overview,release_date,year,poster_url,backdrop_url,genres,trailer_url,detail_url,priority,is_watch_ready";
 
@@ -39,6 +52,7 @@ export function mapPublicHeroRow(row: PublicHeroRow): PublicHeroItem | null {
   if (!row.id) return null;
   const parsedYear = Number(row.year);
   const parsedPriority = Number(row.priority || 0);
+  const rawGenres = Array.isArray(row.genres) ? row.genres.filter(Boolean) : [];
 
   return {
     id: row.id,
@@ -50,7 +64,7 @@ export function mapPublicHeroRow(row: PublicHeroRow): PublicHeroItem | null {
     year: Number.isFinite(parsedYear) ? parsedYear : null,
     posterUrl: row.poster_url || null,
     backdropUrl: row.backdrop_url || row.poster_url || null,
-    genres: Array.isArray(row.genres) ? row.genres.filter(Boolean) : [],
+    genres: rawGenres.map((genre) => genreLabels[genre] || genre),
     trailerUrl: row.trailer_url || null,
     detailUrl: row.detail_url || null,
     priority: Number.isFinite(parsedPriority) ? parsedPriority : 0,
