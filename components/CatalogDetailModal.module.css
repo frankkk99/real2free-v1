@@ -11,7 +11,7 @@
 
 .modal {
   position: relative;
-  width: min(900px, calc(100vw - 28px));
+  width: min(860px, calc(100vw - 28px));
   max-height: calc(100dvh - 28px);
   overflow-x: hidden;
   overflow-y: auto;
@@ -26,7 +26,7 @@
 
 .hero {
   position: relative;
-  min-height: 220px;
+  min-height: 200px;
   overflow: hidden;
   background: #0a1a2d;
 }
@@ -38,15 +38,15 @@
   height: 100%;
   object-fit: cover;
   object-position: center 24%;
-  opacity: .7;
+  opacity: .68;
 }
 
 .heroShade {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(6, 18, 33, .96) 0%, rgba(6, 18, 33, .56) 52%, rgba(6, 18, 33, .14) 100%),
-    linear-gradient(0deg, #061221 0%, transparent 68%);
+    linear-gradient(90deg, rgba(6, 18, 33, .96) 0%, rgba(6, 18, 33, .56) 54%, rgba(6, 18, 33, .14) 100%),
+    linear-gradient(0deg, #061221 0%, transparent 72%);
 }
 
 .close {
@@ -73,39 +73,39 @@
   position: relative;
   z-index: 2;
   display: flex;
-  min-height: 220px;
+  min-height: 200px;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-end;
   max-width: 680px;
-  padding: 30px 28px 46px;
+  padding: 28px 28px 34px;
 }
 
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #73bdff;
-  font-size: 10px;
-  font-weight: 750;
+.heroContent h2 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1.05;
 }
 
-.eyebrow svg { width: 13px; height: 13px; }
-.heroContent h2 { margin: 8px 0 0; font-size: clamp(28px, 4vw, 46px); line-height: 1.05; }
-.heroContent h3 { margin: 6px 0 0; color: #a5b5ca; font-size: 13px; font-weight: 500; }
+.heroContent h3 {
+  margin: 6px 0 0;
+  color: #a5b5ca;
+  font-size: 13px;
+  font-weight: 500;
+}
 
 .body {
   position: relative;
   z-index: 3;
-  margin-top: -28px;
+  margin-top: -18px;
   padding: 0 22px 22px;
 }
 
 .summary {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  align-items: start;
-  gap: 20px;
+  grid-template-columns: 170px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 14px;
 }
 
 .poster {
@@ -114,97 +114,122 @@
   aspect-ratio: 2 / 3;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .16);
-  border-radius: 16px;
+  border-radius: 15px 15px 0 0;
   background: #0b1c31;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, .42);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .38);
 }
 
 .poster img { width: 100%; height: 100%; object-fit: cover; }
 .poster > svg { width: 45px; height: 45px; color: #3ba2ff; }
 
 .details {
-  min-width: 0;
-  padding-top: 32px;
-}
-
-.stats {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  padding: 3px 0 0;
 }
 
-.stat {
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: center;
-  gap: 2px 7px;
-  min-height: 46px;
-  padding: 7px 11px;
-  border: 1px solid rgba(255, 255, 255, .09);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .045);
-}
-
-.stat svg { grid-row: 1 / 3; width: 19px; height: 19px; color: #ffc83d; }
-.stat:nth-child(2) svg { color: #68e2a0; }
-.stat strong { font-size: 14px; line-height: 1; }
-.stat small { color: #7f91a9; font-size: 8px; }
-
-.facts {
+.quickFacts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 10px;
+  gap: 6px;
 }
 
-.fact {
+.quickFact {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
   min-height: 48px;
-  padding: 8px 9px;
-  border: 1px solid rgba(255, 255, 255, .075);
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, .085);
   border-radius: 11px;
-  background: rgba(255, 255, 255, .03);
+  background: rgba(255, 255, 255, .038);
 }
 
-.fact svg { width: 15px; height: 15px; color: #55abff; }
-.fact span { min-width: 0; }
-.fact small,
-.fact strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fact small { color: #7588a2; font-size: 8px; }
-.fact strong { margin-top: 2px; color: #d8e2ef; font-size: 9px; }
+.quickFact svg {
+  width: 16px;
+  height: 16px;
+  color: #55abff;
+}
 
-.tags {
+.quickFact:first-child svg { color: #ffc83d; }
+.quickFact span { min-width: 0; }
+.quickFact strong,
+.quickFact small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quickFact strong { color: #eaf3ff; font-size: 10px; line-height: 1.15; }
+.quickFact small { margin-top: 2px; color: #7588a2; font-size: 7px; }
+
+.formatRow {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 10px;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin-top: 8px;
 }
 
+.formatRow > svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: #55abff;
+}
+
+.formatRow > div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.formatRow span,
 .tags span {
-  min-height: 24px;
-  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 7px;
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 999px;
   background: rgba(255, 255, 255, .045);
   color: #aebbd0;
-  font-size: 8px;
+  font-size: 7.5px;
+  font-weight: 750;
+  white-space: nowrap;
 }
 
-.tags span.language {
+.formatRow span {
   border-color: rgba(34, 152, 255, .28);
   background: rgba(16, 132, 255, .1);
   color: #78bdff;
 }
 
+.formatRow span.ongoing {
+  border-color: rgba(255, 194, 92, .3);
+  background: rgba(96, 58, 10, .68);
+  color: #ffd698;
+}
+
+.tags {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+
 .utilityActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 11px;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 .utilityActions button {
@@ -212,60 +237,67 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 39px;
-  padding: 0 10px;
+  min-height: 36px;
+  padding: 0 9px;
   border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 11px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, .05);
   color: #d5deea;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
 }
 
-.utilityActions button svg { width: 15px; height: 15px; }
+.utilityActions button svg { width: 14px; height: 14px; }
 .utilityActions button.favoriteActive { color: #ff7289; }
 .utilityActions button.shareDone { border-color: rgba(104, 226, 160, .24); color: #68e2a0; }
 
-.trailerSection,
-.overview {
-  margin-top: 17px;
-}
-
-.sectionHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.sectionHeading > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #78bdff;
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.sectionHeading svg { width: 14px; height: 14px; }
-.sectionHeading small { color: #7588a2; font-size: 8px; }
+.trailerSection { margin-top: 0; }
 
 .trailer {
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 15px;
+  border-top: 0;
+  border-radius: 0 0 15px 15px;
   background: #020914;
 }
 
-.trailer iframe { width: 100%; height: 100%; border: 0; }
+.trailer iframe {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.trailerLabel {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 8px;
+  background: rgba(2, 9, 20, .7);
+  color: #e7f2ff;
+  font-size: 8px;
+  font-weight: 750;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.trailerLabel svg { width: 13px; height: 13px; color: #ff5365; }
 
 .trailerEmpty,
 .trailerLoading {
   position: absolute;
+  z-index: 2;
   inset: 0;
   display: grid;
   place-items: center;
@@ -296,7 +328,14 @@
 .trailerEmpty svg { width: 36px; height: 36px; color: #ff4f5e; }
 .trailerEmpty strong { font-size: 11px; }
 .trailerEmpty small { color: #7588a2; font-size: 8px; }
-.trailerEmpty a { padding: 7px 10px; border-radius: 9px; background: rgba(255, 255, 255, .08); color: #d7e4f5; font-size: 8px; text-decoration: none; }
+.trailerEmpty a {
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .08);
+  color: #d7e4f5;
+  font-size: 8px;
+  text-decoration: none;
+}
 
 .trailerLoading span {
   width: 34px;
@@ -307,6 +346,7 @@
   animation: spin 800ms linear infinite;
 }
 
+.overview { margin-top: 14px; }
 .overview > span {
   display: inline-flex;
   align-items: center;
@@ -315,9 +355,8 @@
   font-size: 10px;
   font-weight: 750;
 }
-
 .overview > span svg { width: 14px; height: 14px; }
-.overview p { margin: 8px 0 0; color: #bcc8d8; font-size: 11px; line-height: 1.72; }
+.overview p { margin: 7px 0 0; color: #bcc8d8; font-size: 11px; line-height: 1.72; }
 
 .watchButton {
   display: grid;
@@ -326,7 +365,7 @@
   gap: 10px;
   width: 100%;
   min-height: 58px;
-  margin-top: 18px;
+  margin-top: 16px;
   padding: 0 14px;
   border: 0;
   border-radius: 14px;
@@ -355,38 +394,41 @@
 
 @media (max-width: 680px) {
   .backdrop { align-items: end; padding: 0; }
-  .modal { width: 100%; max-height: 94dvh; border-radius: 22px 22px 0 0; animation: sheet 190ms ease-out; }
-  .hero { min-height: 190px; }
-  .heroContent { min-height: 190px; padding: 38px 15px 37px; }
-  .heroContent h2 { font-size: 27px; }
-  .heroContent h3 { font-size: 11px; }
-  .body { margin-top: -20px; padding: 0 14px calc(16px + env(safe-area-inset-bottom, 0px)); }
-  .summary { grid-template-columns: 106px minmax(0, 1fr); gap: 11px; }
-  .poster { border-radius: 13px; }
-  .details { padding-top: 24px; }
-  .stats { gap: 5px; }
-  .stat { min-height: 40px; padding: 6px 8px; }
-  .stat svg { width: 16px; height: 16px; }
-  .stat strong { font-size: 12px; }
-  .facts { grid-template-columns: 1fr; gap: 5px; margin-top: 7px; }
-  .fact { min-height: 38px; padding: 6px 7px; }
-  .fact svg { width: 14px; height: 14px; }
-  .tags { gap: 4px; margin-top: 7px; }
-  .tags span { min-height: 21px; padding: 3px 6px; font-size: 7px; }
-  .utilityActions { gap: 5px; margin-top: 8px; }
-  .utilityActions button { min-height: 35px; padding: 0 6px; font-size: 8px; }
-  .trailerSection { margin-top: 14px; }
-  .trailer { border-radius: 12px; }
-  .overview { margin-top: 14px; }
+  .modal { width: 100%; max-height: 95dvh; border-radius: 22px 22px 0 0; animation: sheet 190ms ease-out; }
+  .hero { min-height: 158px; }
+  .heroContent { min-height: 158px; padding: 34px 14px 27px; }
+  .heroContent h2 { font-size: 26px; }
+  .heroContent h3 { margin-top: 4px; font-size: 10px; }
+  .body { margin-top: -12px; padding: 0 13px calc(15px + env(safe-area-inset-bottom, 0px)); }
+  .summary { grid-template-columns: 112px minmax(0, 1fr); gap: 9px; }
+  .poster { border-radius: 12px 12px 0 0; }
+  .details { padding-top: 1px; }
+  .quickFacts { gap: 4px; }
+  .quickFact { min-height: 44px; grid-template-columns: 1fr; gap: 1px; padding: 5px 5px; text-align: center; }
+  .quickFact svg { display: none; }
+  .quickFact strong { font-size: 8.5px; }
+  .quickFact small { font-size: 6.5px; }
+  .formatRow { gap: 5px; margin-top: 6px; }
+  .formatRow > svg { width: 13px; height: 13px; }
+  .formatRow span,
+  .tags span { min-height: 20px; padding: 3px 6px; font-size: 6.5px; }
+  .tags { gap: 3px; margin-top: 5px; }
+  .utilityActions { gap: 5px; padding-top: 6px; }
+  .utilityActions button { min-height: 33px; padding: 0 5px; font-size: 7px; }
+  .utilityActions button svg { width: 13px; height: 13px; }
+  .trailer { border-radius: 0 0 12px 12px; }
+  .trailerLabel { top: 6px; left: 6px; min-height: 21px; padding: 3px 6px; font-size: 7px; }
+  .overview { margin-top: 12px; }
   .overview p { font-size: 10px; line-height: 1.68; }
-  .watchButton { min-height: 55px; margin-top: 15px; border-radius: 13px; }
+  .watchButton { min-height: 55px; margin-top: 14px; border-radius: 13px; }
 }
 
 @media (max-width: 370px) {
-  .summary { grid-template-columns: 96px minmax(0, 1fr); gap: 9px; }
-  .heroContent h2 { font-size: 24px; }
-  .stat { padding: 5px 6px; }
-  .fact strong { font-size: 8px; }
+  .heroContent h2 { font-size: 23px; }
+  .summary { grid-template-columns: 98px minmax(0, 1fr); gap: 8px; }
+  .quickFact { padding-inline: 3px; }
+  .formatRow > svg { display: none; }
+  .tags span:nth-child(n + 4) { display: none; }
   .utilityActions button span { display: none; }
 }
 
