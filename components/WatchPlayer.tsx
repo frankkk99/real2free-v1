@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlayerKind, PublicPlayer } from "@/lib/public-catalog";
 import styles from "./WatchPlayer.module.css";
 
@@ -87,11 +87,13 @@ export default function WatchPlayer({
   poster,
   exhausted,
   onExhausted,
+  onRetry,
 }: {
   player: PublicPlayer;
   poster: string | null;
   exhausted: boolean;
   onExhausted: () => void;
+  onRetry: () => void;
 }) {
   const [source, setSource] = useState<Source>({ url: player.url, kind: player.kind, isFallback: false });
   const [switching, setSwitching] = useState(false);
@@ -109,7 +111,7 @@ export default function WatchPlayer({
     return () => window.clearTimeout(timer);
   }, [source.kind, source.url]);
 
-  const moveToFallback = () => {
+  const moveToFallback = useCallback(() => {
     if (!source.isFallback && player.fallbackUrl && player.fallbackKind) {
       setSwitching(true);
       window.setTimeout(() => {
@@ -124,22 +126,17 @@ export default function WatchPlayer({
       return;
     }
     onExhausted();
-  };
-
-  const retry = () => {
-    setSource((current) => ({ ...current, url: `${current.url}${current.url.includes("?") ? "&" : "?"}retry=${Date.now()}` }));
-    setShowEmbedHelp(false);
-  };
+  }, [onExhausted, player.fallbackKind, player.fallbackUrl, source.isFallback]);
 
   if (exhausted) {
-    const openUrl = player.fallbackUrl || player.url;
+    const openUrl = player.kind === "embed" ? player.url : player.fallbackUrl || player.url;
     return (
       <div className={styles.failedState}>
         <RotateCcw />
         <strong>ยังเปิดเรื่องนี้ไม่ได้</strong>
         <p>ตัวรับชมทั้งหมดของเรื่องนี้ยังไม่ตอบสนอง</p>
         <div className={styles.failedActions}>
-          <button type="button" onClick={retry}><RefreshCw /> ลองอีกครั้ง</button>
+          <button type="button" onClick={onRetry}><RefreshCw /> ลองอีกครั้ง</button>
           <a href={openUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"><ExternalLink /> เปิดแยกหน้าต่าง</a>
         </div>
       </div>
