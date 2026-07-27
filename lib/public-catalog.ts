@@ -1,0 +1,150 @@
+export type PlayerKind = "hls" | "embed";
+
+export type PublicPlayer = {
+  id: string;
+  label: string;
+  url: string;
+  kind: PlayerKind;
+  fallbackUrl: string | null;
+  fallbackKind: PlayerKind | null;
+  order: number;
+};
+
+export type PublicCatalogItem = {
+  id: string;
+  contentType: "movie" | "series";
+  thaiTitle: string;
+  title: string;
+  overview: string;
+  releaseDate: string | null;
+  year: number | null;
+  runtime: number | null;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  rawGenres: string[];
+  genres: string[];
+  rating: number;
+  voteCount: number;
+  updatedAt: string;
+  players: PublicPlayer[];
+};
+
+export type PublicCatalogRow = {
+  id: string;
+  content_type: "movie" | "series";
+  title_th: string | null;
+  title_en: string | null;
+  overview: string | null;
+  release_date: string | null;
+  year: number | null;
+  runtime: number | null;
+  poster_url: string | null;
+  backdrop_url: string | null;
+  genres: string[] | null;
+  rating: number | string | null;
+  vote_count: number | null;
+  updated_at: string;
+  players: unknown;
+};
+
+export const PUBLIC_CATALOG_FIELDS =
+  "id,content_type,title_th,title_en,overview,release_date,year,runtime,poster_url,backdrop_url,genres,rating,vote_count,updated_at,players";
+
+export const FAVORITES_KEY = "real2free-favorites";
+export const HISTORY_KEY = "real2free-history";
+
+const genreLabels: Record<string, string> = {
+  Action: "แอ็กชัน",
+  Adventure: "ผจญภัย",
+  Animation: "แอนิเมชัน",
+  Anime: "อนิเมะ",
+  Comedy: "ตลก",
+  Crime: "อาชญากรรม",
+  Documentary: "สารคดี",
+  Drama: "ดราม่า",
+  Family: "ครอบครัว",
+  Fantasy: "แฟนตาซี",
+  History: "ประวัติศาสตร์",
+  Horror: "สยองขวัญ",
+  Music: "ดนตรี",
+  Mystery: "ลึกลับ",
+  Romance: "โรแมนติก",
+  "Science Fiction": "ไซไฟ",
+  Thriller: "ระทึกขวัญ",
+  War: "สงคราม",
+  Western: "ตะวันตก",
+  "TV Movie": "ภาพยนตร์โทรทัศน์",
+};
+
+function asKind(value: unknown): PlayerKind {
+  return value === "embed" ? "embed" : "hls";
+}
+
+function optionalKind(value: unknown): PlayerKind | null {
+  if (value === "embed" || value === "hls") return value;
+  return null;
+}
+
+export function parsePublicPlayers(value: unknown): PublicPlayer[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry): PublicPlayer[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const row = entry as Record<string, unknown>;
+    const id = String(row.id ?? "");
+    const url = String(row.url ?? "");
+    if (!id || !url) return [];
+
+    const fallbackUrl = String(row.fallback_url ?? "").trim() || null;
+    return [{
+      id,
+      label: String(row.label ?? "รับชม"),
+      url,
+      kind: asKind(row.kind),
+      fallbackUrl,
+      fallbackKind: fallbackUrl ? optionalKind(row.fallback_kind) : null,
+      order: Number(row.order ?? 0),
+    }];
+  }).sort((a, b) => a.order - b.order);
+}
+
+export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | null {
+  const players = parsePublicPlayers(row.players);
+  if (!row.id || !players.length) return null;
+
+  const rawGenres = Array.isArray(row.genres) ? row.genres.filter(Boolean) : [];
+  return {
+    id: row.id,
+    contentType: row.content_type === "series" ? "series" : "movie",
+    thaiTitle: String(row.title_th || row.title_en || "ไม่ระบุชื่อ"),
+    title: String(row.title_en || row.title_th || "ไม่ระบุชื่อ"),
+    overview: String(row.overview || ""),
+    releaseDate: row.release_date || null,
+    year: Number.isFinite(Number(row.year)) ? Number(row.year) : null,
+    runtime: Number.isFinite(Number(row.runtime)) ? Number(row.runtime) : null,
+    posterUrl: row.poster_url || null,
+    backdropUrl: row.backdrop_url || row.poster_url || null,
+    rawGenres,
+    genres: rawGenres.map((genre) => genreLabels[genre] || genre),
+    rating: Number.isFinite(Number(row.rating)) ? Number(row.rating) : 0,
+    voteCount: Number(row.vote_count || 0),
+    updatedAt: row.updated_at,
+    players,
+  };
+}
+
+export function runtimeLabel(minutes: number | null) {
+  if (!minutes || minutes < 1) return "";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest} นาที`;
+  return rest ? `${hours} ชม. ${rest} นาที` : `${hours} ชม.`;
+}
+
+export function contentTypeLabel(type: PublicCatalogItem["contentType"]) {
+  return type === "series" ? "ซีรีส์" : "ภาพยนตร์";
+}
+
+export function cleanCatalogSearch(value: string) {
+  return value.trim().replace(/[^\p{L}\p{N}\s.-]/gu, " ").replace(/\s+/g, " ").slice(0, 80);
+}
