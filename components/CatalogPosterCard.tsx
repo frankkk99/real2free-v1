@@ -2,7 +2,7 @@
 
 import { Film, Heart, Play, Star } from "lucide-react";
 import { contentTypeLabel, type PublicCatalogItem } from "@/lib/public-catalog";
-import styles from "./MovieHomeV2.module.css";
+import styles from "./CatalogPosterCard.module.css";
 
 function isRecentlyAdded(item: PublicCatalogItem) {
   const updated = new Date(item.updatedAt).getTime();
