@@ -117,7 +117,7 @@ export const languageFilterOptions: Array<{ value: CatalogLanguageFilter; label:
 ];
 
 export const sortModeOptions: Array<{ value: CatalogSortMode; label: string }> = [
-  { value: "updated", label: "อัปเดตล่าสุด" },
+  { value: "updated", label: "ใหม่ก่อน • คะแนนสูง" },
   { value: "release", label: "ปีฉายล่าสุด" },
   { value: "rating", label: "คะแนนสูง" },
   { value: "title", label: "เรียงตามชื่อ" },
