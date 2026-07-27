@@ -1,6 +1,6 @@
 "use client";
 
-import { Film, Heart, Play, Star } from "lucide-react";
+import { Bookmark, Film, Play, Star } from "lucide-react";
 import { contentTypeLabel, type PublicCatalogItem } from "@/lib/public-catalog";
 import styles from "./CatalogPosterCard.module.css";
 
@@ -86,9 +86,9 @@ export default function CatalogPosterCard({
         className={`${styles.cardFavorite} ${favorite ? styles.cardFavoriteActive : ""}`}
         type="button"
         onClick={onFavorite}
-        aria-label={favorite ? "นำออกจากรายการโปรด" : "เพิ่มในรายการโปรด"}
+        aria-label={favorite ? "นำออกจากรายการโปรด" : "บันทึกในรายการโปรด"}
       >
-        <Heart fill={favorite ? "currentColor" : "none"} />
+        <Bookmark fill={favorite ? "currentColor" : "none"} />
       </button>
 
       <button className={styles.cardTitle} type="button" onClick={onOpen}>{movie.thaiTitle}</button>
