@@ -1,6 +1,7 @@
 "use client";
 
 import { SlidersHorizontal, X } from "lucide-react";
+import { useState } from "react";
 import styles from "./HomeQuickFilters.module.css";
 
 export type HomeQuickView =
@@ -18,6 +19,12 @@ type QuickOption<T extends string> = {
   label: string;
 };
 
+type BrandOption = {
+  value: string;
+  label: string;
+  logo: string;
+};
+
 const viewOptions: Array<QuickOption<HomeQuickView>> = [
   { value: "home", label: "ทั้งหมด" },
   { value: "movie", label: "ภาพยนตร์" },
@@ -27,6 +34,19 @@ const viewOptions: Array<QuickOption<HomeQuickView>> = [
   { value: "popular", label: "ยอดนิยม" },
   { value: "favorites", label: "รายการโปรด" },
   { value: "history", label: "ดูล่าสุด" },
+];
+
+const brandOptions: BrandOption[] = [
+  { value: "netflix", label: "Netflix", logo: "https://image.tmdb.org/t/p/w154/wwemzKWzjKYJFfCeiB57q3r4Bcm.png" },
+  { value: "disney", label: "Disney+", logo: "https://image.tmdb.org/t/p/w154/1edZOYAfoyZyZ3rklNSiUpXX30Q.png" },
+  { value: "hbo", label: "HBO / Max", logo: "https://cdn.simpleicons.org/hbo/FFFFFF" },
+  { value: "marvel", label: "Marvel", logo: "https://cdn.simpleicons.org/marvel/ED1D24" },
+  { value: "dc", label: "DC", logo: "https://cdn.simpleicons.org/dc/1685F8" },
+  { value: "prime", label: "Prime Video", logo: "https://image.tmdb.org/t/p/w154/w7HfLNm9CWwRmAMU58udl2L7We7.png" },
+  { value: "apple", label: "Apple TV+", logo: "https://image.tmdb.org/t/p/w154/bngHRFi794mnMq34gfVcm9nDxN1.png" },
+  { value: "iqiyi", label: "iQIYI", logo: "https://image.tmdb.org/t/p/w154/fNxBFqWr7eWEgNeBDvvCxsSItXx.png" },
+  { value: "viu", label: "Viu", logo: "https://image.tmdb.org/t/p/w154/mmQOH5hoPd9ZieQPr5FFsjAMgD8.png" },
+  { value: "wetv", label: "WeTV", logo: "https://image.tmdb.org/t/p/w154/mPsCbXC5k20bpKErrbOQd1fG0L7.png" },
 ];
 
 const yearOptions = ["2026", "2025", "2024", "2023", "2022", "ก่อน 2020"];
@@ -41,6 +61,15 @@ const genreOptions: Array<QuickOption<string>> = [
   { value: "Fantasy", label: "แฟนตาซี" },
   { value: "Animation", label: "แอนิเมชัน" },
 ];
+
+function BrandLogo({ option }: { option: BrandOption }) {
+  const [failed, setFailed] = useState(false);
+  return failed ? (
+    <span className={styles.brandFallback}>{option.label}</span>
+  ) : (
+    <img src={option.logo} alt={option.label} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+  );
+}
 
 export default function HomeQuickFilters({
   viewMode,
@@ -61,10 +90,30 @@ export default function HomeQuickFilters({
   onOpenMore: () => void;
   onClear: () => void;
 }) {
+  const activeBrand = genre.startsWith("brand:") ? genre.slice(6) : "";
   const hasSelection = viewMode !== "home" || year !== "ทั้งหมด" || genre !== "ทั้งหมด";
 
   return (
     <section className={styles.dock} aria-label="ค้นหาด่วน">
+      <div className={`${styles.row} ${styles.brandRow}`}>
+        <span className={styles.rowLabel}>ค่าย</span>
+        <div className={styles.brandScroller}>
+          {brandOptions.map((option) => (
+            <button
+              key={option.value}
+              className={`${styles.brandButton} ${activeBrand === option.value ? styles.brandActive : ""}`}
+              type="button"
+              title={option.label}
+              aria-label={`แสดงรายการจาก ${option.label}`}
+              aria-pressed={activeBrand === option.value}
+              onClick={() => onGenreChange(activeBrand === option.value ? "ทั้งหมด" : `brand:${option.value}`)}
+            >
+              <BrandLogo option={option} />
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className={styles.row}>
         <span className={styles.rowLabel}>ดู</span>
         <div className={styles.scroller}>
