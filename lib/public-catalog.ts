@@ -1,13 +1,26 @@
 export type PlayerKind = "hls" | "embed";
+export type PlayerGroupKey = "dub_th" | "sub_th" | "default";
+export type PlayerRole = "primary" | "backup";
 
 export type PublicPlayer = {
   id: string;
   label: string;
+  groupKey: PlayerGroupKey;
+  groupLabel: string;
+  role: PlayerRole;
+  backupIndex: number;
   url: string;
   kind: PlayerKind;
   fallbackUrl: string | null;
   fallbackKind: PlayerKind | null;
   order: number;
+};
+
+export type PublicPlayerGroup = {
+  key: PlayerGroupKey;
+  label: string;
+  players: PublicPlayer[];
+  hasBackup: boolean;
 };
 
 export type PublicCatalogItem = {
@@ -134,6 +147,12 @@ const genreLabels: Record<string, string> = {
   "TV Movie": "ภาพยนตร์โทรทัศน์",
 };
 
+const groupOrder: Record<PlayerGroupKey, number> = {
+  dub_th: 0,
+  sub_th: 1,
+  default: 2,
+};
+
 function asKind(value: unknown): PlayerKind {
   return value === "embed" ? "embed" : "hls";
 }
@@ -141,6 +160,21 @@ function asKind(value: unknown): PlayerKind {
 function optionalKind(value: unknown): PlayerKind | null {
   if (value === "embed" || value === "hls") return value;
   return null;
+}
+
+function asGroupKey(value: unknown): PlayerGroupKey {
+  if (value === "dub_th" || value === "sub_th") return value;
+  return "default";
+}
+
+function asRole(value: unknown): PlayerRole {
+  return value === "backup" ? "backup" : "primary";
+}
+
+function defaultGroupLabel(key: PlayerGroupKey) {
+  if (key === "dub_th") return "พากย์ไทย";
+  if (key === "sub_th") return "ซับไทย";
+  return "ตัวเลือกรับชม";
 }
 
 export function parsePublicPlayers(value: unknown): PublicPlayer[] {
@@ -153,29 +187,87 @@ export function parsePublicPlayers(value: unknown): PublicPlayer[] {
     const url = String(row.url ?? "");
     if (!id || !url) return [];
 
+    const groupKey = asGroupKey(row.group_key);
+    const role = asRole(row.role);
+    const backupIndex = Number(row.backup_index || 0);
     const fallbackUrl = String(row.fallback_url ?? "").trim() || null;
+
     return [{
       id,
-      label: String(row.label ?? "รับชม"),
+      label: String(row.label ?? (role === "backup" ? `สำรอง ${backupIndex || 1}` : "ตัวหลัก")),
+      groupKey,
+      groupLabel: String(row.group_label || defaultGroupLabel(groupKey)),
+      role,
+      backupIndex: Number.isFinite(backupIndex) ? backupIndex : 0,
       url,
       kind: asKind(row.kind),
       fallbackUrl,
       fallbackKind: fallbackUrl ? optionalKind(row.fallback_kind) : null,
       order: Number(row.order ?? 0),
     }];
-  }).sort((a, b) => a.order - b.order);
+  }).sort((a, b) => {
+    const groupDifference = groupOrder[a.groupKey] - groupOrder[b.groupKey];
+    if (groupDifference) return groupDifference;
+    if (a.role !== b.role) return a.role === "primary" ? -1 : 1;
+    if (a.backupIndex !== b.backupIndex) return a.backupIndex - b.backupIndex;
+    return a.order - b.order;
+  });
+}
+
+export function groupPublicPlayers(players: PublicPlayer[]): PublicPlayerGroup[] {
+  const groups = new Map<PlayerGroupKey, PublicPlayerGroup>();
+
+  players.forEach((player) => {
+    const current = groups.get(player.groupKey) || {
+      key: player.groupKey,
+      label: player.groupLabel || defaultGroupLabel(player.groupKey),
+      players: [],
+      hasBackup: false,
+    };
+    current.players.push(player);
+    current.hasBackup ||= player.role === "backup" || Boolean(player.fallbackUrl);
+    groups.set(player.groupKey, current);
+  });
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      players: [...group.players].sort((a, b) => {
+        if (a.role !== b.role) return a.role === "primary" ? -1 : 1;
+        if (a.backupIndex !== b.backupIndex) return a.backupIndex - b.backupIndex;
+        return a.order - b.order;
+      }),
+    }))
+    .sort((a, b) => groupOrder[a.key] - groupOrder[b.key]);
+}
+
+export function playerAvailabilityLabels(players: PublicPlayer[]) {
+  const groups = groupPublicPlayers(players);
+  const labels = groups
+    .filter((group) => group.key !== "default")
+    .map((group) => group.label);
+  const hasBackup = groups.some((group) => group.hasBackup);
+
+  if (!labels.length && players.length) labels.push("พร้อมรับชม");
+  if (hasBackup) labels.push("มีสำรอง");
+  return [...new Set(labels)];
+}
+
+export function preferredPlayerGroup(players: PublicPlayer[]): PlayerGroupKey {
+  const groups = groupPublicPlayers(players);
+  return groups.find((group) => group.key === "dub_th")?.key
+    || groups.find((group) => group.key === "sub_th")?.key
+    || groups[0]?.key
+    || "default";
 }
 
 export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | null {
-  const rawPlayers = parsePublicPlayers(row.players);
-  if (!row.id || !rawPlayers.length) return null;
+  const players = parsePublicPlayers(row.players);
+  if (!row.id || !players.length) return null;
 
   const episodeCount = Number(row.episode_count || 0);
   const seasonCount = Number(row.season_count || 0);
   const latestEpisode = Number(row.latest_episode || 0);
-  const players = row.content_type === "series" && episodeCount > 0
-    ? rawPlayers.map((player, index) => index === 0 ? { ...player, label: `${episodeCount.toLocaleString("th-TH")} ตอน` } : player)
-    : rawPlayers;
   const rawGenres = Array.isArray(row.genres) ? row.genres.filter(Boolean) : [];
 
   return {
