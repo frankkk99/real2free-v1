@@ -43,10 +43,11 @@ import {
   type PublicCatalogItem,
   type PublicCatalogRow,
 } from "@/lib/public-catalog";
+import HomeQuickFilters, { type HomeQuickView } from "./HomeQuickFilters";
 import styles from "./MovieHomeV2.module.css";
 
 type Theme = "dark" | "light";
-type ViewMode = "home" | "movie" | "series" | "anime" | "new" | "popular" | "favorites" | "history";
+type ViewMode = HomeQuickView;
 type CatalogCache = {
   savedAt: number;
   items: PublicCatalogItem[];
@@ -613,16 +614,16 @@ export default function MovieHomeV2() {
         </section>
       ) : null}
 
-      <section className={styles.quickBar} aria-label="ทางลัด">
-        {[...mainNav.slice(1), { mode: "favorites" as ViewMode, label: "รายการโปรด", icon: Bookmark }, { mode: "history" as ViewMode, label: "ดูล่าสุด", icon: History }].map((item) => {
-          const Icon = item.icon;
-          return (
-            <button key={item.mode} className={viewMode === item.mode ? styles.quickActive : ""} type="button" onClick={() => chooseMode(item.mode)}>
-              <Icon /><span>{item.label}</span>
-            </button>
-          );
-        })}
-      </section>
+      <HomeQuickFilters
+        viewMode={viewMode}
+        year={year}
+        genre={genre}
+        onViewChange={chooseMode}
+        onYearChange={setYear}
+        onGenreChange={setGenre}
+        onOpenMore={() => setFilterOpen(true)}
+        onClear={clearAll}
+      />
 
       <section id="catalog" className={styles.catalog}>
         <div className={styles.catalogHeading}>
