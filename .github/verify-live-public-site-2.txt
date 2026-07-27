@@ -1,0 +1,1 @@
+Run the production build verification for the live public catalog.
