@@ -1,0 +1,398 @@
+.header {
+  position: sticky;
+  z-index: 70;
+  top: 0;
+  display: grid;
+  grid-template-columns: auto minmax(360px,1fr) minmax(250px,330px) auto auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 66px;
+  padding: 0 max(18px,calc((100vw - 1460px) / 2));
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb,var(--bg) 90%,transparent);
+  box-shadow: 0 8px 28px rgba(0,0,0,.08);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.brandButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.brand strong {
+  font-family: var(--font-display),Impact,sans-serif;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: .045em;
+}
+
+.brand strong span { color: var(--primary-bright); }
+
+.brandMark {
+  position: relative;
+  display: inline-block;
+  width: 27px;
+  height: 30px;
+  filter: drop-shadow(0 7px 13px rgba(0,105,255,.25));
+}
+
+.brandMark i {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px 12px 12px 6px;
+  background: linear-gradient(145deg,#4bc1ff,#087aff 54%,#2633ca);
+  clip-path: polygon(0 0,100% 50%,0 100%);
+}
+
+.brandMark i:last-child { inset: 6px 0 6px 9px; opacity: .68; }
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+}
+
+.nav button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.nav button:hover { background: var(--surface-hover); color: var(--text); }
+.nav button.navActive { background: var(--primary-soft); color: var(--primary-bright); font-weight: 750; }
+
+.searchWrap {
+  position: relative;
+  min-width: 0;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  transition: border-color 140ms ease,box-shadow 140ms ease,background-color 140ms ease;
+}
+
+.searchBoxActive {
+  border-color: color-mix(in srgb,var(--primary) 60%,var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb,var(--primary) 12%,transparent),var(--shadow-soft);
+}
+
+.searchBox > svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.searchBox input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.searchBox input::placeholder { color: var(--muted); }
+
+.searchBox > button,
+.themeButton,
+.menuButton,
+.filterButton,
+.filterHeading > button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+}
+
+.searchBox > button { flex: 0 0 auto; width: 25px; height: 25px; border-radius: 7px; }
+.searchBox > button:hover { background: var(--surface-hover); color: var(--text); }
+.searchBox > button svg { width: 14px; height: 14px; }
+
+.searchDropdown {
+  position: absolute;
+  z-index: 84;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-solid);
+  box-shadow: 0 22px 55px rgba(0,0,0,.25);
+}
+
+.interpreted,
+.searchTip,
+.searchAction {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary-bright);
+}
+
+.interpreted > svg,
+.searchTip > svg,
+.searchAction > svg { flex: 0 0 auto; width: 16px; height: 16px; }
+.interpreted small,
+.interpreted strong { display: block; }
+.interpreted small { color: var(--muted); font-size: 8px; }
+.interpreted strong { margin-top: 2px; font-size: 10px; }
+.searchTip,
+.searchAction { color: var(--muted-strong); font-size: 9px; }
+.searchAction { background: var(--surface); }
+
+.suggestions { display: grid; gap: 2px; margin-top: 5px; }
+.suggestions button {
+  display: grid;
+  grid-template-columns: 35px minmax(0,1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 45px;
+  padding: 5px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.suggestions button:hover { background: var(--surface-hover); }
+.suggestions button > span:first-child { display: grid; place-items: center; width: 35px; height: 35px; overflow: hidden; border-radius: 7px; background: var(--surface); color: var(--muted); }
+.suggestions img { width: 100%; height: 100%; object-fit: cover; }
+.suggestions svg { width: 15px; height: 15px; }
+.suggestions strong,
+.suggestions small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggestions strong { font-size: 10px; }
+.suggestions small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+
+.examples { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.examples button {
+  min-height: 27px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 8px;
+}
+.examples button:hover { background: var(--surface-hover); color: var(--primary-bright); }
+
+.controls { display: flex; align-items: center; gap: 6px; }
+.filterWrap { position: relative; }
+
+.filterButton {
+  position: relative;
+  grid-auto-flow: column;
+  gap: 5px;
+  min-height: 38px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  font-size: 10px;
+}
+.filterButton > svg { width: 16px; height: 16px; }
+.filterButton .chevron { width: 12px; height: 12px; }
+.filterButton b {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid var(--bg);
+  border-radius: 999px;
+  background: var(--primary);
+  color: white;
+  font-size: 8px;
+}
+.controlActive { border-color: color-mix(in srgb,var(--primary) 48%,var(--border)); color: var(--primary-bright); }
+
+.themeButton,
+.menuButton {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+.themeButton svg,
+.menuButton svg { width: 17px; height: 17px; }
+.themeButton:hover,
+.menuButton:hover,
+.filterButton:hover { border-color: var(--border-strong); color: var(--primary-bright); }
+.menuButton { display: none; }
+
+.filterDropdown {
+  position: absolute;
+  z-index: 86;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(430px,calc(100vw - 24px));
+  max-height: min(76vh,680px);
+  overflow: auto;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-solid);
+  box-shadow: 0 25px 70px rgba(0,0,0,.28);
+}
+
+.filterHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1px 1px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.filterHeading strong,
+.filterHeading small { display: block; }
+.filterHeading strong { font-size: 13px; }
+.filterHeading small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.filterHeading > button { width: 30px; height: 30px; border-radius: 8px; }
+.filterHeading > button:hover { background: var(--surface-hover); color: var(--text); }
+.filterHeading svg { width: 15px; height: 15px; }
+
+.filterSection { margin-top: 12px; }
+.filterSection > span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 8px; font-weight: 750; letter-spacing: .03em; }
+.choiceGrid,
+.genreGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; }
+.genreGrid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.choiceGrid button,
+.genreGrid button,
+.scrollChoices button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  min-height: 33px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.choiceGrid button:hover,
+.genreGrid button:hover,
+.scrollChoices button:hover { background: var(--surface-hover); color: var(--text); }
+.choiceGrid button svg,
+.genreGrid button svg { width: 13px; height: 13px; }
+.choiceGrid button.choiceActive,
+.genreGrid button.choiceActive,
+.scrollChoices button.choiceActive { background: var(--primary-soft); color: var(--primary-bright); font-weight: 750; }
+
+.scrollChoices { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.scrollChoices::-webkit-scrollbar { display: none; }
+.scrollChoices button { flex: 0 0 auto; }
+
+.filterActions {
+  position: sticky;
+  bottom: -13px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr);
+  gap: 7px;
+  margin: 14px -13px -13px;
+  padding: 10px 13px 13px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb,var(--surface-solid) 96%,transparent);
+  backdrop-filter: blur(12px);
+}
+.filterActions button { min-height: 39px; padding: 0 13px; border: 0; border-radius: 10px; background: var(--surface); color: var(--muted-strong); cursor: pointer; font-size: 10px; font-weight: 700; }
+.filterActions button:last-child { background: var(--primary); color: white; }
+
+@media (max-width: 1120px) {
+  .header { grid-template-columns: auto minmax(0,1fr) minmax(230px,300px) auto auto; gap: 9px; }
+  .nav button { padding: 0 7px; font-size: 10px; }
+  .brand strong { font-size: 20px; }
+}
+
+@media (max-width: 900px) {
+  .header {
+    grid-template-columns: auto minmax(0,1fr) auto auto;
+    gap: 7px;
+    min-height: 60px;
+    padding: 0 12px;
+  }
+  .nav { display: none; }
+  .menuButton { display: grid; }
+  .themeButton { display: none; }
+  .filterText,
+  .filterButton .chevron { display: none; }
+  .filterButton { width: 38px; padding: 0; }
+  .searchBox { min-height: 38px; border-radius: 11px; }
+  .filterDropdown { position: fixed; top: 66px; right: 10px; left: 10px; width: auto; max-height: calc(100dvh - 82px); }
+}
+
+@media (max-width: 560px) {
+  .header {
+    grid-template-columns: 31px minmax(0,1fr) 35px 35px;
+    gap: 5px;
+    min-height: 56px;
+    padding: 0 10px;
+  }
+  .brandButton { display: grid; place-items: center; width: 31px; }
+  .brand { gap: 0; }
+  .brand strong { display: none; }
+  .brandMark { width: 24px; height: 27px; }
+  .searchBox { min-height: 35px; padding: 0 6px 0 9px; border-radius: 10px; }
+  .searchBox > svg { width: 14px; height: 14px; }
+  .searchBox input { font-size: 10px; }
+  .searchBox input::placeholder { font-size: 9px; }
+  .filterButton,
+  .menuButton { width: 35px; height: 35px; border-radius: 10px; }
+  .filterButton > svg,
+  .menuButton svg { width: 16px; height: 16px; }
+  .searchDropdown { position: fixed; top: 58px; right: 8px; left: 8px; }
+  .filterDropdown { top: 58px; right: 8px; left: 8px; padding: 11px; border-radius: 14px; }
+  .genreGrid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .choiceGrid button,
+  .genreGrid button,
+  .scrollChoices button { min-height: 31px; padding: 0 7px; font-size: 8px; }
+  .filterActions { bottom: -11px; margin: 12px -11px -11px; padding: 9px 11px 11px; }
+}
