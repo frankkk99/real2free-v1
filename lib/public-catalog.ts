@@ -42,6 +42,12 @@ export type PublicCatalogItem = {
   episodeCount: number;
   seasonCount: number;
   latestEpisode: number;
+  playerCount: number;
+  hasDubThai: boolean;
+  hasSubThai: boolean;
+  hasBackup: boolean;
+  languageCode: string | null;
+  isOngoing: boolean;
   players: PublicPlayer[];
 };
 
@@ -64,6 +70,30 @@ export type PublicCatalogRow = {
   season_count: number | string | null;
   latest_episode: number | string | null;
   players: unknown;
+};
+
+export type PublicCatalogCardRow = {
+  id: string;
+  content_type: "movie" | "series";
+  title_th: string | null;
+  title_en: string | null;
+  release_date: string | null;
+  year: number | null;
+  poster_url: string | null;
+  backdrop_url: string | null;
+  genres: string[] | null;
+  rating: number | string | null;
+  vote_count: number | null;
+  updated_at: string;
+  episode_count: number | string | null;
+  season_count: number | string | null;
+  latest_episode: number | string | null;
+  player_count: number | string | null;
+  has_dub_th: boolean | null;
+  has_sub_th: boolean | null;
+  has_backup: boolean | null;
+  language_code: string | null;
+  is_ongoing: boolean | null;
 };
 
 export type PublicEpisode = {
@@ -114,6 +144,9 @@ export type PublicSeriesSummaryRow = {
 
 export const PUBLIC_CATALOG_FIELDS =
   "id,content_type,title_th,title_en,overview,release_date,year,runtime,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,players";
+
+export const PUBLIC_CATALOG_CARD_FIELDS =
+  "id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
 
 export const PUBLIC_EPISODE_FIELDS =
   "id,series_id,season_number,episode_number,title,overview,air_date,runtime,still_url,updated_at,players";
@@ -175,6 +208,32 @@ function defaultGroupLabel(key: PlayerGroupKey) {
   if (key === "dub_th") return "พากย์ไทย";
   if (key === "sub_th") return "ซับไทย";
   return "ตัวเลือกรับชม";
+}
+
+function numberOrZero(value: unknown) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function optionalNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizedLanguageCode(value: unknown) {
+  const code = String(value || "").trim().toUpperCase();
+  if (!/^[A-Z]{2,3}$/u.test(code)) return null;
+  if (code === "JA") return "JP";
+  if (code === "ZH") return "CN";
+  return code;
+}
+
+function mappedGenres(value: string[] | null | undefined) {
+  const rawGenres = Array.isArray(value) ? value.filter(Boolean) : [];
+  return {
+    rawGenres,
+    genres: rawGenres.map((genre) => genreLabels[genre] || genre),
+  };
 }
 
 export function parsePublicPlayers(value: unknown): PublicPlayer[] {
@@ -265,10 +324,9 @@ export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | 
   const players = parsePublicPlayers(row.players);
   if (!row.id || !players.length) return null;
 
-  const episodeCount = Number(row.episode_count || 0);
-  const seasonCount = Number(row.season_count || 0);
-  const latestEpisode = Number(row.latest_episode || 0);
-  const rawGenres = Array.isArray(row.genres) ? row.genres.filter(Boolean) : [];
+  const groups = groupPublicPlayers(players);
+  const genreData = mappedGenres(row.genres);
+  const updatedTimestamp = new Date(row.updated_at).getTime();
 
   return {
     id: row.id,
@@ -277,19 +335,58 @@ export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | 
     title: String(row.title_en || row.title_th || "ไม่ระบุชื่อ"),
     overview: String(row.overview || ""),
     releaseDate: row.release_date || null,
-    year: Number.isFinite(Number(row.year)) ? Number(row.year) : null,
-    runtime: Number.isFinite(Number(row.runtime)) ? Number(row.runtime) : null,
+    year: optionalNumber(row.year),
+    runtime: optionalNumber(row.runtime),
     posterUrl: row.poster_url || null,
     backdropUrl: row.backdrop_url || row.poster_url || null,
-    rawGenres,
-    genres: rawGenres.map((genre) => genreLabels[genre] || genre),
-    rating: Number.isFinite(Number(row.rating)) ? Number(row.rating) : 0,
-    voteCount: Number(row.vote_count || 0),
+    ...genreData,
+    rating: numberOrZero(row.rating),
+    voteCount: numberOrZero(row.vote_count),
     updatedAt: row.updated_at,
-    episodeCount,
-    seasonCount,
-    latestEpisode,
+    episodeCount: numberOrZero(row.episode_count),
+    seasonCount: numberOrZero(row.season_count),
+    latestEpisode: numberOrZero(row.latest_episode),
+    playerCount: players.length,
+    hasDubThai: groups.some((group) => group.key === "dub_th"),
+    hasSubThai: groups.some((group) => group.key === "sub_th"),
+    hasBackup: groups.some((group) => group.hasBackup),
+    languageCode: null,
+    isOngoing: row.content_type === "series"
+      && Number.isFinite(updatedTimestamp)
+      && Date.now() - updatedTimestamp <= 45 * 24 * 60 * 60 * 1000,
     players,
+  };
+}
+
+export function mapPublicCatalogCardRow(row: PublicCatalogCardRow): PublicCatalogItem | null {
+  if (!row.id) return null;
+  const genreData = mappedGenres(row.genres);
+
+  return {
+    id: row.id,
+    contentType: row.content_type === "series" ? "series" : "movie",
+    thaiTitle: String(row.title_th || row.title_en || "ไม่ระบุชื่อ"),
+    title: String(row.title_en || row.title_th || "ไม่ระบุชื่อ"),
+    overview: "",
+    releaseDate: row.release_date || null,
+    year: optionalNumber(row.year),
+    runtime: null,
+    posterUrl: row.poster_url || null,
+    backdropUrl: row.backdrop_url || row.poster_url || null,
+    ...genreData,
+    rating: numberOrZero(row.rating),
+    voteCount: numberOrZero(row.vote_count),
+    updatedAt: row.updated_at,
+    episodeCount: numberOrZero(row.episode_count),
+    seasonCount: numberOrZero(row.season_count),
+    latestEpisode: numberOrZero(row.latest_episode),
+    playerCount: numberOrZero(row.player_count),
+    hasDubThai: Boolean(row.has_dub_th),
+    hasSubThai: Boolean(row.has_sub_th),
+    hasBackup: Boolean(row.has_backup),
+    languageCode: normalizedLanguageCode(row.language_code),
+    isOngoing: Boolean(row.is_ongoing),
+    players: [],
   };
 }
 
@@ -307,7 +404,7 @@ export function mapPublicEpisodeRow(row: PublicEpisodeRow): PublicEpisode | null
     title: String(row.title || `ตอนที่ ${episodeNumber}`),
     overview: String(row.overview || ""),
     airDate: row.air_date || null,
-    runtime: Number.isFinite(Number(row.runtime)) ? Number(row.runtime) : null,
+    runtime: optionalNumber(row.runtime),
     stillUrl: row.still_url || null,
     updatedAt: row.updated_at,
     players,
@@ -318,11 +415,11 @@ export function mapPublicSeriesSummaryRow(row: PublicSeriesSummaryRow): PublicSe
   if (!row.series_id) return null;
   return {
     seriesId: row.series_id,
-    episodeCount: Number(row.episode_count || 0),
-    seasonCount: Number(row.season_count || 0),
-    firstSeason: Number(row.first_season || 1),
-    lastSeason: Number(row.last_season || 1),
-    latestEpisode: Number(row.latest_episode || 0),
+    episodeCount: numberOrZero(row.episode_count),
+    seasonCount: numberOrZero(row.season_count),
+    firstSeason: numberOrZero(row.first_season) || 1,
+    lastSeason: numberOrZero(row.last_season) || 1,
+    latestEpisode: numberOrZero(row.latest_episode),
   };
 }
 
