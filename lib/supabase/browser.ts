@@ -1,11 +1,12 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config";
 
-let browserClient: SupabaseClient | null = null;
+let adminBrowserClient: SupabaseClient | null = null;
+let publicBrowserClient: SupabaseClient | null = null;
 
-export function getSupabaseBrowserClient() {
-  if (!browserClient) {
-    browserClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+function getAdminBrowserClient() {
+  if (!adminBrowserClient) {
+    adminBrowserClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -14,5 +15,25 @@ export function getSupabaseBrowserClient() {
       },
     });
   }
-  return browserClient;
+
+  return adminBrowserClient;
+}
+
+function getPublicBrowserClient() {
+  if (!publicBrowserClient) {
+    publicBrowserClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+
+  return publicBrowserClient;
+}
+
+export function getSupabaseBrowserClient() {
+  const isAdminRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
+  return isAdminRoute ? getAdminBrowserClient() : getPublicBrowserClient();
 }
