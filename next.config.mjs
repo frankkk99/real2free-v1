@@ -1,19 +1,52 @@
 /** @type {import('next').NextConfig} */
+const watchContentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https: wss: blob:",
+  "media-src 'self' https: blob:",
+  "frame-src https:",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+].join("; ");
+
+const baseSecurityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+];
+
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  typescript: {
-    // The existing admin extractor has a non-runtime duplicate-field warning.
-    // Keep the public site deployable while that admin-only route is repaired separately.
-    ignoreBuildErrors: true,
-  },
   async headers() {
     return [
       {
+        source: "/:path*",
+        headers: baseSecurityHeaders,
+      },
+      {
         source: "/watch/:path*",
         headers: [
+          { key: "Content-Security-Policy", value: watchContentSecurityPolicy },
           { key: "Referrer-Policy", value: "no-referrer" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+      {
+        source: "/api/playback/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, nosnippet" },
         ],
       },
     ];

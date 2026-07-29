@@ -483,6 +483,7 @@ async function extractOne(raw: Record<string, unknown>) {
     const best = players.find((player) => player.validation.ok) || players[0] || null;
     return {
       id,
+      ...metadata,
       ok: Boolean(best?.validation.ok),
       url: url.toString(),
       title: metadata.title || text(raw.title),
@@ -491,7 +492,6 @@ async function extractOne(raw: Record<string, unknown>) {
       rating: text(raw.rating) || (metadata.imdbRating !== null ? String(metadata.imdbRating) : null),
       quality: text(raw.quality) || null,
       postId: options[0]?.postId || text(raw.postId) || null,
-      ...metadata,
       options,
       players,
       best,

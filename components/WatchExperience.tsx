@@ -118,7 +118,7 @@ export default function WatchExperience({
     }
   }, [item.id]);
 
-  const requestSource = useCallback(async (index: number) => {
+  const requestSource = useCallback(async (startIndex: number) => {
     const requestId = ++requestRef.current;
     setSource(null);
     setSwitching(true);
@@ -127,40 +127,75 @@ export default function WatchExperience({
     setPlayerSession((current) => current + 1);
 
     try {
-      const response = await fetch("/api/playback/session", {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          "content-type": "application/json",
-          "x-real2free-playback": "1",
-        },
-        body: JSON.stringify({
-          titleId: item.id,
-          episodeId: activeEpisode?.id || null,
-          index,
-        }),
-      });
-      const payload = await response.json() as PlaybackPayload;
-      if (requestId !== requestRef.current) return;
-
-      if (!response.ok) {
-        if (response.status === 429) throw new Error("มีการขอตัวรับชมถี่เกินไป กรุณารอประมาณ 1 นาที");
-        throw new Error("ไม่สามารถขอตัวรับชมได้");
+      if (startIndex === 0) {
+        const challengeResponse = await fetch("/api/playback/challenge", {
+          method: "POST",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: {
+            "content-type": "application/json",
+            "x-real2free-challenge": "1",
+          },
+          body: JSON.stringify({
+            titleId: item.id,
+            episodeId: activeEpisode?.id || null,
+          }),
+        });
+        if (!challengeResponse.ok) {
+          if (challengeResponse.status === 429) throw new Error("มีการขอตัวรับชมถี่เกินไป กรุณารอสักครู่");
+          throw new Error("ไม่สามารถเริ่ม session รับชมได้");
+        }
       }
 
-      if (!payload.source) {
+      let requestedIndex = startIndex;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const response = await fetch("/api/playback/session", {
+          method: "POST",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: {
+            "content-type": "application/json",
+            "x-real2free-playback": "1",
+          },
+          body: JSON.stringify({
+            titleId: item.id,
+            episodeId: activeEpisode?.id || null,
+            index: requestedIndex,
+          }),
+        });
+        const payload = await response.json() as PlaybackPayload;
+        if (requestId !== requestRef.current) return;
+
+        if (!response.ok) {
+          if (response.status === 429) throw new Error("มีการขอตัวรับชมถี่เกินไป กรุณารอประมาณ 1 นาที");
+          if (response.status === 401) throw new Error("Session รับชมหมดอายุ กรุณากดลองใหม่");
+          throw new Error("ไม่สามารถขอตัวรับชมได้");
+        }
+
         setTotalSources(payload.total || 0);
-        setHasNextSource(false);
-        setAllExhausted(true);
-        setRequestError("ไม่พบตัวรับชมที่พร้อมใช้งาน");
+        if (!payload.source && payload.hasNext) {
+          requestedIndex = payload.index + 1;
+          continue;
+        }
+
+        if (!payload.source) {
+          setHasNextSource(false);
+          setAllExhausted(true);
+          setRequestError("ไม่พบตัวรับชมที่ผ่านการตรวจสอบ");
+          return;
+        }
+
+        setSource(payload.source);
+        setSourceIndex(payload.index);
+        setTotalSources(payload.total);
+        setHasNextSource(payload.hasNext);
+        setAllExhausted(false);
         return;
       }
 
-      setSource(payload.source);
-      setSourceIndex(payload.index);
-      setTotalSources(payload.total);
-      setHasNextSource(payload.hasNext);
-      setAllExhausted(false);
+      setHasNextSource(false);
+      setAllExhausted(true);
+      setRequestError("ตัวรับชมหลายรายการไม่ผ่านการตรวจสอบความปลอดภัย");
     } catch (error) {
       if (requestId !== requestRef.current) return;
       setSource(null);
@@ -328,7 +363,7 @@ export default function WatchExperience({
                       : "กำลังเตรียมการรับชม"}</strong>
               <small>{!playRequested
                 ? "URL ของ Player จะถูกขอหลังจากคุณกดเริ่มรับชมเท่านั้น"
-                : "หากตัวหนึ่งเปิดไม่ได้ ระบบจะขอตัวถัดไปโดยอัตโนมัติ"}</small>
+                : "Session จะหมุนใหม่ทุกครั้งและไล่ตัวสำรองให้อัตโนมัติ"}</small>
             </div>
             <span className={styles.sourceCount}>{source ? sourceIndex + 1 : 0}/{totalSources}</span>
           </div>
