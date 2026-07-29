@@ -122,7 +122,7 @@ export default function HomeQuickFilters({
       </div>
 
       <div className={styles.filterRail}>
-        <div className={`${styles.filterCluster} ${styles.viewCluster}`}>
+        <div className={styles.filterCluster}>
           <span className={styles.clusterLabel}>ดู</span>
           <div className={styles.optionGrid}>
             {viewOptions.map((option) => (
@@ -138,7 +138,7 @@ export default function HomeQuickFilters({
           </div>
         </div>
 
-        <div className={`${styles.filterCluster} ${styles.yearCluster}`}>
+        <div className={styles.filterCluster}>
           <span className={styles.clusterLabel}>ปี</span>
           <div className={styles.optionGrid}>
             {yearOptions.map((option) => (
@@ -154,7 +154,7 @@ export default function HomeQuickFilters({
           </div>
         </div>
 
-        <div className={`${styles.filterCluster} ${styles.genreCluster}`}>
+        <div className={styles.filterCluster}>
           <span className={styles.clusterLabel}>แนว</span>
           <div className={styles.optionGrid}>
             {genreOptions.map((option) => (
