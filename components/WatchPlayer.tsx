@@ -124,7 +124,6 @@ function HlsVideo({
       preload="none"
       crossOrigin="anonymous"
       poster={poster || undefined}
-      referrerPolicy="no-referrer"
     />
   );
 }
