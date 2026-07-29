@@ -66,9 +66,27 @@ type CatalogCache = {
   hasMore: boolean;
 };
 
+type HeroSlide =
+  | {
+      key: string;
+      kind: "featured";
+      backdropUrl: string;
+      featured: PublicHeroItem;
+      fallback: null;
+    }
+  | {
+      key: string;
+      kind: "catalog";
+      backdropUrl: string;
+      featured: null;
+      fallback: PublicCatalogItem;
+    };
+
 const PAGE_SIZE = 24;
 const CACHE_MS = 5 * 60 * 1000;
 const CURRENT_RELEASE_YEAR = 2026;
+const HERO_SLIDE_LIMIT = 10;
+const HERO_ROTATION_MS = 6800;
 
 const mainNav: Array<{ mode: ViewMode; label: string; icon: typeof Home }> = [
   { mode: "home", label: "หน้าแรก", icon: Home },
@@ -116,6 +134,15 @@ function Brand() {
       <strong>REAL<span>2</span>FREE</strong>
     </span>
   );
+}
+
+function shuffleItems<T>(values: T[]): T[] {
+  const next = [...values];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
 }
 
 function releaseTimestamp(item: PublicCatalogItem) {
@@ -209,14 +236,14 @@ export default function MovieHomeV2() {
           .select(PUBLIC_HERO_FIELDS)
           .order("priority", { ascending: false })
           .order("release_date", { ascending: true, nullsFirst: false })
-          .limit(6);
+          .limit(24);
 
         if (error) throw error;
         if (disposed) return;
         const mapped = ((data || []) as unknown as PublicHeroRow[])
           .map(mapPublicHeroRow)
           .filter((item): item is PublicHeroItem => Boolean(item?.backdropUrl));
-        setFeaturedHeroes(mapped);
+        setFeaturedHeroes(shuffleItems(mapped).slice(0, 14));
       } catch {
         if (!disposed) setFeaturedHeroes([]);
       }
@@ -404,10 +431,52 @@ export default function MovieHomeV2() {
     return () => observer.disconnect();
   }, [fetchCatalog, hasMore, loading, loadingMore, page]);
 
-  const fallbackHeroItems = useMemo(() => items.filter((item) => item.backdropUrl).slice(0, 4), [items]);
-  const featuredHero = featuredHeroes[heroIndex] || null;
-  const fallbackHero = fallbackHeroItems[heroIndex] || fallbackHeroItems[0] || null;
-  const activeHeroCount = featuredHeroes.length || fallbackHeroItems.length;
+  const fallbackHeroItems = useMemo(
+    () => items.filter((item) => Boolean(item.backdropUrl)).slice(0, 14),
+    [items],
+  );
+
+  const heroSlides = useMemo<HeroSlide[]>(() => {
+    const pool: HeroSlide[] = [];
+    const seenCatalogIds = new Set<string>();
+    const seenBackdrops = new Set<string>();
+
+    featuredHeroes.forEach((item) => {
+      const backdropUrl = item.backdropUrl;
+      if (!backdropUrl || seenBackdrops.has(backdropUrl)) return;
+      if (item.catalogId) seenCatalogIds.add(item.catalogId);
+      seenBackdrops.add(backdropUrl);
+      pool.push({
+        key: `featured:${item.id}`,
+        kind: "featured",
+        backdropUrl,
+        featured: item,
+        fallback: null,
+      });
+    });
+
+    fallbackHeroItems.forEach((item) => {
+      const backdropUrl = item.backdropUrl;
+      if (!backdropUrl || seenCatalogIds.has(item.id) || seenBackdrops.has(backdropUrl)) return;
+      seenCatalogIds.add(item.id);
+      seenBackdrops.add(backdropUrl);
+      pool.push({
+        key: `catalog:${item.id}`,
+        kind: "catalog",
+        backdropUrl,
+        featured: null,
+        fallback: item,
+      });
+    });
+
+    return shuffleItems(pool).slice(0, HERO_SLIDE_LIMIT);
+  }, [fallbackHeroItems, featuredHeroes]);
+
+  const activeHeroSlide = heroSlides[heroIndex] || heroSlides[0] || null;
+  const featuredHero = activeHeroSlide?.kind === "featured" ? activeHeroSlide.featured : null;
+  const fallbackHero = activeHeroSlide?.kind === "catalog" ? activeHeroSlide.fallback : null;
+  const activeHeroCount = heroSlides.length;
+
   const freshItems = useMemo(
     () => items.filter((item) => item.year === CURRENT_RELEASE_YEAR).sort(newestRatedCompare).slice(0, 18),
     [items],
@@ -419,9 +488,11 @@ export default function MovieHomeV2() {
 
   useEffect(() => {
     if (activeHeroCount < 2) return;
-    const timer = window.setInterval(() => setHeroIndex((current) => (current + 1) % activeHeroCount), 7500);
-    return () => window.clearInterval(timer);
-  }, [activeHeroCount]);
+    const timer = window.setTimeout(() => {
+      setHeroIndex((current) => (current + 1) % activeHeroCount);
+    }, HERO_ROTATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [activeHeroCount, heroIndex]);
 
   useEffect(() => {
     if (heroIndex >= activeHeroCount && activeHeroCount > 0) setHeroIndex(0);
@@ -576,20 +647,26 @@ export default function MovieHomeV2() {
         onOpenMenu={() => setMobileMenuOpen(true)}
       />
 
-      {isDefaultHome && (featuredHero || fallbackHero) ? (
-        <section className={styles.hero}>
-          {(featuredHero?.backdropUrl || fallbackHero?.backdropUrl) ? (
-            <img
-              src={featuredHero?.backdropUrl || fallbackHero?.backdropUrl || ""}
-              alt=""
-              fetchPriority="high"
-              referrerPolicy="no-referrer"
-            />
-          ) : null}
+      {isDefaultHome && activeHeroSlide ? (
+        <section className={`${styles.hero} r2f-home-hero`}>
+          <div className="r2f-hero-backdrops" aria-hidden="true">
+            {heroSlides.map((slide, index) => (
+              <img
+                key={slide.key}
+                className={index === heroIndex ? "is-active" : ""}
+                src={slide.backdropUrl}
+                alt=""
+                loading={index < 3 ? "eager" : "lazy"}
+                decoding="async"
+                fetchPriority={index === heroIndex ? "high" : "auto"}
+                referrerPolicy="no-referrer"
+              />
+            ))}
+          </div>
           <span className={styles.heroShade} />
 
           {featuredHero ? (
-            <div className={styles.heroContent}>
+            <div key={activeHeroSlide.key} className={`${styles.heroContent} r2f-hero-content-enter`}>
               <span className={styles.heroEyebrow}>เร็ว ๆ นี้ • {heroReleaseLabel(featuredHero.releaseDate)}</span>
               <h1>{featuredHero.thaiTitle}</h1>
               {featuredHero.title !== featuredHero.thaiTitle ? <h2>{featuredHero.title}</h2> : null}
@@ -608,7 +685,7 @@ export default function MovieHomeV2() {
               </div>
             </div>
           ) : fallbackHero ? (
-            <div className={styles.heroContent}>
+            <div key={activeHeroSlide.key} className={`${styles.heroContent} r2f-hero-content-enter`}>
               <span className={styles.heroEyebrow}>เรื่องเด่นวันนี้</span>
               <h1>{fallbackHero.thaiTitle}</h1>
               {fallbackHero.title !== fallbackHero.thaiTitle ? <h2>{fallbackHero.title}</h2> : null}
@@ -631,7 +708,15 @@ export default function MovieHomeV2() {
               <button className={`${styles.heroArrow} ${styles.heroArrowLeft}`} type="button" onClick={() => setHeroIndex((heroIndex - 1 + activeHeroCount) % activeHeroCount)} aria-label="เรื่องก่อนหน้า"><ChevronLeft /></button>
               <button className={`${styles.heroArrow} ${styles.heroArrowRight}`} type="button" onClick={() => setHeroIndex((heroIndex + 1) % activeHeroCount)} aria-label="เรื่องถัดไป"><ChevronRight /></button>
               <div className={styles.heroDots}>
-                {Array.from({ length: activeHeroCount }).map((_, index) => <button key={index} className={index === heroIndex ? styles.heroDotActive : ""} type="button" onClick={() => setHeroIndex(index)} aria-label={`เรื่องที่ ${index + 1}`} />)}
+                {heroSlides.map((slide, index) => (
+                  <button
+                    key={slide.key}
+                    className={index === heroIndex ? styles.heroDotActive : ""}
+                    type="button"
+                    onClick={() => setHeroIndex(index)}
+                    aria-label={`เรื่องที่ ${index + 1}`}
+                  />
+                ))}
               </div>
             </>
           ) : null}
