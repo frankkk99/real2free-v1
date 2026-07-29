@@ -67,7 +67,14 @@ function BrandLogo({ option }: { option: BrandOption }) {
   return failed ? (
     <span className={styles.brandFallback}>{option.label}</span>
   ) : (
-    <img src={option.logo} alt={option.label} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+    <img
+      src={option.logo}
+      alt={option.label}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -95,9 +102,9 @@ export default function HomeQuickFilters({
 
   return (
     <section className={styles.dock} aria-label="ค้นหาด่วน">
-      <div className={`${styles.row} ${styles.brandRow}`}>
-        <span className={styles.rowLabel}>ค่าย</span>
-        <div className={styles.brandScroller}>
+      <div className={styles.brandSection}>
+        <span className={styles.sectionLabel}>ค่ายหนังและสตรีมมิง</span>
+        <div className={styles.brandGrid}>
           {brandOptions.map((option) => (
             <button
               key={option.value}
@@ -114,62 +121,68 @@ export default function HomeQuickFilters({
         </div>
       </div>
 
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>ดู</span>
-        <div className={styles.scroller}>
-          {viewOptions.map((option) => (
-            <button
-              key={option.value}
-              className={viewMode === option.value ? styles.active : ""}
-              type="button"
-              onClick={() => onViewChange(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>ปี</span>
-        <div className={styles.yearScroller}>
-          {yearOptions.map((option) => (
-            <button
-              key={option}
-              className={year === option ? styles.active : ""}
-              type="button"
-              onClick={() => onYearChange(year === option ? "ทั้งหมด" : option)}
-            >
-              {option}
-            </button>
-          ))}
+      <div className={styles.filterRail}>
+        <div className={styles.filterCluster}>
+          <span className={styles.clusterLabel}>ดู</span>
+          <div className={styles.optionGrid}>
+            {viewOptions.map((option) => (
+              <button
+                key={option.value}
+                className={viewMode === option.value ? styles.active : ""}
+                type="button"
+                onClick={() => onViewChange(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <span className={styles.divider} aria-hidden="true" />
-        <span className={styles.rowLabel}>แนว</span>
-        <div className={styles.genreScroller}>
-          {genreOptions.map((option) => (
-            <button
-              key={option.value}
-              className={genre === option.value ? styles.active : ""}
-              type="button"
-              onClick={() => onGenreChange(genre === option.value ? "ทั้งหมด" : option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className={styles.filterCluster}>
+          <span className={styles.clusterLabel}>ปี</span>
+          <div className={styles.optionGrid}>
+            {yearOptions.map((option) => (
+              <button
+                key={option}
+                className={year === option ? styles.active : ""}
+                type="button"
+                onClick={() => onYearChange(year === option ? "ทั้งหมด" : option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <button className={styles.moreButton} type="button" onClick={onOpenMore}>
-          <SlidersHorizontal />
-          <span>เพิ่มเติม</span>
-        </button>
+        <div className={styles.filterCluster}>
+          <span className={styles.clusterLabel}>แนว</span>
+          <div className={styles.optionGrid}>
+            {genreOptions.map((option) => (
+              <button
+                key={option.value}
+                className={genre === option.value ? styles.active : ""}
+                type="button"
+                onClick={() => onGenreChange(genre === option.value ? "ทั้งหมด" : option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        {hasSelection ? (
-          <button className={styles.clearButton} type="button" onClick={onClear} aria-label="ล้างตัวกรองทั้งหมด">
-            <X />
+        <div className={styles.filterActions}>
+          <button className={styles.moreButton} type="button" onClick={onOpenMore} aria-label="เปิดตัวกรองเพิ่มเติม">
+            <SlidersHorizontal />
+            <span>เพิ่มเติม</span>
           </button>
-        ) : null}
+
+          {hasSelection ? (
+            <button className={styles.clearButton} type="button" onClick={onClear} aria-label="ล้างตัวกรองทั้งหมด">
+              <X />
+              <span>ล้าง</span>
+            </button>
+          ) : null}
+        </div>
       </div>
     </section>
   );
