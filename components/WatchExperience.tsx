@@ -15,29 +15,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   contentTypeLabel,
   FAVORITES_KEY,
-  groupPublicPlayers,
   HISTORY_KEY,
-  mapPublicCatalogRow,
-  mapPublicEpisodeRow,
-  playerAvailabilityLabels,
-  preferredPlayerGroup,
-  PUBLIC_CATALOG_FIELDS,
-  PUBLIC_EPISODE_FIELDS,
   runtimeLabel,
-  type PlayerGroupKey,
+  type PlaybackSource,
   type PublicCatalogItem,
-  type PublicCatalogRow,
   type PublicEpisode,
-  type PublicEpisodeRow,
-  type PublicPlayer,
 } from "@/lib/public-catalog";
 import PlayerChoicePanel from "./PlayerChoicePanel";
 import SeriesEpisodeBrowser from "./SeriesEpisodeBrowser";
-import WatchPlayer, { type WatchSource } from "./WatchPlayer";
+import WatchPlayer from "./WatchPlayer";
 import styles from "./WatchExperience.module.css";
 
 function Brand() {
@@ -56,323 +45,160 @@ function releaseLabel(value: string | null, year: number | null) {
   return new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
-function isMeePlayerBlockedEmbed(value: string | null | undefined) {
-  if (!value) return false;
-  try {
-    const url = new URL(value);
-    const isMeePlayer = url.hostname === "meeplayer.com" || url.hostname.endsWith(".meeplayer.com");
-    return isMeePlayer && url.pathname.startsWith("/play/");
-  } catch {
-    return false;
-  }
-}
+type PlaybackPayload = {
+  source: PlaybackSource | null;
+  index: number;
+  total: number;
+  hasNext: boolean;
+  error?: string;
+};
 
-function isWebUrl(value: string | null | undefined) {
-  if (!value) return false;
-  try {
-    return ["http:", "https:"].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
-}
-
-function buildSources(players: PublicPlayer[]): WatchSource[] {
-  const seen = new Set<string>();
-  const result: WatchSource[] = [];
-
-  players.forEach((player, playerIndex) => {
-    const externalUrl = [player.fallbackUrl, player.url].find((value) => isWebUrl(value)) || null;
-    const choices = [
-      { url: player.url, kind: player.kind },
-      { url: player.fallbackUrl, kind: player.fallbackKind },
-    ];
-
-    choices.forEach((choice, choiceIndex) => {
-      if (!choice.url || !choice.kind || seen.has(choice.url)) return;
-      if (choice.kind === "embed" && isMeePlayerBlockedEmbed(choice.url)) return;
-
-      seen.add(choice.url);
-      result.push({
-        key: `${player.id}-${choiceIndex}-${choice.kind}`,
-        playerId: player.id,
-        playerIndex,
-        label: player.label || `ตัวเลือก ${playerIndex + 1}`,
-        url: choice.url,
-        kind: choice.kind,
-        externalUrl,
-      });
-    });
-  });
-
-  return result;
-}
-
-function preferredAvailableGroup(groups: ReturnType<typeof groupPublicPlayers>) {
-  const usable = groups.filter((group) => buildSources(group.players).length > 0);
-  const preferredKey = preferredPlayerGroup(usable.flatMap((group) => group.players));
-  return usable.find((group) => group.key === preferredKey) || usable[0] || null;
-}
-
-export default function WatchExperience({ id }: { id: string }) {
-  const [movie, setMovie] = useState<PublicCatalogItem | null>(null);
-  const [episodes, setEpisodes] = useState<PublicEpisode[]>([]);
-  const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
-  const [selectedGroupKey, setSelectedGroupKey] = useState<PlayerGroupKey>("default");
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const [activeSourceIndex, setActiveSourceIndex] = useState(0);
+export default function WatchExperience({
+  item,
+  episodes,
+}: {
+  item: PublicCatalogItem;
+  episodes: PublicEpisode[];
+}) {
+  const playableEpisodes = useMemo(
+    () => episodes.filter((episode) => episode.playerCount > 0),
+    [episodes],
+  );
+  const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(playableEpisodes[0]?.id || null);
+  const [source, setSource] = useState<PlaybackSource | null>(null);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [totalSources, setTotalSources] = useState(playableEpisodes[0]?.playerCount || item.playerCount);
+  const [hasNextSource, setHasNextSource] = useState((playableEpisodes[0]?.playerCount || item.playerCount) > 1);
   const [playRequested, setPlayRequested] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [allExhausted, setAllExhausted] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
   const [playerSession, setPlayerSession] = useState(0);
   const [favorite, setFavorite] = useState(false);
 
-  const failedKeysRef = useRef<Set<string>>(new Set());
-  const retryCycleRef = useRef(0);
-  const transitionRef = useRef(false);
-  const transitionTimerRef = useRef<number | null>(null);
+  const requestRef = useRef(0);
   const playerStageRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      setFailed(false);
-      setEpisodes([]);
-      setActiveEpisodeId(null);
-      setSelectedGroupKey("default");
-
-      const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase
-        .from("real2free_public_titles")
-        .select(PUBLIC_CATALOG_FIELDS)
-        .eq("id", id)
-        .maybeSingle();
-
-      if (disposed) return;
-      if (error || !data) {
-        setFailed(true);
-        setLoading(false);
-        return;
-      }
-
-      const mapped = mapPublicCatalogRow(data as unknown as PublicCatalogRow);
-      if (!mapped) {
-        setFailed(true);
-        setLoading(false);
-        return;
-      }
-
-      let mappedEpisodes: PublicEpisode[] = [];
-      if (mapped.contentType === "series") {
-        const { data: episodeData, error: episodeError } = await supabase
-          .from("real2free_public_episodes")
-          .select(PUBLIC_EPISODE_FIELDS)
-          .eq("series_id", mapped.id)
-          .order("season_number", { ascending: true })
-          .order("episode_number", { ascending: true });
-
-        if (disposed) return;
-        if (episodeError) {
-          setFailed(true);
-          setLoading(false);
-          return;
-        }
-
-        mappedEpisodes = ((episodeData || []) as unknown as PublicEpisodeRow[])
-          .map(mapPublicEpisodeRow)
-          .filter((episode): episode is PublicEpisode => Boolean(episode));
-
-        if (!mappedEpisodes.length) {
-          setFailed(true);
-          setLoading(false);
-          return;
-        }
-      }
-
-      setMovie(mapped);
-      setEpisodes(mappedEpisodes);
-
-      if (mappedEpisodes.length) {
-        const requestedEpisodeId = new URLSearchParams(window.location.search).get("episode");
-        const initialEpisode = mappedEpisodes.find((episode) => episode.id === requestedEpisodeId) || mappedEpisodes[0];
-        setActiveEpisodeId(initialEpisode.id);
-        setSelectedGroupKey(preferredPlayerGroup(initialEpisode.players));
-      } else {
-        setSelectedGroupKey(preferredPlayerGroup(mapped.players));
-      }
-
-      setLoading(false);
-      setActiveSourceIndex(0);
-      setPlayRequested(false);
-      setAllExhausted(false);
-      failedKeysRef.current = new Set();
-      retryCycleRef.current = 0;
-
-      try {
-        const favorites = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]") as string[];
-        setFavorite(favorites.includes(mapped.id));
-        const history = JSON.parse(window.localStorage.getItem(HISTORY_KEY) || "[]") as string[];
-        const nextHistory = [mapped.id, ...history.filter((entry) => entry !== mapped.id)].slice(0, 100);
-        window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
-      } catch {
-        window.localStorage.removeItem(FAVORITES_KEY);
-        window.localStorage.removeItem(HISTORY_KEY);
-      }
-    }
-
-    void load();
-    return () => {
-      disposed = true;
-      if (transitionTimerRef.current) window.clearTimeout(transitionTimerRef.current);
-    };
-  }, [id]);
-
   const activeEpisode = useMemo(
-    () => episodes.find((episode) => episode.id === activeEpisodeId) || episodes[0] || null,
-    [activeEpisodeId, episodes],
+    () => playableEpisodes.find((episode) => episode.id === activeEpisodeId) || playableEpisodes[0] || null,
+    [activeEpisodeId, playableEpisodes],
   );
-
-  const allCurrentPlayers = useMemo(() => {
-    if (!movie) return [];
-    return movie.contentType === "series" ? activeEpisode?.players || [] : movie.players;
-  }, [activeEpisode?.players, movie]);
-
-  const playerGroups = useMemo(
-    () => groupPublicPlayers(allCurrentPlayers).filter((group) => buildSources(group.players).length > 0),
-    [allCurrentPlayers],
-  );
-
-  const activeGroup = useMemo(
-    () => playerGroups.find((group) => group.key === selectedGroupKey) || preferredAvailableGroup(playerGroups) || playerGroups[0] || null,
-    [playerGroups, selectedGroupKey],
-  );
-
-  const currentPlayers = activeGroup?.players || [];
-  const sources = useMemo(() => buildSources(currentPlayers), [currentPlayers]);
-  const activeSource = sources[Math.min(activeSourceIndex, Math.max(sources.length - 1, 0))] || null;
-  const activePlayerIndex = activeSource?.playerIndex ?? 0;
-  const seasonCount = useMemo(() => new Set(episodes.map((episode) => episode.seasonNumber)).size, [episodes]);
-  const availabilityLabels = useMemo(() => playerAvailabilityLabels(allCurrentPlayers), [allCurrentPlayers]);
-
-  const meta = useMemo(() => {
-    if (!movie) return [];
-    if (movie.contentType === "series") {
-      return [
-        contentTypeLabel(movie.contentType),
-        movie.year ? String(movie.year) : "",
-        episodes.length ? `${episodes.length.toLocaleString("th-TH")} ตอน` : "",
-        seasonCount > 1 ? `${seasonCount} ซีซัน` : "",
-      ].filter(Boolean);
-    }
-
-    return [
-      contentTypeLabel(movie.contentType),
-      movie.year ? String(movie.year) : "",
-      runtimeLabel(movie.runtime),
-      ...availabilityLabels,
-    ].filter(Boolean);
-  }, [availabilityLabels, episodes.length, movie, seasonCount]);
-
-  const resetPlaybackChain = useCallback((keepPlaying: boolean) => {
-    failedKeysRef.current = new Set();
-    retryCycleRef.current = 0;
-    transitionRef.current = false;
-    setActiveSourceIndex(0);
-    setAllExhausted(false);
-    setSwitching(false);
-    if (keepPlaying) setPlayRequested(true);
-    setPlayerSession((current) => current + 1);
-  }, []);
 
   useEffect(() => {
-    if (!allCurrentPlayers.length) return;
-    const preferred = preferredAvailableGroup(groupPublicPlayers(allCurrentPlayers));
-    setSelectedGroupKey((current) => {
-      const available = playerGroups.some((group) => group.key === current);
-      return available ? current : preferred?.key || playerGroups[0]?.key || "default";
-    });
-    resetPlaybackChain(playRequested);
-    // Reset only when the movie episode changes. Group selection has its own explicit reset.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEpisodeId, movie?.id]);
+    if (!playableEpisodes.length) return;
+    const requestedEpisodeId = new URLSearchParams(window.location.search).get("episode");
+    const requestedEpisode = playableEpisodes.find((episode) => episode.id === requestedEpisodeId);
+    if (requestedEpisode) setActiveEpisodeId(requestedEpisode.id);
+  }, [playableEpisodes]);
+
+  useEffect(() => {
+    const count = activeEpisode?.playerCount || item.playerCount;
+    requestRef.current += 1;
+    setSource(null);
+    setSourceIndex(0);
+    setTotalSources(count);
+    setHasNextSource(count > 1);
+    setPlayRequested(false);
+    setSwitching(false);
+    setAllExhausted(false);
+    setRequestError(null);
+    setPlayerSession((current) => current + 1);
+  }, [activeEpisode?.id, activeEpisode?.playerCount, item.id, item.playerCount]);
+
+  useEffect(() => {
+    try {
+      const favorites = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]") as string[];
+      setFavorite(favorites.includes(item.id));
+      const history = JSON.parse(window.localStorage.getItem(HISTORY_KEY) || "[]") as string[];
+      const nextHistory = [item.id, ...history.filter((entry) => entry !== item.id)].slice(0, 100);
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+    } catch {
+      window.localStorage.removeItem(FAVORITES_KEY);
+      window.localStorage.removeItem(HISTORY_KEY);
+    }
+  }, [item.id]);
+
+  const requestSource = useCallback(async (index: number) => {
+    const requestId = ++requestRef.current;
+    setSource(null);
+    setSwitching(true);
+    setAllExhausted(false);
+    setRequestError(null);
+    setPlayerSession((current) => current + 1);
+
+    try {
+      const response = await fetch("/api/playback/session", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "content-type": "application/json",
+          "x-real2free-playback": "1",
+        },
+        body: JSON.stringify({
+          titleId: item.id,
+          episodeId: activeEpisode?.id || null,
+          index,
+        }),
+      });
+      const payload = await response.json() as PlaybackPayload;
+      if (requestId !== requestRef.current) return;
+
+      if (!response.ok) {
+        if (response.status === 429) throw new Error("มีการขอตัวรับชมถี่เกินไป กรุณารอประมาณ 1 นาที");
+        throw new Error("ไม่สามารถขอตัวรับชมได้");
+      }
+
+      if (!payload.source) {
+        setTotalSources(payload.total || 0);
+        setHasNextSource(false);
+        setAllExhausted(true);
+        setRequestError("ไม่พบตัวรับชมที่พร้อมใช้งาน");
+        return;
+      }
+
+      setSource(payload.source);
+      setSourceIndex(payload.index);
+      setTotalSources(payload.total);
+      setHasNextSource(payload.hasNext);
+      setAllExhausted(false);
+    } catch (error) {
+      if (requestId !== requestRef.current) return;
+      setSource(null);
+      setHasNextSource(false);
+      setAllExhausted(true);
+      setRequestError(error instanceof Error ? error.message : "ระบบตัวรับชมไม่พร้อมใช้งาน");
+    } finally {
+      if (requestId === requestRef.current) setSwitching(false);
+    }
+  }, [activeEpisode?.id, item.id]);
 
   const startPlayback = useCallback(() => {
-    failedKeysRef.current = new Set();
-    retryCycleRef.current = 0;
-    setActiveSourceIndex(0);
-    setAllExhausted(false);
-    setSwitching(false);
     setPlayRequested(true);
-    setPlayerSession((current) => current + 1);
-  }, []);
+    void requestSource(0);
+  }, [requestSource]);
 
   const handleSourceFailed = useCallback(() => {
-    if (!activeSource || transitionRef.current) return;
+    if (switching) return;
+    if (sourceIndex + 1 < totalSources) {
+      void requestSource(sourceIndex + 1);
+      return;
+    }
 
-    transitionRef.current = true;
-    setSwitching(true);
-
-    transitionTimerRef.current = window.setTimeout(() => {
-      const failedKeys = new Set(failedKeysRef.current);
-      failedKeys.add(activeSource.key);
-      failedKeysRef.current = failedKeys;
-
-      const nextIndex = sources.findIndex((candidate, index) => index > activeSourceIndex && !failedKeys.has(candidate.key));
-
-      if (nextIndex >= 0) {
-        setActiveSourceIndex(nextIndex);
-        setPlayerSession((current) => current + 1);
-        setSwitching(false);
-        transitionRef.current = false;
-        return;
-      }
-
-      if (retryCycleRef.current < 1 && sources.length) {
-        retryCycleRef.current += 1;
-        failedKeysRef.current = new Set();
-        setActiveSourceIndex(0);
-        setPlayerSession((current) => current + 1);
-        setSwitching(false);
-        transitionRef.current = false;
-        return;
-      }
-
-      setAllExhausted(true);
-      setSwitching(false);
-      transitionRef.current = false;
-    }, 260);
-  }, [activeSource, activeSourceIndex, sources]);
+    setSource(null);
+    setHasNextSource(false);
+    setAllExhausted(true);
+    setRequestError("ตัวรับชมทั้งหมดไม่ตอบสนองในขณะนี้");
+  }, [requestSource, sourceIndex, switching, totalSources]);
 
   const retryAllSources = useCallback(() => {
-    failedKeysRef.current = new Set();
-    retryCycleRef.current = 0;
-    transitionRef.current = false;
-    setActiveSourceIndex(0);
-    setAllExhausted(false);
-    setSwitching(false);
     setPlayRequested(true);
-    setPlayerSession((current) => current + 1);
-  }, []);
+    void requestSource(0);
+  }, [requestSource]);
 
-  const selectGroup = (groupKey: PlayerGroupKey) => {
-    if (groupKey === activeGroup?.key) return;
-    setSelectedGroupKey(groupKey);
-    resetPlaybackChain(playRequested);
-  };
-
-  const selectPlayer = (playerIndex: number) => {
-    const sourceIndex = sources.findIndex((source) => source.playerIndex === playerIndex);
-    if (sourceIndex < 0) return;
-
-    failedKeysRef.current = new Set();
-    retryCycleRef.current = 0;
-    setActiveSourceIndex(sourceIndex);
-    setAllExhausted(false);
-    setSwitching(false);
-    setPlayerSession((current) => current + 1);
-  };
+  const chooseNextSource = useCallback(() => {
+    if (!hasNextSource || switching) return;
+    void requestSource(sourceIndex + 1);
+  }, [hasNextSource, requestSource, sourceIndex, switching]);
 
   const selectEpisode = (episode: PublicEpisode) => {
     setActiveEpisodeId(episode.id);
@@ -383,50 +209,69 @@ export default function WatchExperience({ id }: { id: string }) {
   };
 
   const toggleFavorite = () => {
-    if (!movie) return;
     setFavorite((current) => {
       const nextValue = !current;
       try {
         const stored = new Set(JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]") as string[]);
-        nextValue ? stored.add(movie.id) : stored.delete(movie.id);
+        nextValue ? stored.add(item.id) : stored.delete(item.id);
         window.localStorage.setItem(FAVORITES_KEY, JSON.stringify([...stored]));
       } catch {
-        window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(nextValue ? [movie.id] : []));
+        window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(nextValue ? [item.id] : []));
       }
       return nextValue;
     });
   };
 
-  if (loading) {
-    return (
-      <main className={styles.statePage}>
-        <div className={styles.stateSkeleton}>
-          <span />
-          <div><i /><i /><i /></div>
-        </div>
-      </main>
-    );
-  }
+  const seasonCount = useMemo(
+    () => new Set(playableEpisodes.map((episode) => episode.seasonNumber)).size,
+    [playableEpisodes],
+  );
 
-  if (failed || !movie || !sources.length || (movie.contentType === "series" && !episodes.length)) {
+  const meta = useMemo(() => {
+    const values = [
+      contentTypeLabel(item.contentType),
+      item.year ? String(item.year) : "",
+      item.contentType === "series"
+        ? playableEpisodes.length ? `${playableEpisodes.length.toLocaleString("th-TH")} ตอน` : ""
+        : runtimeLabel(item.runtime),
+      item.contentType === "series" && seasonCount > 1 ? `${seasonCount} ซีซัน` : "",
+      item.hasDubThai ? "พากย์ไทย" : "",
+      item.hasSubThai ? "ซับไทย" : "",
+      item.hasBackup ? "มีสำรอง" : "",
+    ];
+    return values.filter(Boolean);
+  }, [item, playableEpisodes.length, seasonCount]);
+
+  if (item.contentType === "series" && !playableEpisodes.length) {
     return (
       <main className={styles.statePage}>
         <RotateCcw />
         <h1>ยังเปิดหน้ารับชมไม่ได้</h1>
-        <p>ลองกลับไปเลือกเรื่องนี้อีกครั้ง</p>
+        <p>ยังไม่มีตอนที่พร้อมรับชม</p>
         <Link href="/"><ArrowLeft /> กลับหน้าแรก</Link>
       </main>
     );
   }
 
-  const playerPoster = activeEpisode?.stillUrl || movie.backdropUrl;
-  const playerTitle = activeEpisode ? `${movie.thaiTitle} ตอน ${activeEpisode.episodeNumber}` : movie.thaiTitle;
-  const detailRuntime = activeEpisode?.runtime || movie.runtime;
+  if (item.contentType === "movie" && item.playerCount < 1) {
+    return (
+      <main className={styles.statePage}>
+        <RotateCcw />
+        <h1>ยังเปิดหน้ารับชมไม่ได้</h1>
+        <p>เรื่องนี้ยังไม่มีตัวรับชมที่พร้อมใช้งาน</p>
+        <Link href="/"><ArrowLeft /> กลับหน้าแรก</Link>
+      </main>
+    );
+  }
+
+  const playerPoster = activeEpisode?.stillUrl || item.backdropUrl;
+  const playerTitle = activeEpisode ? `${item.thaiTitle} ตอน ${activeEpisode.episodeNumber}` : item.thaiTitle;
+  const detailRuntime = activeEpisode?.runtime || item.runtime;
 
   return (
     <main className={styles.page}>
       <div className={styles.backdrop}>
-        {movie.backdropUrl ? <img src={movie.backdropUrl} alt="" referrerPolicy="no-referrer" /> : null}
+        {item.backdropUrl ? <img src={item.backdropUrl} alt="" referrerPolicy="no-referrer" /> : null}
         <span />
       </div>
 
@@ -442,8 +287,8 @@ export default function WatchExperience({ id }: { id: string }) {
       <div className={styles.content}>
         <section className={styles.titleBlock}>
           <div className={styles.eyebrow}><Play fill="currentColor" /> หน้ารับชม</div>
-          <h1>{movie.thaiTitle}</h1>
-          {movie.title !== movie.thaiTitle ? <h2>{movie.title}</h2> : null}
+          <h1>{item.thaiTitle}</h1>
+          {item.title !== item.thaiTitle ? <h2>{item.title}</h2> : null}
           <div className={styles.titleMeta}>{meta.map((entry) => <span key={entry}>{entry}</span>)}</div>
           {activeEpisode ? (
             <div className={styles.titleMeta}>
@@ -456,13 +301,14 @@ export default function WatchExperience({ id }: { id: string }) {
 
         <section ref={playerStageRef} className={styles.playerStage}>
           <WatchPlayer
-            key={`${activeEpisode?.id || "movie"}-${activeGroup?.key || "default"}-${activeSource?.key || "none"}-${playerSession}`}
-            source={activeSource}
+            key={`${activeEpisode?.id || "movie"}-${source?.id || "none"}-${playerSession}`}
+            source={source}
             poster={playerPoster}
             title={playerTitle}
             active={playRequested}
             switching={switching}
             exhausted={allExhausted}
+            errorMessage={requestError}
             onStart={startPlayback}
             onFailed={handleSourceFailed}
             onRetry={retryAllSources}
@@ -471,54 +317,64 @@ export default function WatchExperience({ id }: { id: string }) {
           <div className={styles.playbackNote}>
             <span className={styles.playbackIcon}><ShieldCheck /></span>
             <div>
-              <strong>{!playRequested ? "พร้อมเมื่อคุณกดเล่น" : switching ? `กำลังลอง${activeGroup?.label || "ตัวเลือก"}สำรอง` : allExhausted ? "ยังเปิดตัวเลือกนี้ไม่ได้" : `กำลังใช้ ${activeGroup?.label || "ตัวเลือกรับชม"}`}</strong>
-              <small>ระบบจะไล่ตัวหลักและตัวสำรองในภาษาเดียวกันให้อัตโนมัติ</small>
+              <strong>{!playRequested
+                ? "ยังไม่เรียก Player"
+                : switching
+                  ? "กำลังขอตัวรับชมอย่างปลอดภัย"
+                  : allExhausted
+                    ? "ยังเปิดตัวรับชมไม่ได้"
+                    : source
+                      ? `กำลังใช้ ${source.label || "ตัวรับชม"}`
+                      : "กำลังเตรียมการรับชม"}</strong>
+              <small>{!playRequested
+                ? "URL ของ Player จะถูกขอหลังจากคุณกดเริ่มรับชมเท่านั้น"
+                : "หากตัวหนึ่งเปิดไม่ได้ ระบบจะขอตัวถัดไปโดยอัตโนมัติ"}</small>
             </div>
-            <span className={styles.sourceCount}>{Math.min(activePlayerIndex + 1, currentPlayers.length)}/{currentPlayers.length}</span>
+            <span className={styles.sourceCount}>{source ? sourceIndex + 1 : 0}/{totalSources}</span>
           </div>
         </section>
 
-        {movie.contentType === "series" ? (
-          <SeriesEpisodeBrowser episodes={episodes} activeEpisodeId={activeEpisode?.id || null} onSelect={selectEpisode} />
+        {item.contentType === "series" ? (
+          <SeriesEpisodeBrowser episodes={playableEpisodes} activeEpisodeId={activeEpisode?.id || null} onSelect={selectEpisode} />
         ) : null}
 
         <section className={styles.lowerGrid}>
           <article className={styles.infoCard}>
             <div className={styles.posterWrap}>
-              {movie.posterUrl ? <img src={movie.posterUrl} alt={movie.thaiTitle} referrerPolicy="no-referrer" /> : <Film />}
+              {item.posterUrl ? <img src={item.posterUrl} alt={item.thaiTitle} referrerPolicy="no-referrer" /> : <Film />}
             </div>
 
             <div className={styles.infoBody}>
               <div className={styles.infoHeading}>
                 <div>
                   <span><Info /> รายละเอียดเรื่อง</span>
-                  <h2>{activeEpisode ? `${movie.thaiTitle} ตอน ${activeEpisode.episodeNumber}` : movie.thaiTitle}</h2>
+                  <h2>{activeEpisode ? `${item.thaiTitle} ตอน ${activeEpisode.episodeNumber}` : item.thaiTitle}</h2>
                 </div>
-                <div className={styles.rating}><Star fill="currentColor" /><strong>{movie.rating ? movie.rating.toFixed(1) : "-"}</strong></div>
+                <div className={styles.rating}><Star fill="currentColor" /><strong>{item.rating ? item.rating.toFixed(1) : "-"}</strong></div>
               </div>
 
-              <p>{activeEpisode?.overview || movie.overview || "เรื่องนี้พร้อมให้คุณรับชมแล้ว"}</p>
+              <p>{activeEpisode?.overview || item.overview || "เรื่องนี้พร้อมให้คุณรับชมแล้ว"}</p>
 
               <div className={styles.detailFacts}>
-                <div><CalendarDays /><span><small>{activeEpisode ? "วันที่ออกอากาศ" : "วันที่เข้าฉาย"}</small><strong>{activeEpisode?.airDate ? releaseLabel(activeEpisode.airDate, movie.year) : releaseLabel(movie.releaseDate, movie.year)}</strong></span></div>
+                <div><CalendarDays /><span><small>{activeEpisode ? "วันที่ออกอากาศ" : "วันที่เข้าฉาย"}</small><strong>{activeEpisode?.airDate ? releaseLabel(activeEpisode.airDate, item.year) : releaseLabel(item.releaseDate, item.year)}</strong></span></div>
                 <div><Clock3 /><span><small>ความยาว</small><strong>{runtimeLabel(detailRuntime) || "ไม่ระบุ"}</strong></span></div>
-                <div><Layers3 /><span><small>ประเภท</small><strong>{activeEpisode ? `ซีซัน ${activeEpisode.seasonNumber} • ตอน ${activeEpisode.episodeNumber}` : contentTypeLabel(movie.contentType)}</strong></span></div>
+                <div><Layers3 /><span><small>ประเภท</small><strong>{activeEpisode ? `ซีซัน ${activeEpisode.seasonNumber} • ตอน ${activeEpisode.episodeNumber}` : contentTypeLabel(item.contentType)}</strong></span></div>
               </div>
 
-              <div className={styles.genres}>{movie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
+              <div className={styles.genres}>{item.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
             </div>
           </article>
 
           <PlayerChoicePanel
-            groups={playerGroups}
-            activeGroupKey={activeGroup?.key || "default"}
-            currentPlayers={currentPlayers}
-            activePlayerIndex={activePlayerIndex}
-            playRequested={playRequested}
+            source={source}
+            sourceIndex={sourceIndex}
+            totalSources={totalSources}
+            started={playRequested}
+            switching={switching}
+            hasNextSource={hasNextSource}
             episodeNumber={activeEpisode?.episodeNumber}
-            isAvailable={(playerIndex) => sources.some((source) => source.playerIndex === playerIndex)}
-            onSelectGroup={selectGroup}
-            onSelectPlayer={selectPlayer}
+            onNextSource={chooseNextSource}
+            onRetry={retryAllSources}
           />
         </section>
       </div>
