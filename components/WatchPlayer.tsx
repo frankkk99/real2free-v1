@@ -154,7 +154,7 @@ function EmbedFrame({
       src={source.url}
       title={source.label || "หน้ารับชม"}
       allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-      sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+      sandbox="allow-scripts allow-same-origin allow-presentation"
       allowFullScreen
       referrerPolicy="no-referrer"
       onLoad={() => {
