@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Prompt } from "next/font/google";
 import "./globals.css";
+import "./home-enhancements.css";
 
 const bodyFont = Prompt({
   subsets: ["thai", "latin"],
