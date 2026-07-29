@@ -1,90 +1,91 @@
 "use client";
 
-import { Check, ChevronRight, CircleCheck, Languages, Play } from "lucide-react";
-import type { PlayerGroupKey, PublicPlayer, PublicPlayerGroup } from "@/lib/public-catalog";
+import { Check, ChevronRight, CircleCheck, Play, RotateCcw, Server } from "lucide-react";
+import type { PlaybackSource } from "@/lib/public-catalog";
 import styles from "./PlayerChoicePanel.module.css";
 
 export default function PlayerChoicePanel({
-  groups,
-  activeGroupKey,
-  currentPlayers,
-  activePlayerIndex,
-  playRequested,
+  source,
+  sourceIndex,
+  totalSources,
+  started,
+  switching,
+  hasNextSource,
   episodeNumber,
-  isAvailable,
-  onSelectGroup,
-  onSelectPlayer,
+  onNextSource,
+  onRetry,
 }: {
-  groups: PublicPlayerGroup[];
-  activeGroupKey: PlayerGroupKey;
-  currentPlayers: PublicPlayer[];
-  activePlayerIndex: number;
-  playRequested: boolean;
+  source: PlaybackSource | null;
+  sourceIndex: number;
+  totalSources: number;
+  started: boolean;
+  switching: boolean;
+  hasNextSource: boolean;
   episodeNumber?: number;
-  isAvailable: (playerIndex: number) => boolean;
-  onSelectGroup: (groupKey: PlayerGroupKey) => void;
-  onSelectPlayer: (playerIndex: number) => void;
+  onNextSource: () => void;
+  onRetry: () => void;
 }) {
-  const activeGroup = groups.find((group) => group.key === activeGroupKey) || groups[0] || null;
+  const currentLabel = source?.role === "backup"
+    ? `ตัวสำรอง ${source.backupIndex || sourceIndex}`
+    : source?.label || "ตัวหลัก";
 
   return (
     <aside className={styles.card}>
       <div className={styles.heading}>
         <div>
           <span><CircleCheck /> ตัวเลือกรับชม</span>
-          <h3>{episodeNumber ? `ตอน ${episodeNumber} • เลือกภาษาและตัวสำรอง` : "เลือกภาษาและตัวสำรอง"}</h3>
+          <h3>{episodeNumber ? `ตอน ${episodeNumber} • เรียก Player เมื่อกดเล่น` : "เรียก Player เมื่อกดเล่น"}</h3>
         </div>
-        <span>{groups.reduce((sum, group) => sum + group.players.length, 0)} ตัวเลือก</span>
+        <span>{totalSources.toLocaleString("th-TH")} ตัวเลือก</span>
       </div>
 
-      {groups.length > 1 || groups[0]?.key !== "default" ? (
-        <div className={styles.groups} aria-label="เลือกภาษา">
-          {groups.map((group) => (
-            <button
-              key={group.key}
-              className={group.key === activeGroup?.key ? styles.groupActive : ""}
-              type="button"
-              onClick={() => onSelectGroup(group.key)}
-            >
-              <Languages />
-              <span>
-                <strong>{group.label}</strong>
-                <small>{group.players.length} ตัวเลือก{group.hasBackup ? " • มีสำรอง" : ""}</small>
-              </span>
-              {group.key === activeGroup?.key ? <Check /> : <ChevronRight />}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
       <div className={styles.summary}>
-        <span>{activeGroup?.label || "ตัวเลือกรับชม"}</span>
-        <small>เริ่มจากตัวหลัก แล้วไล่สำรองให้อัตโนมัติ</small>
+        <span>{source ? currentLabel : "ยังไม่เปิดเผย Player"}</span>
+        <small>{source ? "หากเปิดไม่ได้ ระบบจะขอตัวถัดไป" : "URL ไม่อยู่ใน HTML ก่อนกดเล่น"}</small>
       </div>
 
       <div className={styles.choices}>
-        {currentPlayers.map((player, index) => {
-          const available = isAvailable(index);
-          const active = index === activePlayerIndex;
-          const choiceLabel = player.role === "backup" ? `สำรอง ${player.backupIndex || index}` : "ตัวหลัก";
+        {source ? (
+          <button className={styles.choiceActive} type="button" disabled>
+            <span className={styles.choiceIcon}><Check /></span>
+            <span className={styles.choiceText}>
+              <strong>{currentLabel}</strong>
+              <small>{source.kind === "hls" ? "HLS" : "Embed"} • {sourceIndex + 1}/{totalSources}</small>
+            </span>
+            <Play />
+          </button>
+        ) : (
+          <button type="button" disabled>
+            <span className={styles.choiceIcon}><Server /></span>
+            <span className={styles.choiceText}>
+              <strong>{switching ? "กำลังขอ Player" : "ยังไม่เรียก Player"}</strong>
+              <small>{started ? "รอการตอบกลับจากระบบ" : "กดเริ่มรับชมก่อน"}</small>
+            </span>
+            <ChevronRight />
+          </button>
+        )}
 
-          return (
-            <button
-              key={player.id}
-              className={active ? styles.choiceActive : ""}
-              type="button"
-              disabled={!available}
-              onClick={() => onSelectPlayer(index)}
-            >
-              <span className={styles.choiceIcon}>{active ? <Check /> : <Play />}</span>
-              <span className={styles.choiceText}>
-                <strong>{choiceLabel}</strong>
-                <small>{active ? (playRequested ? "กำลังใช้งาน" : "พร้อมเริ่ม") : available ? "พร้อมเป็นตัวสำรอง" : "ยังไม่พร้อม"}</small>
-              </span>
-              <ChevronRight />
-            </button>
-          );
-        })}
+        {source && hasNextSource ? (
+          <button type="button" onClick={onNextSource}>
+            <span className={styles.choiceIcon}><Server /></span>
+            <span className={styles.choiceText}>
+              <strong>เปลี่ยนตัวรับชม</strong>
+              <small>ขอตัวสำรองถัดไป</small>
+            </span>
+            <ChevronRight />
+          </button>
+        ) : null}
+
+        {started && !switching && !source ? (
+          <button type="button" onClick={onRetry}>
+            <span className={styles.choiceIcon}><RotateCcw /></span>
+            <span className={styles.choiceText}>
+              <strong>ลองใหม่</strong>
+              <small>เริ่มขอตัวรับชมตั้งแต่ตัวแรก</small>
+            </span>
+            <ChevronRight />
+          </button>
+        ) : null}
       </div>
     </aside>
   );
