@@ -1,27 +1,17 @@
 "use client";
 
-import { ExternalLink, LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
+import { LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PlayerKind } from "@/lib/public-catalog";
+import type { PlaybackSource } from "@/lib/public-catalog";
 import styles from "./WatchPlayer.module.css";
 
-export type WatchSource = {
-  key: string;
-  playerId: string;
-  playerIndex: number;
-  label: string;
-  url: string;
-  kind: PlayerKind;
-  externalUrl: string | null;
-};
-
 function HlsVideo({
-  url,
+  source,
   poster,
   onReady,
   onFatal,
 }: {
-  url: string;
+  source: PlaybackSource;
   poster: string | null;
   onReady: () => void;
   onFatal: () => void;
@@ -30,7 +20,7 @@ function HlsVideo({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !url) return;
+    if (!video || !source.url) return;
 
     let disposed = false;
     let fatalTriggered = false;
@@ -99,13 +89,13 @@ function HlsVideo({
             fatal();
           });
 
-          hls.loadSource(url);
+          hls.loadSource(source.url);
           hls.attachMedia(video);
           return;
         }
 
         if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          video.src = url;
+          video.src = source.url;
           video.load();
           void video.play().catch(() => undefined);
           return;
@@ -123,7 +113,7 @@ function HlsVideo({
       video.removeAttribute("src");
       video.load();
     };
-  }, [onFatal, onReady, url]);
+  }, [onFatal, onReady, source.url]);
 
   return (
     <video
@@ -131,7 +121,7 @@ function HlsVideo({
       className={styles.media}
       controls
       playsInline
-      preload="metadata"
+      preload="none"
       crossOrigin="anonymous"
       poster={poster || undefined}
       referrerPolicy="no-referrer"
@@ -144,7 +134,7 @@ function EmbedFrame({
   onReady,
   onFatal,
 }: {
-  source: WatchSource;
+  source: PlaybackSource;
   onReady: () => void;
   onFatal: () => void;
 }) {
@@ -156,7 +146,7 @@ function EmbedFrame({
       if (!loadedRef.current) onFatal();
     }, 12000);
     return () => window.clearTimeout(timer);
-  }, [onFatal, source.key]);
+  }, [onFatal, source.id]);
 
   return (
     <iframe
@@ -164,6 +154,7 @@ function EmbedFrame({
       src={source.url}
       title={source.label || "หน้ารับชม"}
       allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
       allowFullScreen
       referrerPolicy="no-referrer"
       onLoad={() => {
@@ -175,6 +166,18 @@ function EmbedFrame({
   );
 }
 
+function LoadingState({ poster, message }: { poster: string | null; message: string }) {
+  return (
+    <div className={styles.shell}>
+      <div className={styles.loadingLayer}>
+        {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
+        <span />
+        <div><LoaderCircle /><strong>{message}</strong></div>
+      </div>
+    </div>
+  );
+}
+
 export default function WatchPlayer({
   source,
   poster,
@@ -182,16 +185,18 @@ export default function WatchPlayer({
   active,
   switching,
   exhausted,
+  errorMessage,
   onStart,
   onFailed,
   onRetry,
 }: {
-  source: WatchSource | null;
+  source: PlaybackSource | null;
   poster: string | null;
   title: string;
   active: boolean;
   switching: boolean;
   exhausted: boolean;
+  errorMessage: string | null;
   onStart: () => void;
   onFailed: () => void;
   onRetry: () => void;
@@ -200,7 +205,7 @@ export default function WatchPlayer({
 
   useEffect(() => {
     setReady(false);
-  }, [source?.key]);
+  }, [source?.id]);
 
   const handleReady = useCallback(() => setReady(true), []);
   const handleFailed = useCallback(() => onFailed(), [onFailed]);
@@ -213,10 +218,14 @@ export default function WatchPlayer({
         <span className={styles.startContent}>
           <span className={styles.startButton}><Play fill="currentColor" /></span>
           <strong>เริ่มรับชม</strong>
-          <small>กดครั้งเดียว ระบบจะเลือกตัวรับชมให้ต่อเนื่อง</small>
+          <small>ระบบจะเรียกตัวรับชมเมื่อคุณกดเล่นเท่านั้น</small>
         </span>
       </button>
     );
+  }
+
+  if (switching && !source) {
+    return <LoadingState poster={poster} message="กำลังขอตัวรับชมอย่างปลอดภัย..." />;
   }
 
   if (exhausted || !source) {
@@ -227,14 +236,9 @@ export default function WatchPlayer({
         <div className={styles.failedContent}>
           <RotateCcw />
           <strong>ยังเปิดเรื่องนี้ไม่ได้</strong>
-          <p>ตัวรับชมของเรื่องนี้ยังไม่ตอบสนองในขณะนี้</p>
+          <p>{errorMessage || "ลองขอตัวรับชมใหม่อีกครั้ง"}</p>
           <div className={styles.failedActions}>
             <button type="button" onClick={onRetry}><RefreshCw /> ลองใหม่ทั้งหมด</button>
-            {source?.externalUrl ? (
-              <a href={source.externalUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
-                <ExternalLink /> เปิดแยกหน้าต่าง
-              </a>
-            ) : null}
           </div>
         </div>
       </div>
@@ -244,9 +248,9 @@ export default function WatchPlayer({
   return (
     <div className={styles.shell}>
       {source.kind === "hls" ? (
-        <HlsVideo key={source.key} url={source.url} poster={poster} onReady={handleReady} onFatal={handleFailed} />
+        <HlsVideo source={source} poster={poster} onReady={handleReady} onFatal={handleFailed} />
       ) : (
-        <EmbedFrame key={source.key} source={source} onReady={handleReady} onFatal={handleFailed} />
+        <EmbedFrame source={source} onReady={handleReady} onFatal={handleFailed} />
       )}
 
       {switching || !ready ? (

@@ -16,6 +16,17 @@ export type PublicPlayer = {
   order: number;
 };
 
+export type PlaybackSource = {
+  id: string;
+  label: string;
+  url: string;
+  kind: PlayerKind;
+  groupKey: PlayerGroupKey;
+  role: PlayerRole;
+  backupIndex: number;
+  order: number;
+};
+
 export type PublicPlayerGroup = {
   key: PlayerGroupKey;
   label: string;
@@ -69,7 +80,13 @@ export type PublicCatalogRow = {
   episode_count: number | string | null;
   season_count: number | string | null;
   latest_episode: number | string | null;
-  players: unknown;
+  player_count?: number | string | null;
+  has_dub_th?: boolean | null;
+  has_sub_th?: boolean | null;
+  has_backup?: boolean | null;
+  language_code?: string | null;
+  is_ongoing?: boolean | null;
+  players?: unknown;
 };
 
 export type PublicCatalogCardRow = {
@@ -107,6 +124,7 @@ export type PublicEpisode = {
   runtime: number | null;
   stillUrl: string | null;
   updatedAt: string;
+  playerCount: number;
   players: PublicPlayer[];
 };
 
@@ -121,7 +139,8 @@ export type PublicEpisodeRow = {
   runtime: number | null;
   still_url: string | null;
   updated_at: string;
-  players: unknown;
+  player_count?: number | string | null;
+  players?: unknown;
 };
 
 export type PublicSeriesSummary = {
@@ -142,14 +161,16 @@ export type PublicSeriesSummaryRow = {
   latest_episode: number | string | null;
 };
 
+// These fields deliberately exclude the URL-bearing `players` JSON column.
 export const PUBLIC_CATALOG_FIELDS =
-  "id,content_type,title_th,title_en,overview,release_date,year,runtime,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,players";
+  "id,content_type,title_th,title_en,overview,release_date,year,runtime,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
 
 export const PUBLIC_CATALOG_CARD_FIELDS =
   "id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
 
+// Episodes are now supplied by the secure metadata gateway. Keep this safe list for compatibility.
 export const PUBLIC_EPISODE_FIELDS =
-  "id,series_id,season_number,episode_number,title,overview,air_date,runtime,still_url,updated_at,players";
+  "id,series_id,season_number,episode_number,title,overview,air_date,runtime,still_url,updated_at,player_count";
 
 export const PUBLIC_SERIES_SUMMARY_FIELDS =
   "series_id,episode_count,season_count,first_season,last_season,latest_episode";
@@ -320,13 +341,15 @@ export function preferredPlayerGroup(players: PublicPlayer[]): PlayerGroupKey {
     || "default";
 }
 
-export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | null {
-  const players = parsePublicPlayers(row.players);
-  if (!row.id || !players.length) return null;
+export function mapPublicCatalogRow(row: PublicCatalogRow | null | undefined): PublicCatalogItem | null {
+  if (!row?.id) return null;
 
+  const players = parsePublicPlayers(row.players);
   const groups = groupPublicPlayers(players);
   const genreData = mappedGenres(row.genres);
   const updatedTimestamp = new Date(row.updated_at).getTime();
+  const explicitPlayerCount = numberOrZero(row.player_count);
+  const hasExplicitOngoing = typeof row.is_ongoing === "boolean";
 
   return {
     id: row.id,
@@ -346,14 +369,16 @@ export function mapPublicCatalogRow(row: PublicCatalogRow): PublicCatalogItem | 
     episodeCount: numberOrZero(row.episode_count),
     seasonCount: numberOrZero(row.season_count),
     latestEpisode: numberOrZero(row.latest_episode),
-    playerCount: players.length,
-    hasDubThai: groups.some((group) => group.key === "dub_th"),
-    hasSubThai: groups.some((group) => group.key === "sub_th"),
-    hasBackup: groups.some((group) => group.hasBackup),
-    languageCode: null,
-    isOngoing: row.content_type === "series"
-      && Number.isFinite(updatedTimestamp)
-      && Date.now() - updatedTimestamp <= 45 * 24 * 60 * 60 * 1000,
+    playerCount: Math.max(explicitPlayerCount, players.length),
+    hasDubThai: Boolean(row.has_dub_th) || groups.some((group) => group.key === "dub_th"),
+    hasSubThai: Boolean(row.has_sub_th) || groups.some((group) => group.key === "sub_th"),
+    hasBackup: Boolean(row.has_backup) || groups.some((group) => group.hasBackup),
+    languageCode: normalizedLanguageCode(row.language_code),
+    isOngoing: hasExplicitOngoing
+      ? Boolean(row.is_ongoing)
+      : row.content_type === "series"
+        && Number.isFinite(updatedTimestamp)
+        && Date.now() - updatedTimestamp <= 45 * 24 * 60 * 60 * 1000,
     players,
   };
 }
@@ -394,7 +419,8 @@ export function mapPublicEpisodeRow(row: PublicEpisodeRow): PublicEpisode | null
   const players = parsePublicPlayers(row.players);
   const seasonNumber = Number(row.season_number || 1);
   const episodeNumber = Number(row.episode_number || 0);
-  if (!row.id || !row.series_id || !episodeNumber || !players.length) return null;
+  const playerCount = Math.max(numberOrZero(row.player_count), players.length);
+  if (!row.id || !row.series_id || !episodeNumber || !playerCount) return null;
 
   return {
     id: row.id,
@@ -407,6 +433,7 @@ export function mapPublicEpisodeRow(row: PublicEpisodeRow): PublicEpisode | null
     runtime: optionalNumber(row.runtime),
     stillUrl: row.still_url || null,
     updatedAt: row.updated_at,
+    playerCount,
     players,
   };
 }
