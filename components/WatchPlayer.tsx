@@ -12,6 +12,8 @@ type PlaybackSourceWithPolicy = PlaybackSource & {
   delivery?: PlaybackDelivery;
 };
 
+const EXTERNAL_ONLY_PLAYER_HOSTS = ["getplay-cdn.com"];
+
 function sourceReferrerPolicy(
   source: PlaybackSource,
   fallback: PlaybackReferrerPolicy,
@@ -19,20 +21,22 @@ function sourceReferrerPolicy(
   return (source as PlaybackSourceWithPolicy).referrerPolicy || fallback;
 }
 
-function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
-  return (source as PlaybackSourceWithPolicy).delivery || "inline";
+function isExternalOnlyPlayer(source: PlaybackSource): boolean {
+  if (source.kind !== "embed" || !source.url) return false;
+
+  try {
+    const hostname = new URL(source.url).hostname.toLowerCase();
+    return EXTERNAL_ONLY_PLAYER_HOSTS.some(
+      (host) => hostname === host || hostname.endsWith(`.${host}`),
+    );
+  } catch {
+    return false;
+  }
 }
 
-function openWithoutReferrer(url: string): void {
-  const link = document.createElement("a");
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.referrerPolicy = "no-referrer";
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
+  if (isExternalOnlyPlayer(source)) return "new-tab";
+  return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
 function HlsVideo({
@@ -224,16 +228,15 @@ function ExternalPlaybackFallback({
   poster: string | null;
   title: string;
 }) {
-  const openPlayback = useCallback(() => {
-    openWithoutReferrer(source.url);
-  }, [source.url]);
-
   return (
-    <button
+    <a
       className={styles.posterState}
-      type="button"
-      onClick={openPlayback}
+      href={source.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      referrerPolicy="no-referrer"
       aria-label={`รับชม ${title}`}
+      style={{ textDecoration: "none" }}
     >
       {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
       <span className={styles.posterShade} />
@@ -242,7 +245,7 @@ function ExternalPlaybackFallback({
         <strong>แตะเพื่อรับชม</strong>
         <small>รับชมต่อได้ทันที</small>
       </span>
-    </button>
+    </a>
   );
 }
 
