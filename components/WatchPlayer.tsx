@@ -6,8 +6,10 @@ import type { PlaybackSource } from "@/lib/public-catalog";
 import styles from "./WatchPlayer.module.css";
 
 type PlaybackReferrerPolicy = "no-referrer" | "origin";
+type PlaybackDelivery = "inline" | "new-tab";
 type PlaybackSourceWithPolicy = PlaybackSource & {
   referrerPolicy?: PlaybackReferrerPolicy;
+  delivery?: PlaybackDelivery;
 };
 
 function sourceReferrerPolicy(
@@ -15,6 +17,29 @@ function sourceReferrerPolicy(
   fallback: PlaybackReferrerPolicy,
 ): PlaybackReferrerPolicy {
   return (source as PlaybackSourceWithPolicy).referrerPolicy || fallback;
+}
+
+function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
+  return (source as PlaybackSourceWithPolicy).delivery || "inline";
+}
+
+function openWithoutReferrer(url: string): boolean {
+  const popup = window.open("", "_blank");
+  if (!popup) return false;
+
+  try {
+    popup.opener = null;
+    popup.document.open();
+    popup.document.write(
+      "<!doctype html><html><head><meta name=\"referrer\" content=\"no-referrer\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>กำลังเปิดตัวรับชม</title><style>html,body{margin:0;background:#020b18;color:#fff;font-family:system-ui,sans-serif;height:100%}body{display:grid;place-items:center;text-align:center}p{opacity:.72}</style></head><body><div><strong>กำลังเปิดตัวรับชม...</strong><p>REAL2FREE จะไม่ส่งข้อมูลหน้าต้นทาง</p></div></body></html>",
+    );
+    popup.document.close();
+    popup.location.replace(url);
+    return true;
+  } catch {
+    popup.close();
+    return false;
+  }
 }
 
 function HlsVideo({
@@ -197,6 +222,49 @@ function EmbedFrame({
   );
 }
 
+function ExternalPlaybackFallback({
+  source,
+  poster,
+}: {
+  source: PlaybackSource;
+  poster: string | null;
+}) {
+  const [state, setState] = useState<"opening" | "opened" | "blocked">("opening");
+
+  useEffect(() => {
+    setState("opening");
+    const timer = window.setTimeout(() => {
+      setState(openWithoutReferrer(source.url) ? "opened" : "blocked");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [source.id, source.url]);
+
+  const openManually = useCallback(() => {
+    setState(openWithoutReferrer(source.url) ? "opened" : "blocked");
+  }, [source.url]);
+
+  return (
+    <div className={styles.failedState}>
+      {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
+      <span className={styles.failedShade} />
+      <div className={styles.failedContent}>
+        <ExternalLink />
+        <strong>{state === "opened" ? "เปิดตัวรับชมในแท็บใหม่แล้ว" : "กำลังเปิดตัวรับชมแยก"}</strong>
+        <p>
+          {state === "blocked"
+            ? "Safari บล็อกการเปิดอัตโนมัติ กรุณาแตะปุ่มด้านล่างหนึ่งครั้ง"
+            : "ตัวรับชมนี้ไม่อนุญาตให้เล่นภายใน REAL2FREE และจะไม่รับ Referer จากหน้านี้"}
+        </p>
+        {state === "blocked" ? (
+          <div className={styles.failedActions}>
+            <button type="button" onClick={openManually}><ExternalLink /> เปิดรับชมในแท็บใหม่</button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function LoadingState({ poster, message }: { poster: string | null; message: string }) {
   return (
     <div className={styles.shell}>
@@ -276,6 +344,10 @@ export default function WatchPlayer({
     );
   }
 
+  if (sourceDelivery(source) === "new-tab") {
+    return <ExternalPlaybackFallback source={source} poster={poster} />;
+  }
+
   return (
     <div className={styles.shell}>
       {source.kind === "hls" ? (
@@ -283,20 +355,6 @@ export default function WatchPlayer({
       ) : (
         <EmbedFrame source={source} onReady={handleReady} onFatal={handleFailed} />
       )}
-
-      {source.kind === "embed" ? (
-        <a
-          className={styles.newTabButton}
-          href={source.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          referrerPolicy="no-referrer"
-          aria-label="เปิดรับชมในแท็บใหม่โดยไม่ส่งข้อมูลหน้าต้นทาง"
-        >
-          <ExternalLink />
-          <span>เปิดรับชมในแท็บใหม่</span>
-        </a>
-      ) : null}
 
       {switching || !ready ? (
         <div className={styles.loadingLayer}>
