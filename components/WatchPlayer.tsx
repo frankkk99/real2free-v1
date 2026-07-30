@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
+import { ExternalLink, LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaybackSource } from "@/lib/public-catalog";
 import styles from "./WatchPlayer.module.css";
@@ -283,6 +283,20 @@ export default function WatchPlayer({
       ) : (
         <EmbedFrame source={source} onReady={handleReady} onFatal={handleFailed} />
       )}
+
+      {source.kind === "embed" ? (
+        <a
+          className={styles.newTabButton}
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          referrerPolicy="no-referrer"
+          aria-label="เปิดรับชมในแท็บใหม่โดยไม่ส่งข้อมูลหน้าต้นทาง"
+        >
+          <ExternalLink />
+          <span>เปิดรับชมในแท็บใหม่</span>
+        </a>
+      ) : null}
 
       {switching || !ready ? (
         <div className={styles.loadingLayer}>
