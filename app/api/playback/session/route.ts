@@ -23,6 +23,7 @@ export const runtime = "nodejs";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PLAYER_PROBE_TIMEOUT_MS = 3200;
 const MAX_PROBE_REDIRECTS = 3;
+const MAX_PROBE_BODY_CHARS = 16_384;
 const HARD_BLOCK_STATUSES = new Set([401, 403, 404, 410, 451]);
 const PLAYER_PROBE_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36";
 
@@ -32,8 +33,10 @@ const configuredPlayerHosts = (process.env.REAL2FREE_PLAYER_HOSTS || "")
   .filter(Boolean);
 
 type PlaybackReferrerPolicy = "no-referrer" | "origin";
+type PlaybackDelivery = "inline" | "new-tab";
 type PlaybackSourceWithPolicy = PlaybackSource & {
   referrerPolicy: PlaybackReferrerPolicy;
+  delivery: PlaybackDelivery;
 };
 
 type PlaybackResponse = {
@@ -54,11 +57,13 @@ type PlaybackResponse = {
 type ProbeAttempt = {
   status: number | null;
   unsafe: boolean;
+  embedDenied: boolean;
 };
 
 type ProbeDecision = {
   policy: PlaybackReferrerPolicy;
   blocked: boolean;
+  requiresNewTab: boolean;
   status: number | null;
 };
 
@@ -68,7 +73,7 @@ function noStoreHeaders() {
     Pragma: "no-cache",
     "X-Content-Type-Options": "nosniff",
     "Cross-Origin-Resource-Policy": "same-origin",
-    "Vary": "Cookie",
+    Vary: "Cookie",
   };
 }
 
@@ -169,6 +174,39 @@ async function safePlaybackUrl(rawUrl: string): Promise<string | null> {
   }
 }
 
+async function readBodyPrefix(response: Response): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) return "";
+
+  const decoder = new TextDecoder();
+  let text = "";
+  try {
+    while (text.length < MAX_PROBE_BODY_CHARS) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return text.slice(0, MAX_PROBE_BODY_CHARS);
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
+function isEmbedDomainDenied(text: string): boolean {
+  if (!text) return false;
+  const normalized = text.toLowerCase().replace(/\\u0022/g, "\"").replace(/\s+/g, " ");
+  return (
+    normalized.includes("access denied")
+    && (
+      normalized.includes("domain is not allowed")
+      || normalized.includes("domain not allowed")
+      || normalized.includes("this domain is not allowed")
+      || normalized.includes("unauthorized domain")
+    )
+  );
+}
+
 async function probeOnce(
   rawUrl: string,
   kind: "hls" | "embed",
@@ -179,7 +217,7 @@ async function probeOnce(
 
   for (let redirectCount = 0; redirectCount <= MAX_PROBE_REDIRECTS; redirectCount += 1) {
     const validatedUrl = await safePlaybackUrl(currentUrl);
-    if (!validatedUrl) return { status: null, unsafe: true };
+    if (!validatedUrl) return { status: null, unsafe: true, embedDenied: false };
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PLAYER_PROBE_TIMEOUT_MS);
@@ -188,7 +226,7 @@ async function probeOnce(
       const headers: Record<string, string> = {
         Accept: kind === "hls"
           ? "application/vnd.apple.mpegurl, application/x-mpegURL, application/octet-stream;q=0.9, */*;q=0.8"
-          : "text/html, application/xhtml+xml, application/xml;q=0.9, */*;q=0.8",
+          : "text/html, application/xhtml+xml, application/json, text/plain;q=0.9, */*;q=0.8",
         "Cache-Control": "no-cache",
         Pragma: "no-cache",
         "User-Agent": PLAYER_PROBE_USER_AGENT,
@@ -209,25 +247,36 @@ async function probeOnce(
 
       const status = response.status;
       const location = response.headers.get("location");
-      if (response.body) await response.body.cancel().catch(() => undefined);
-
       if (status >= 300 && status < 400 && location) {
+        if (response.body) await response.body.cancel().catch(() => undefined);
         currentUrl = new URL(location, validatedUrl).toString();
         continue;
       }
 
-      return { status, unsafe: false };
+      let embedDenied = false;
+      if (kind === "embed" && status >= 200 && status < 400) {
+        const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+        if (!contentType || /html|json|text|xml/u.test(contentType)) {
+          embedDenied = isEmbedDomainDenied(await readBodyPrefix(response));
+        } else if (response.body) {
+          await response.body.cancel().catch(() => undefined);
+        }
+      } else if (response.body) {
+        await response.body.cancel().catch(() => undefined);
+      }
+
+      return { status, unsafe: false, embedDenied };
     } catch {
-      return { status: null, unsafe: false };
+      return { status: null, unsafe: false, embedDenied: false };
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  return { status: null, unsafe: false };
+  return { status: null, unsafe: false, embedDenied: false };
 }
 
-async function chooseReferrerPolicy(
+async function choosePlaybackPolicy(
   url: string,
   kind: "hls" | "embed",
   siteOrigin: string,
@@ -237,23 +286,45 @@ async function chooseReferrerPolicy(
     : ["no-referrer", "origin"];
 
   let lastHardBlock: number | null = null;
+  let detectedEmbedDenial = false;
 
   for (const policy of policies) {
     const result = await probeOnce(url, kind, policy, siteOrigin);
-    if (result.unsafe) return { policy, blocked: true, status: null };
-    if (result.status == null) return { policy: policies[0], blocked: false, status: null };
+    if (result.unsafe) {
+      return { policy, blocked: true, requiresNewTab: false, status: null };
+    }
+    if (result.status == null) {
+      return { policy: policies[0], blocked: false, requiresNewTab: false, status: null };
+    }
     if (result.status >= 200 && result.status < 400) {
-      return { policy, blocked: false, status: result.status };
+      if (result.embedDenied) {
+        detectedEmbedDenial = true;
+        continue;
+      }
+      return { policy, blocked: false, requiresNewTab: false, status: result.status };
     }
     if (HARD_BLOCK_STATUSES.has(result.status)) {
       lastHardBlock = result.status;
       continue;
     }
-
-    return { policy: policies[0], blocked: false, status: result.status };
+    return { policy: policies[0], blocked: false, requiresNewTab: false, status: result.status };
   }
 
-  return { policy: policies[0], blocked: lastHardBlock != null, status: lastHardBlock };
+  if (kind === "embed" && detectedEmbedDenial) {
+    return {
+      policy: "no-referrer",
+      blocked: false,
+      requiresNewTab: true,
+      status: lastHardBlock,
+    };
+  }
+
+  return {
+    policy: policies[0],
+    blocked: lastHardBlock != null,
+    requiresNewTab: false,
+    status: lastHardBlock,
+  };
 }
 
 function clearTicket(response: NextResponse) {
@@ -276,6 +347,26 @@ async function rotateTicket(
     clientHash: input.clientHash,
   });
   response.cookies.set(PLAYBACK_TICKET_COOKIE, ticket, playbackCookieOptions(120));
+}
+
+function playbackSource(
+  result: PlaybackResponse & { id: string; kind: "hls" | "embed" },
+  validatedUrl: string,
+  probe: ProbeDecision,
+  delivery: PlaybackDelivery,
+): PlaybackSourceWithPolicy {
+  return {
+    id: result.id,
+    label: result.label || (result.index === 0 ? "ตัวหลัก" : `สำรอง ${result.index}`),
+    url: validatedUrl,
+    kind: result.kind,
+    groupKey: result.group_key || "default",
+    role: result.role || (result.index === 0 ? "primary" : "backup"),
+    backupIndex: Number(result.backup_index || result.index),
+    order: Number(result.order || result.index),
+    referrerPolicy: probe.policy,
+    delivery,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -345,6 +436,7 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
+    const completeResult = result as PlaybackResponse & { id: string; kind: "hls" | "embed" };
     const validatedUrl = await safePlaybackUrl(result.url);
     if (!validatedUrl) {
       console.warn("[api/playback/session] blocked unsafe player URL", { playerId: result.id, index: result.index });
@@ -363,7 +455,39 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    const probe = await chooseReferrerPolicy(validatedUrl, result.kind, request.nextUrl.origin);
+    const probe = await choosePlaybackPolicy(validatedUrl, result.kind, request.nextUrl.origin);
+    const cannotEmbed = result.kind === "embed" && (probe.requiresNewTab || probe.blocked);
+
+    if (cannotEmbed && result.has_next) {
+      console.warn("[api/playback/session] skipped embed that cannot play inline", {
+        host: new URL(validatedUrl).hostname,
+        playerId: result.id,
+        index: result.index,
+        status: probe.status,
+      });
+      const response = NextResponse.json({
+        source: null,
+        index: result.index,
+        total: result.total,
+        hasNext: true,
+        error: "inline_playback_denied",
+      }, { headers: noStoreHeaders() });
+      await rotateTicket(response, { titleId, episodeId, nextIndex: result.index + 1, clientHash });
+      return response;
+    }
+
+    if (cannotEmbed) {
+      const source = playbackSource(completeResult, validatedUrl, probe, "new-tab");
+      const response = NextResponse.json({
+        source,
+        index: result.index,
+        total: result.total,
+        hasNext: false,
+      }, { headers: noStoreHeaders() });
+      clearTicket(response);
+      return response;
+    }
+
     if (probe.blocked) {
       console.warn("[api/playback/session] upstream player denied access", {
         host: new URL(validatedUrl).hostname,
@@ -386,18 +510,7 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    const source: PlaybackSourceWithPolicy = {
-      id: result.id,
-      label: result.label || (result.index === 0 ? "ตัวหลัก" : `สำรอง ${result.index}`),
-      url: validatedUrl,
-      kind: result.kind,
-      groupKey: result.group_key || "default",
-      role: result.role || (result.index === 0 ? "primary" : "backup"),
-      backupIndex: Number(result.backup_index || result.index),
-      order: Number(result.order || result.index),
-      referrerPolicy: probe.policy,
-    };
-
+    const source = playbackSource(completeResult, validatedUrl, probe, "inline");
     const response = NextResponse.json({
       source,
       index: result.index,
