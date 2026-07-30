@@ -28,7 +28,8 @@ function trustedWatchRequest(request: NextRequest): boolean {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
   const referer = request.headers.get("referer");
-  if (origin !== request.nextUrl.origin || fetchSite !== "same-origin" || !referer) return false;
+  if (origin !== request.nextUrl.origin || !referer) return false;
+  if (fetchSite && fetchSite !== "same-origin") return false;
 
   try {
     const refererUrl = new URL(referer);
