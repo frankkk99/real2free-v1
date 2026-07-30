@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
+import { LoaderCircle, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaybackSource } from "@/lib/public-catalog";
 import styles from "./WatchPlayer.module.css";
@@ -23,23 +23,16 @@ function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
   return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
-function openWithoutReferrer(url: string): boolean {
-  const popup = window.open("", "_blank");
-  if (!popup) return false;
-
-  try {
-    popup.opener = null;
-    popup.document.open();
-    popup.document.write(
-      "<!doctype html><html><head><meta name=\"referrer\" content=\"no-referrer\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>กำลังเปิดตัวรับชม</title><style>html,body{margin:0;background:#020b18;color:#fff;font-family:system-ui,sans-serif;height:100%}body{display:grid;place-items:center;text-align:center}p{opacity:.72}</style></head><body><div><strong>กำลังเปิดตัวรับชม...</strong><p>REAL2FREE จะไม่ส่งข้อมูลหน้าต้นทาง</p></div></body></html>",
-    );
-    popup.document.close();
-    popup.location.replace(url);
-    return true;
-  } catch {
-    popup.close();
-    return false;
-  }
+function openWithoutReferrer(url: string): void {
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.referrerPolicy = "no-referrer";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 function HlsVideo({
@@ -225,43 +218,31 @@ function EmbedFrame({
 function ExternalPlaybackFallback({
   source,
   poster,
+  title,
 }: {
   source: PlaybackSource;
   poster: string | null;
+  title: string;
 }) {
-  const [state, setState] = useState<"opening" | "opened" | "blocked">("opening");
-
-  useEffect(() => {
-    setState("opening");
-    const timer = window.setTimeout(() => {
-      setState(openWithoutReferrer(source.url) ? "opened" : "blocked");
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [source.id, source.url]);
-
-  const openManually = useCallback(() => {
-    setState(openWithoutReferrer(source.url) ? "opened" : "blocked");
+  const openPlayback = useCallback(() => {
+    openWithoutReferrer(source.url);
   }, [source.url]);
 
   return (
-    <div className={styles.failedState}>
+    <button
+      className={styles.posterState}
+      type="button"
+      onClick={openPlayback}
+      aria-label={`รับชม ${title}`}
+    >
       {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
-      <span className={styles.failedShade} />
-      <div className={styles.failedContent}>
-        <ExternalLink />
-        <strong>{state === "opened" ? "เปิดตัวรับชมในแท็บใหม่แล้ว" : "กำลังเปิดตัวรับชมแยก"}</strong>
-        <p>
-          {state === "blocked"
-            ? "Safari บล็อกการเปิดอัตโนมัติ กรุณาแตะปุ่มด้านล่างหนึ่งครั้ง"
-            : "ตัวรับชมนี้ไม่อนุญาตให้เล่นภายใน REAL2FREE และจะไม่รับ Referer จากหน้านี้"}
-        </p>
-        {state === "blocked" ? (
-          <div className={styles.failedActions}>
-            <button type="button" onClick={openManually}><ExternalLink /> เปิดรับชมในแท็บใหม่</button>
-          </div>
-        ) : null}
-      </div>
-    </div>
+      <span className={styles.posterShade} />
+      <span className={styles.startContent}>
+        <span className={styles.startButton}><Play fill="currentColor" /></span>
+        <strong>แตะเพื่อรับชม</strong>
+        <small>รับชมต่อได้ทันที</small>
+      </span>
+    </button>
   );
 }
 
@@ -317,14 +298,14 @@ export default function WatchPlayer({
         <span className={styles.startContent}>
           <span className={styles.startButton}><Play fill="currentColor" /></span>
           <strong>เริ่มรับชม</strong>
-          <small>ระบบจะเรียกตัวรับชมเมื่อคุณกดเล่นเท่านั้น</small>
+          <small>แตะเพื่อเริ่มเล่น</small>
         </span>
       </button>
     );
   }
 
   if (switching && !source) {
-    return <LoadingState poster={poster} message="กำลังขอตัวรับชมอย่างปลอดภัย..." />;
+    return <LoadingState poster={poster} message="กำลังเตรียมการรับชม..." />;
   }
 
   if (exhausted || !source) {
@@ -335,9 +316,9 @@ export default function WatchPlayer({
         <div className={styles.failedContent}>
           <RotateCcw />
           <strong>ยังเปิดเรื่องนี้ไม่ได้</strong>
-          <p>{errorMessage || "ลองขอตัวรับชมใหม่อีกครั้ง"}</p>
+          <p>{errorMessage || "ลองใหม่อีกครั้ง"}</p>
           <div className={styles.failedActions}>
-            <button type="button" onClick={onRetry}><RefreshCw /> ลองใหม่ทั้งหมด</button>
+            <button type="button" onClick={onRetry}><RefreshCw /> ลองใหม่</button>
           </div>
         </div>
       </div>
@@ -345,7 +326,7 @@ export default function WatchPlayer({
   }
 
   if (sourceDelivery(source) === "new-tab") {
-    return <ExternalPlaybackFallback source={source} poster={poster} />;
+    return <ExternalPlaybackFallback source={source} poster={poster} title={title} />;
   }
 
   return (
@@ -360,7 +341,7 @@ export default function WatchPlayer({
         <div className={styles.loadingLayer}>
           {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
           <span />
-          <div><LoaderCircle /><strong>{switching ? "กำลังสลับตัวรับชม..." : "กำลังเตรียมการรับชม..."}</strong></div>
+          <div><LoaderCircle /><strong>{switching ? "กำลังเปลี่ยนตัวรับชม..." : "กำลังเตรียมการรับชม..."}</strong></div>
         </div>
       ) : null}
     </div>
