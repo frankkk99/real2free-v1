@@ -37,7 +37,7 @@ const nextConfig = {
         source: "/watch/:path*",
         headers: [
           { key: "Content-Security-Policy", value: watchContentSecurityPolicy },
-          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Referrer-Policy", value: "same-origin" },
           { key: "X-Frame-Options", value: "DENY" },
         ],
       },
