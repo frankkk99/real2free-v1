@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { NextRequest, NextResponse } from "next/server";
 import type { PlaybackSource } from "@/lib/public-catalog";
@@ -20,11 +21,20 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PLAYER_PROBE_TIMEOUT_MS = 3200;
+const MAX_PROBE_REDIRECTS = 3;
+const HARD_BLOCK_STATUSES = new Set([401, 403, 404, 410, 451]);
+const PLAYER_PROBE_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36";
 
 const configuredPlayerHosts = (process.env.REAL2FREE_PLAYER_HOSTS || "")
   .split(",")
   .map((value) => value.trim().toLowerCase())
   .filter(Boolean);
+
+type PlaybackReferrerPolicy = "no-referrer" | "origin";
+type PlaybackSourceWithPolicy = PlaybackSource & {
+  referrerPolicy: PlaybackReferrerPolicy;
+};
 
 type PlaybackResponse = {
   found: boolean;
@@ -39,6 +49,17 @@ type PlaybackResponse = {
   index: number;
   total: number;
   has_next: boolean;
+};
+
+type ProbeAttempt = {
+  status: number | null;
+  unsafe: boolean;
+};
+
+type ProbeDecision = {
+  policy: PlaybackReferrerPolicy;
+  blocked: boolean;
+  status: number | null;
 };
 
 function noStoreHeaders() {
@@ -65,7 +86,8 @@ function trustedWatchRequest(request: NextRequest, titleId: string): boolean {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
   const referer = request.headers.get("referer");
-  if (origin !== request.nextUrl.origin || fetchSite !== "same-origin" || !referer) return false;
+  if (origin !== request.nextUrl.origin || !referer) return false;
+  if (fetchSite && fetchSite !== "same-origin") return false;
 
   try {
     const refererUrl = new URL(referer);
@@ -91,12 +113,45 @@ function isPrivateIpv4(hostname: string): boolean {
     || a >= 224;
 }
 
+function isPrivateIpv6(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().split("%")[0];
+  if (normalized === "::" || normalized === "::1") return true;
+  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
+  if (/^fe[89ab]/u.test(normalized)) return true;
+  if (normalized.startsWith("ff")) return true;
+  if (normalized.startsWith("2001:db8")) return true;
+  if (normalized.startsWith("::ffff:")) {
+    const mappedIpv4 = normalized.slice(7);
+    return isIP(mappedIpv4) === 4 && isPrivateIpv4(mappedIpv4);
+  }
+  return false;
+}
+
+function isPublicIp(address: string): boolean {
+  const version = isIP(address);
+  if (version === 4) return !isPrivateIpv4(address);
+  if (version === 6) return !isPrivateIpv6(address);
+  return false;
+}
+
 function allowedPlayerHost(hostname: string): boolean {
   if (!configuredPlayerHosts.length) return true;
   return configuredPlayerHosts.some((allowed) => hostname === allowed || hostname.endsWith(`.${allowed}`));
 }
 
-function safePlaybackUrl(rawUrl: string): string | null {
+async function publicPlayerHost(hostname: string): Promise<boolean> {
+  const ipVersion = isIP(hostname);
+  if (ipVersion) return isPublicIp(hostname);
+
+  try {
+    const addresses = await lookup(hostname, { all: true, verbatim: true });
+    return addresses.length > 0 && addresses.every((entry) => isPublicIp(entry.address));
+  } catch {
+    return false;
+  }
+}
+
+async function safePlaybackUrl(rawUrl: string): Promise<string | null> {
   try {
     const url = new URL(rawUrl);
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
@@ -105,21 +160,100 @@ function safePlaybackUrl(rawUrl: string): string | null {
     const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
     if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local")) return null;
     if (!allowedPlayerHost(hostname)) return null;
-
-    const ipVersion = isIP(hostname);
-    if (ipVersion === 4 && isPrivateIpv4(hostname)) return null;
-    if (ipVersion === 6) {
-      const normalized = hostname.toLowerCase();
-      if (normalized === "::1" || normalized === "::" || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe8") || normalized.startsWith("fe9") || normalized.startsWith("fea") || normalized.startsWith("feb")) {
-        return null;
-      }
-    }
+    if (!(await publicPlayerHost(hostname))) return null;
 
     url.hash = "";
     return url.toString();
   } catch {
     return null;
   }
+}
+
+async function probeOnce(
+  rawUrl: string,
+  kind: "hls" | "embed",
+  policy: PlaybackReferrerPolicy,
+  siteOrigin: string,
+): Promise<ProbeAttempt> {
+  let currentUrl = rawUrl;
+
+  for (let redirectCount = 0; redirectCount <= MAX_PROBE_REDIRECTS; redirectCount += 1) {
+    const validatedUrl = await safePlaybackUrl(currentUrl);
+    if (!validatedUrl) return { status: null, unsafe: true };
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PLAYER_PROBE_TIMEOUT_MS);
+
+    try {
+      const headers: Record<string, string> = {
+        Accept: kind === "hls"
+          ? "application/vnd.apple.mpegurl, application/x-mpegURL, application/octet-stream;q=0.9, */*;q=0.8"
+          : "text/html, application/xhtml+xml, application/xml;q=0.9, */*;q=0.8",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        "User-Agent": PLAYER_PROBE_USER_AGENT,
+      };
+
+      if (policy === "origin") {
+        headers.Referer = `${siteOrigin}/`;
+        if (kind === "hls") headers.Origin = siteOrigin;
+      }
+
+      const response = await fetch(validatedUrl, {
+        method: "GET",
+        redirect: "manual",
+        cache: "no-store",
+        headers,
+        signal: controller.signal,
+      });
+
+      const status = response.status;
+      const location = response.headers.get("location");
+      if (response.body) await response.body.cancel().catch(() => undefined);
+
+      if (status >= 300 && status < 400 && location) {
+        currentUrl = new URL(location, validatedUrl).toString();
+        continue;
+      }
+
+      return { status, unsafe: false };
+    } catch {
+      return { status: null, unsafe: false };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return { status: null, unsafe: false };
+}
+
+async function chooseReferrerPolicy(
+  url: string,
+  kind: "hls" | "embed",
+  siteOrigin: string,
+): Promise<ProbeDecision> {
+  const policies: PlaybackReferrerPolicy[] = kind === "embed"
+    ? ["origin", "no-referrer"]
+    : ["no-referrer", "origin"];
+
+  let lastHardBlock: number | null = null;
+
+  for (const policy of policies) {
+    const result = await probeOnce(url, kind, policy, siteOrigin);
+    if (result.unsafe) return { policy, blocked: true, status: null };
+    if (result.status == null) return { policy: policies[0], blocked: false, status: null };
+    if (result.status >= 200 && result.status < 400) {
+      return { policy, blocked: false, status: result.status };
+    }
+    if (HARD_BLOCK_STATUSES.has(result.status)) {
+      lastHardBlock = result.status;
+      continue;
+    }
+
+    return { policy: policies[0], blocked: false, status: result.status };
+  }
+
+  return { policy: policies[0], blocked: lastHardBlock != null, status: lastHardBlock };
 }
 
 function clearTicket(response: NextResponse) {
@@ -211,7 +345,7 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    const validatedUrl = safePlaybackUrl(result.url);
+    const validatedUrl = await safePlaybackUrl(result.url);
     if (!validatedUrl) {
       console.warn("[api/playback/session] blocked unsafe player URL", { playerId: result.id, index: result.index });
       const response = NextResponse.json({
@@ -229,7 +363,30 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    const source: PlaybackSource = {
+    const probe = await chooseReferrerPolicy(validatedUrl, result.kind, request.nextUrl.origin);
+    if (probe.blocked) {
+      console.warn("[api/playback/session] upstream player denied access", {
+        host: new URL(validatedUrl).hostname,
+        playerId: result.id,
+        index: result.index,
+        status: probe.status,
+      });
+      const response = NextResponse.json({
+        source: null,
+        index: result.index,
+        total: result.total,
+        hasNext: result.has_next,
+        error: "upstream_forbidden",
+      }, { headers: noStoreHeaders() });
+      if (result.has_next) {
+        await rotateTicket(response, { titleId, episodeId, nextIndex: result.index + 1, clientHash });
+      } else {
+        clearTicket(response);
+      }
+      return response;
+    }
+
+    const source: PlaybackSourceWithPolicy = {
       id: result.id,
       label: result.label || (result.index === 0 ? "ตัวหลัก" : `สำรอง ${result.index}`),
       url: validatedUrl,
@@ -238,6 +395,7 @@ export async function POST(request: NextRequest) {
       role: result.role || (result.index === 0 ? "primary" : "backup"),
       backupIndex: Number(result.backup_index || result.index),
       order: Number(result.order || result.index),
+      referrerPolicy: probe.policy,
     };
 
     const response = NextResponse.json({
