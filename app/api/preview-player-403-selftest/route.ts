@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { POST as challengePost } from "@/app/api/playback/challenge/route";
+import { POST as sessionPost } from "@/app/api/playback/session/route";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const TITLE_ID = "aac31dd3-530d-4b4f-96bd-454bf585c985";
 const EPISODE_ID = "d68ae5e5-3e34-4c45-be67-ab3d4a57bbe2";
+const TEST_IP = "198.51.100.24";
 
 function cookieHeaderFrom(response: Response): string {
   const rawHeaders = response.headers as Headers & { getSetCookie?: () => string[] };
@@ -22,22 +25,26 @@ export async function GET(request: NextRequest) {
 
   const origin = request.nextUrl.origin;
   const referer = `${origin}/watch/${TITLE_ID}?episode=${EPISODE_ID}`;
+  const sharedHeaders = {
+    "content-type": "application/json",
+    origin,
+    referer,
+    "sec-fetch-site": "same-origin",
+    "x-forwarded-for": TEST_IP,
+  };
 
-  const challenge = await fetch(`${origin}/api/playback/challenge`, {
+  const challengeRequest = new NextRequest(`${origin}/api/playback/challenge`, {
     method: "POST",
-    cache: "no-store",
     headers: {
-      "content-type": "application/json",
-      origin,
-      referer,
-      "sec-fetch-site": "same-origin",
+      ...sharedHeaders,
       "x-real2free-challenge": "1",
     },
     body: JSON.stringify({ titleId: TITLE_ID, episodeId: EPISODE_ID }),
   });
-
-  const challengeBody = await challenge.json().catch(() => null);
+  const challenge = await challengePost(challengeRequest);
+  const challengeBody = await challenge.clone().json().catch(() => null);
   const cookie = cookieHeaderFrom(challenge);
+
   if (!challenge.ok || !cookie) {
     return NextResponse.json({
       challenge: { status: challenge.status, body: challengeBody, hasCookie: Boolean(cookie) },
@@ -45,21 +52,17 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 
-  const session = await fetch(`${origin}/api/playback/session`, {
+  const sessionRequest = new NextRequest(`${origin}/api/playback/session`, {
     method: "POST",
-    cache: "no-store",
     headers: {
-      "content-type": "application/json",
+      ...sharedHeaders,
       cookie,
-      origin,
-      referer,
-      "sec-fetch-site": "same-origin",
       "x-real2free-playback": "1",
     },
     body: JSON.stringify({ titleId: TITLE_ID, episodeId: EPISODE_ID, index: 0 }),
   });
-
-  const sessionBody = await session.json().catch(() => null) as {
+  const session = await sessionPost(sessionRequest);
+  const sessionBody = await session.clone().json().catch(() => null) as {
     source?: { url?: string; kind?: string; referrerPolicy?: string } | null;
     index?: number;
     total?: number;
