@@ -5,6 +5,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaybackSource } from "@/lib/public-catalog";
 import styles from "./WatchPlayer.module.css";
 
+type PlaybackReferrerPolicy = "no-referrer" | "origin";
+type PlaybackSourceWithPolicy = PlaybackSource & {
+  referrerPolicy?: PlaybackReferrerPolicy;
+};
+
+function sourceReferrerPolicy(
+  source: PlaybackSource,
+  fallback: PlaybackReferrerPolicy,
+): PlaybackReferrerPolicy {
+  return (source as PlaybackSourceWithPolicy).referrerPolicy || fallback;
+}
+
 function HlsVideo({
   source,
   poster,
@@ -25,11 +37,16 @@ function HlsVideo({
     let disposed = false;
     let fatalTriggered = false;
     let recoveryCount = 0;
+    let referrerRetryUsed = false;
+    let activeReferrerPolicy = sourceReferrerPolicy(source, "no-referrer");
     let instance: {
       destroy: () => void;
       startLoad?: () => void;
+      stopLoad?: () => void;
       recoverMediaError?: () => void;
     } | null = null;
+
+    video.setAttribute("referrerpolicy", activeReferrerPolicy);
 
     const fatal = () => {
       if (disposed || fatalTriggered) return;
@@ -61,7 +78,7 @@ function HlsVideo({
               new Request(context.url, {
                 ...initParams,
                 cache: "no-store",
-                referrerPolicy: "no-referrer",
+                referrerPolicy: activeReferrerPolicy,
               }),
           });
 
@@ -73,6 +90,20 @@ function HlsVideo({
           });
           hls.on(Hls.Events.ERROR, (_event, data) => {
             if (disposed || !data.fatal) return;
+
+            const statusCode = Number(data.response?.code || 0);
+            if (
+              data.type === Hls.ErrorTypes.NETWORK_ERROR
+              && (statusCode === 401 || statusCode === 403)
+              && !referrerRetryUsed
+            ) {
+              referrerRetryUsed = true;
+              activeReferrerPolicy = activeReferrerPolicy === "no-referrer" ? "origin" : "no-referrer";
+              video.setAttribute("referrerpolicy", activeReferrerPolicy);
+              hls.stopLoad();
+              hls.loadSource(source.url);
+              return;
+            }
 
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR && recoveryCount < 1) {
               recoveryCount += 1;
@@ -111,9 +142,10 @@ function HlsVideo({
       video.removeEventListener("canplay", handleCanPlay);
       video.removeEventListener("error", fatal);
       video.removeAttribute("src");
+      video.removeAttribute("referrerpolicy");
       video.load();
     };
-  }, [onFatal, onReady, source.url]);
+  }, [onFatal, onReady, source]);
 
   return (
     <video
@@ -122,7 +154,6 @@ function HlsVideo({
       controls
       playsInline
       preload="none"
-      crossOrigin="anonymous"
       poster={poster || undefined}
     />
   );
@@ -138,6 +169,7 @@ function EmbedFrame({
   onFatal: () => void;
 }) {
   const loadedRef = useRef(false);
+  const referrerPolicy = sourceReferrerPolicy(source, "origin");
 
   useEffect(() => {
     loadedRef.current = false;
@@ -155,7 +187,7 @@ function EmbedFrame({
       allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
       sandbox="allow-scripts allow-same-origin allow-presentation"
       allowFullScreen
-      referrerPolicy="no-referrer"
+      referrerPolicy={referrerPolicy}
       onLoad={() => {
         loadedRef.current = true;
         onReady();
