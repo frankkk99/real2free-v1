@@ -71,7 +71,7 @@
 
 .heading {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   margin-top: 38px;
@@ -164,7 +164,7 @@
 
 @media (max-width: 720px) {
   .section { padding: 36px 12px 100px; }
-  .heading { align-items: start; flex-direction: column; gap: 5px; }
+  .heading { align-items: flex-start; flex-direction: column; gap: 5px; }
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
   .body { padding: 9px; }
   .body strong { font-size: 11px; }
