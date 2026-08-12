@@ -464,8 +464,15 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    const probe = await choosePlaybackPolicy(validatedUrl, result.kind, request.nextUrl.origin);
     const getplayEmbed = result.kind === "embed" && isGetplayEmbedUrl(validatedUrl);
+    const probe = getplayEmbed
+      ? {
+          policy: "no-referrer" as PlaybackReferrerPolicy,
+          blocked: false,
+          requiresNewTab: false,
+          status: 200,
+        }
+      : await choosePlaybackPolicy(validatedUrl, result.kind, request.nextUrl.origin);
     const cannotEmbed = result.kind === "embed"
       && !getplayEmbed
       && (probe.requiresNewTab || probe.blocked);
