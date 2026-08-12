@@ -139,6 +139,15 @@ function isPublicIp(address: string): boolean {
   return false;
 }
 
+function isGetplayEmbedUrl(rawUrl: string): boolean {
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase();
+    return hostname === "getplay-cdn.com" || hostname.endsWith(".getplay-cdn.com");
+  } catch {
+    return false;
+  }
+}
+
 function allowedPlayerHost(hostname: string): boolean {
   if (!configuredPlayerHosts.length) return true;
   return configuredPlayerHosts.some((allowed) => hostname === allowed || hostname.endsWith(`.${allowed}`));
@@ -456,7 +465,10 @@ export async function POST(request: NextRequest) {
     }
 
     const probe = await choosePlaybackPolicy(validatedUrl, result.kind, request.nextUrl.origin);
-    const cannotEmbed = result.kind === "embed" && (probe.requiresNewTab || probe.blocked);
+    const getplayEmbed = result.kind === "embed" && isGetplayEmbedUrl(validatedUrl);
+    const cannotEmbed = result.kind === "embed"
+      && !getplayEmbed
+      && (probe.requiresNewTab || probe.blocked);
 
     if (cannotEmbed && result.has_next) {
       console.warn("[api/playback/session] skipped embed that cannot play inline", {
@@ -488,7 +500,7 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    if (probe.blocked) {
+    if (probe.blocked && !getplayEmbed) {
       console.warn("[api/playback/session] upstream player denied access", {
         host: new URL(validatedUrl).hostname,
         playerId: result.id,
