@@ -23,6 +23,17 @@ function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
   return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
+function isGetplayEmbedSource(source: PlaybackSource): boolean {
+  if (source.kind !== "embed" || !source.url) return false;
+
+  try {
+    const hostname = new URL(source.url).hostname.toLowerCase();
+    return hostname === "getplay-cdn.com" || hostname.endsWith(".getplay-cdn.com");
+  } catch {
+    return false;
+  }
+}
+
 function HlsVideo({
   source,
   poster,
@@ -175,7 +186,9 @@ function EmbedFrame({
   onFatal: () => void;
 }) {
   const loadedRef = useRef(false);
-  const referrerPolicy = sourceReferrerPolicy(source, "origin");
+  const referrerPolicy = isGetplayEmbedSource(source)
+    ? "no-referrer"
+    : sourceReferrerPolicy(source, "origin");
 
   useEffect(() => {
     loadedRef.current = false;
