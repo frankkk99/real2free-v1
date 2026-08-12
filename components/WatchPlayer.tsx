@@ -20,6 +20,7 @@ function sourceReferrerPolicy(
 }
 
 function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
+  if (isGetplayEmbedSource(source)) return "new-tab";
   return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
@@ -218,7 +219,6 @@ function EmbedFrame({
 
 function ExternalPlaybackFallback({
   source,
-  poster,
   title,
 }: {
   source: PlaybackSource;
@@ -226,23 +226,16 @@ function ExternalPlaybackFallback({
   title: string;
 }) {
   return (
-    <a
-      className={styles.posterState}
-      href={source.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      referrerPolicy="no-referrer"
-      aria-label={`รับชม ${title}`}
-      style={{ textDecoration: "none" }}
-    >
-      {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
-      <span className={styles.posterShade} />
-      <span className={styles.startContent}>
-        <span className={styles.startButton}><Play fill="currentColor" /></span>
-        <strong>แตะเพื่อรับชม</strong>
-        <small>รับชมต่อได้ทันที</small>
-      </span>
-    </a>
+    <div className={styles.shell} data-player-delivery="cropped-embed">
+      <iframe
+        className={styles.media}
+        src={source.url}
+        title={title}
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        allowFullScreen
+        referrerPolicy="no-referrer"
+      />
+    </div>
   );
 }
 
