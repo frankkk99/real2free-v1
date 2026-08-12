@@ -12,8 +12,6 @@ type PlaybackSourceWithPolicy = PlaybackSource & {
   delivery?: PlaybackDelivery;
 };
 
-const EXTERNAL_ONLY_PLAYER_HOSTS = ["getplay-cdn.com"];
-
 function sourceReferrerPolicy(
   source: PlaybackSource,
   fallback: PlaybackReferrerPolicy,
@@ -21,21 +19,7 @@ function sourceReferrerPolicy(
   return (source as PlaybackSourceWithPolicy).referrerPolicy || fallback;
 }
 
-function isExternalOnlyPlayer(source: PlaybackSource): boolean {
-  if (source.kind !== "embed" || !source.url) return false;
-
-  try {
-    const hostname = new URL(source.url).hostname.toLowerCase();
-    return EXTERNAL_ONLY_PLAYER_HOSTS.some(
-      (host) => hostname === host || hostname.endsWith(`.${host}`),
-    );
-  } catch {
-    return false;
-  }
-}
-
 function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
-  if (isExternalOnlyPlayer(source)) return "new-tab";
   return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
