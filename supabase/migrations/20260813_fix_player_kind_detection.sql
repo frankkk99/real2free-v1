@@ -35,7 +35,7 @@ candidates as (
     coalesce(nullif(p.stream_url, ''), nullif(p.iframe_url, ''), nullif(p.player_url, '')) as playback_url,
     case
       when coalesce(nullif(p.stream_url, ''), nullif(p.iframe_url, ''), nullif(p.player_url, '')) ~* '(^|/)(embed|player)(/|[?]|$)' then 'embed'
-      when coalesce(nullif(p.stream_url, ''), nullif(p.iframe_url, ''), nullif(p.player_url, '')) ~* '(\\.m3u8([?#].*)?$|/hls[^/]*/.+/master([?#].*)?$)' then 'hls'
+      when coalesce(nullif(p.stream_url, ''), nullif(p.iframe_url, ''), nullif(p.player_url, '')) ~* '(\.m3u8([?#].*)?$|/hls[^/]*/.+/master([?#].*)?$)' then 'hls'
       when nullif(p.stream_url, '') is not null then 'hls'
       else 'embed'
     end as playback_kind,
