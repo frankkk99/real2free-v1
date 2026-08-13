@@ -20,7 +20,14 @@ function sourceReferrerPolicy(
 }
 
 function isEmbedSource(source: PlaybackSource): boolean {
-  return source.kind === "embed";
+  if (!source.url) return source.kind === "embed";
+
+  try {
+    const pathname = new URL(source.url).pathname.toLowerCase();
+    return source.kind === "embed" || /\/(?:embed|player)(?:\/|$)/u.test(pathname);
+  } catch {
+    return source.kind === "embed";
+  }
 }
 
 function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
