@@ -203,11 +203,17 @@
 .cardFavoriteActive { color: #ff6f86; }
 .cardFavorite svg { width: 15px; height: 15px; }
 
+.cardTitles {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  margin-top: 8px;
+}
+
 .cardTitle {
   display: block;
   max-width: 100%;
   overflow: hidden;
-  margin-top: 8px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -218,6 +224,12 @@
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cardTitleEnglish {
+  color: var(--muted-strong);
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .cardMeta {
@@ -264,6 +276,7 @@
   .languageBadge { min-width: 20px; }
   .cardFavorite { right: 4px; bottom: 42px; width: 26px; height: 26px; }
   .cardTitle { font-size: 10px; }
+  .cardTitleEnglish { font-size: 8px; }
   .cardMeta { font-size: 8px; }
   .playHover { display: none; }
 }

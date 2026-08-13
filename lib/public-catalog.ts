@@ -58,6 +58,10 @@ export type PublicCatalogItem = {
   hasSubThai: boolean;
   hasBackup: boolean;
   languageCode: string | null;
+  brandTags: string[];
+  countries: string[];
+  originalLanguage: string | null;
+  isThai: boolean;
   isOngoing: boolean;
   players: PublicPlayer[];
 };
@@ -85,6 +89,10 @@ export type PublicCatalogRow = {
   has_sub_th?: boolean | null;
   has_backup?: boolean | null;
   language_code?: string | null;
+  brand_tags?: string[] | null;
+  countries?: string[] | null;
+  original_language?: string | null;
+  is_thai?: boolean | null;
   is_ongoing?: boolean | null;
   players?: unknown;
 };
@@ -110,6 +118,10 @@ export type PublicCatalogCardRow = {
   has_sub_th: boolean | null;
   has_backup: boolean | null;
   language_code: string | null;
+  brand_tags?: string[] | null;
+  countries?: string[] | null;
+  original_language?: string | null;
+  is_thai?: boolean | null;
   is_ongoing: boolean | null;
 };
 
@@ -166,7 +178,7 @@ export const PUBLIC_CATALOG_FIELDS =
   "id,content_type,title_th,title_en,overview,release_date,year,runtime,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
 
 export const PUBLIC_CATALOG_CARD_FIELDS =
-  "id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
+  "id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,brand_tags,countries,original_language,is_thai,is_ongoing";
 
 // Episodes are now supplied by the secure metadata gateway. Keep this safe list for compatibility.
 export const PUBLIC_EPISODE_FIELDS =
@@ -255,6 +267,10 @@ function mappedGenres(value: string[] | null | undefined) {
     rawGenres,
     genres: rawGenres.map((genre) => genreLabels[genre] || genre),
   };
+}
+
+function stringArray(value: string[] | null | undefined) {
+  return Array.isArray(value) ? [...new Set(value.map(String).map((entry) => entry.trim()).filter(Boolean))] : [];
 }
 
 export function parsePublicPlayers(value: unknown): PublicPlayer[] {
@@ -374,6 +390,10 @@ export function mapPublicCatalogRow(row: PublicCatalogRow | null | undefined): P
     hasSubThai: Boolean(row.has_sub_th) || groups.some((group) => group.key === "sub_th"),
     hasBackup: Boolean(row.has_backup) || groups.some((group) => group.hasBackup),
     languageCode: normalizedLanguageCode(row.language_code),
+    brandTags: stringArray(row.brand_tags),
+    countries: stringArray(row.countries),
+    originalLanguage: String(row.original_language || "").trim() || null,
+    isThai: Boolean(row.is_thai),
     isOngoing: hasExplicitOngoing
       ? Boolean(row.is_ongoing)
       : row.content_type === "series"
@@ -410,6 +430,10 @@ export function mapPublicCatalogCardRow(row: PublicCatalogCardRow): PublicCatalo
     hasSubThai: Boolean(row.has_sub_th),
     hasBackup: Boolean(row.has_backup),
     languageCode: normalizedLanguageCode(row.language_code),
+    brandTags: stringArray(row.brand_tags),
+    countries: stringArray(row.countries),
+    originalLanguage: String(row.original_language || "").trim() || null,
+    isThai: Boolean(row.is_thai),
     isOngoing: Boolean(row.is_ongoing),
     players: [],
   };

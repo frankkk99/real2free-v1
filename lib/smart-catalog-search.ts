@@ -1,5 +1,18 @@
 export type SmartCatalogView = "movie" | "series" | "anime";
 export type CatalogLanguageFilter = "ทั้งหมด" | "dub_th" | "sub_th" | "backup";
+export type CatalogBrandFilter =
+  | "ทั้งหมด"
+  | "netflix"
+  | "disney"
+  | "hbo"
+  | "marvel"
+  | "dc"
+  | "prime"
+  | "apple"
+  | "iqiyi"
+  | "viu"
+  | "wetv";
+export type CatalogCountryFilter = "ทั้งหมด" | "TH" | "KR" | "CN" | "JP" | "US";
 export type CatalogSortMode = "updated" | "release" | "rating" | "title";
 
 export type SmartCatalogSearch = {
@@ -8,6 +21,8 @@ export type SmartCatalogSearch = {
   viewMode: SmartCatalogView | null;
   genre: string | null;
   language: Exclude<CatalogLanguageFilter, "ทั้งหมด"> | null;
+  brand: Exclude<CatalogBrandFilter, "ทั้งหมด"> | null;
+  country: Exclude<CatalogCountryFilter, "ทั้งหมด"> | null;
   labels: string[];
 };
 
@@ -21,6 +36,27 @@ const viewRules: Array<AliasRule<SmartCatalogView>> = [
   { value: "series", label: "ซีรีส์", aliases: ["ซีรีส์", "ซีรี่ส์", "ซีรี่ย์", "series"] },
   { value: "anime", label: "อนิเมะ", aliases: ["อนิเมะ", "anime"] },
   { value: "movie", label: "ภาพยนตร์", aliases: ["ภาพยนตร์", "หนัง", "movie", "film"] },
+];
+
+const brandRules: Array<AliasRule<Exclude<CatalogBrandFilter, "ทั้งหมด">>> = [
+  { value: "netflix", label: "Netflix", aliases: ["netflix", "เน็ตฟลิกซ์"] },
+  { value: "disney", label: "Disney+", aliases: ["disney+", "disney", "ดิสนีย์"] },
+  { value: "hbo", label: "HBO / Max", aliases: ["hbo max", "hbo", "max"] },
+  { value: "marvel", label: "Marvel", aliases: ["marvel"] },
+  { value: "dc", label: "DC", aliases: ["dc"] },
+  { value: "prime", label: "Prime Video", aliases: ["prime video", "prime"] },
+  { value: "apple", label: "Apple TV+", aliases: ["apple tv+", "apple tv", "apple"] },
+  { value: "iqiyi", label: "iQIYI", aliases: ["iqiyi", "i qiyi"] },
+  { value: "viu", label: "Viu", aliases: ["viu"] },
+  { value: "wetv", label: "WeTV", aliases: ["wetv", "we tv"] },
+];
+
+const countryRules: Array<AliasRule<Exclude<CatalogCountryFilter, "ทั้งหมด">>> = [
+  { value: "TH", label: "ไทย", aliases: ["ไทย", "thai", "thailand"] },
+  { value: "KR", label: "เกาหลี", aliases: ["เกาหลีใต้", "เกาหลี", "korean", "korea"] },
+  { value: "CN", label: "จีน", aliases: ["จีนแผ่นดินใหญ่", "จีน", "chinese", "china"] },
+  { value: "JP", label: "ญี่ปุ่น", aliases: ["ญี่ปุ่น", "japanese", "japan"] },
+  { value: "US", label: "อเมริกา", aliases: ["อเมริกา", "อเมริกัน", "american", "usa"] },
 ];
 
 const genreRules: Array<AliasRule<string>> = [
@@ -91,13 +127,20 @@ export function parseSmartCatalogSearch(value: string): SmartCatalogSearch {
   const language = consumeRule(source, languageRules);
   source = language.source;
 
+  const brand = consumeRule(source, brandRules);
+  source = brand.source;
+
+  const country = consumeRule(source, countryRules);
+  source = country.source;
+
   const genre = consumeRule(source, genreRules);
   source = genre.source;
 
   const view = consumeRule(source, viewRules);
   source = view.source;
 
-  const labels = [view.label, genre.label, year, language.label].filter((label): label is string => Boolean(label));
+  const labels = [view.label, genre.label, year, language.label, brand.label, country.label]
+    .filter((label): label is string => Boolean(label));
 
   return {
     text: source.replace(/\s+/g, " ").trim(),
@@ -105,6 +148,8 @@ export function parseSmartCatalogSearch(value: string): SmartCatalogSearch {
     viewMode: view.value,
     genre: genre.value,
     language: language.value,
+    brand: brand.value,
+    country: country.value,
     labels,
   };
 }
@@ -114,6 +159,29 @@ export const languageFilterOptions: Array<{ value: CatalogLanguageFilter; label:
   { value: "dub_th", label: "พากย์ไทย" },
   { value: "sub_th", label: "ซับไทย" },
   { value: "backup", label: "มีสำรอง" },
+];
+
+export const brandFilterOptions: Array<{ value: CatalogBrandFilter; label: string }> = [
+  { value: "ทั้งหมด", label: "ทุกค่าย" },
+  { value: "netflix", label: "Netflix" },
+  { value: "disney", label: "Disney+" },
+  { value: "hbo", label: "HBO / Max" },
+  { value: "marvel", label: "Marvel" },
+  { value: "dc", label: "DC" },
+  { value: "prime", label: "Prime Video" },
+  { value: "apple", label: "Apple TV+" },
+  { value: "iqiyi", label: "iQIYI" },
+  { value: "viu", label: "Viu" },
+  { value: "wetv", label: "WeTV" },
+];
+
+export const countryFilterOptions: Array<{ value: CatalogCountryFilter; label: string }> = [
+  { value: "ทั้งหมด", label: "ทุกประเทศ" },
+  { value: "TH", label: "ไทย" },
+  { value: "KR", label: "เกาหลี" },
+  { value: "CN", label: "จีน" },
+  { value: "JP", label: "ญี่ปุ่น" },
+  { value: "US", label: "อเมริกา" },
 ];
 
 export const sortModeOptions: Array<{ value: CatalogSortMode; label: string }> = [

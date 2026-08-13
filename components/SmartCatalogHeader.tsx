@@ -15,8 +15,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PublicCatalogItem } from "@/lib/public-catalog";
 import {
   languageFilterOptions,
+  brandFilterOptions,
+  countryFilterOptions,
   parseSmartCatalogSearch,
   sortModeOptions,
+  type CatalogBrandFilter,
+  type CatalogCountryFilter,
   type CatalogLanguageFilter,
   type CatalogSortMode,
 } from "@/lib/smart-catalog-search";
@@ -60,6 +64,8 @@ export default function SmartCatalogHeader({
   viewMode,
   queryInput,
   genre,
+  brand,
+  country,
   year,
   language,
   sortMode,
@@ -69,6 +75,8 @@ export default function SmartCatalogHeader({
   onViewChange,
   onQueryChange,
   onGenreChange,
+  onBrandChange,
+  onCountryChange,
   onYearChange,
   onLanguageChange,
   onSortChange,
@@ -80,6 +88,8 @@ export default function SmartCatalogHeader({
   viewMode: HomeQuickView;
   queryInput: string;
   genre: string;
+  brand: CatalogBrandFilter;
+  country: CatalogCountryFilter;
   year: string;
   language: CatalogLanguageFilter;
   sortMode: CatalogSortMode;
@@ -89,6 +99,8 @@ export default function SmartCatalogHeader({
   onViewChange: (value: HomeQuickView) => void;
   onQueryChange: (value: string) => void;
   onGenreChange: (value: string) => void;
+  onBrandChange: (value: CatalogBrandFilter) => void;
+  onCountryChange: (value: CatalogCountryFilter) => void;
   onYearChange: (value: string) => void;
   onLanguageChange: (value: CatalogLanguageFilter) => void;
   onSortChange: (value: CatalogSortMode) => void;
@@ -101,6 +113,12 @@ export default function SmartCatalogHeader({
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const parsedSearch = useMemo(() => parseSmartCatalogSearch(queryInput), [queryInput]);
+  const activeViewMode = viewMode === "home" && parsedSearch.viewMode ? parsedSearch.viewMode : viewMode;
+  const activeGenre = genre === "ทั้งหมด" ? parsedSearch.genre || "ทั้งหมด" : genre;
+  const activeBrand = brand === "ทั้งหมด" ? parsedSearch.brand || "ทั้งหมด" : brand;
+  const activeCountry = country === "ทั้งหมด" ? parsedSearch.country || "ทั้งหมด" : country;
+  const activeYear = year === "ทั้งหมด" ? parsedSearch.year || "ทั้งหมด" : year;
+  const activeLanguage = language === "ทั้งหมด" ? parsedSearch.language || "ทั้งหมด" : language;
 
   const suggestions = useMemo(() => {
     const needle = (parsedSearch.text || queryInput).trim().toLocaleLowerCase("th-TH");
@@ -112,10 +130,12 @@ export default function SmartCatalogHeader({
   }, [items, parsedSearch.text, queryInput]);
 
   const selectedFilterCount = [
-    viewMode !== "home",
-    genre !== "ทั้งหมด",
-    year !== "ทั้งหมด",
-    language !== "ทั้งหมด",
+    activeViewMode !== "home",
+    activeGenre !== "ทั้งหมด",
+    activeBrand !== "ทั้งหมด",
+    activeCountry !== "ทั้งหมด",
+    activeYear !== "ทั้งหมด",
+    activeLanguage !== "ทั้งหมด",
     sortMode !== "updated",
   ].filter(Boolean).length;
 
@@ -147,7 +167,7 @@ export default function SmartCatalogHeader({
         {navItems.map((item) => (
           <button
             key={item.value}
-            className={viewMode === item.value ? styles.navActive : ""}
+            className={activeViewMode === item.value ? styles.navActive : ""}
             type="button"
             onClick={() => onViewChange(item.value)}
           >
@@ -252,8 +272,30 @@ export default function SmartCatalogHeader({
                 <span>ประเภท</span>
                 <div className={styles.choiceGrid}>
                   {typeOptions.map((option) => (
-                    <button key={option.value} className={viewMode === option.value ? styles.choiceActive : ""} type="button" onClick={() => onViewChange(option.value)}>
-                      {option.label}{viewMode === option.value ? <Check /> : null}
+                    <button key={option.value} className={activeViewMode === option.value ? styles.choiceActive : ""} type="button" onClick={() => onViewChange(option.value)}>
+                      {option.label}{activeViewMode === option.value ? <Check /> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.filterSection}>
+                <span>ค่ายหนังและสตรีมมิง</span>
+                <div className={styles.genreGrid}>
+                  {brandFilterOptions.map((option) => (
+                    <button key={option.value} className={activeBrand === option.value ? styles.choiceActive : ""} type="button" onClick={() => onBrandChange(option.value)}>
+                      {option.label}{activeBrand === option.value ? <Check /> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.filterSection}>
+                <span>ประเทศต้นฉบับ</span>
+                <div className={styles.choiceGrid}>
+                  {countryFilterOptions.map((option) => (
+                    <button key={option.value} className={activeCountry === option.value ? styles.choiceActive : ""} type="button" onClick={() => onCountryChange(option.value)}>
+                      {option.label}{activeCountry === option.value ? <Check /> : null}
                     </button>
                   ))}
                 </div>
@@ -263,8 +305,8 @@ export default function SmartCatalogHeader({
                 <span>ภาษาและตัวสำรอง</span>
                 <div className={styles.choiceGrid}>
                   {languageFilterOptions.map((option) => (
-                    <button key={option.value} className={language === option.value ? styles.choiceActive : ""} type="button" onClick={() => onLanguageChange(option.value)}>
-                      {option.label}{language === option.value ? <Check /> : null}
+                    <button key={option.value} className={activeLanguage === option.value ? styles.choiceActive : ""} type="button" onClick={() => onLanguageChange(option.value)}>
+                      {option.label}{activeLanguage === option.value ? <Check /> : null}
                     </button>
                   ))}
                 </div>
@@ -274,7 +316,7 @@ export default function SmartCatalogHeader({
                 <span>ปีที่ฉาย</span>
                 <div className={styles.scrollChoices}>
                   {yearOptions.map((option) => (
-                    <button key={option} className={year === option ? styles.choiceActive : ""} type="button" onClick={() => onYearChange(option)}>
+                    <button key={option} className={activeYear === option ? styles.choiceActive : ""} type="button" onClick={() => onYearChange(option)}>
                       {option === "ทั้งหมด" ? "ทุกปี" : option}
                     </button>
                   ))}
@@ -285,8 +327,8 @@ export default function SmartCatalogHeader({
                 <span>แนว</span>
                 <div className={styles.genreGrid}>
                   {genreOptions.map((option) => (
-                    <button key={option.value} className={genre === option.value ? styles.choiceActive : ""} type="button" onClick={() => onGenreChange(option.value)}>
-                      {option.label}{genre === option.value ? <Check /> : null}
+                    <button key={option.value} className={activeGenre === option.value ? styles.choiceActive : ""} type="button" onClick={() => onGenreChange(option.value)}>
+                      {option.label}{activeGenre === option.value ? <Check /> : null}
                     </button>
                   ))}
                 </div>
