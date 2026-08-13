@@ -46,6 +46,17 @@ function isGetplayEmbedSource(source: PlaybackSource): boolean {
   }
 }
 
+function getplayRelayUrl(source: PlaybackSource): string | null {
+  if (!isGetplayEmbedSource(source)) return null;
+
+  try {
+    const url = new URL(source.url);
+    return `/api/getplay-relay${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
 function HlsVideo({
   source,
   poster,
@@ -215,6 +226,7 @@ function EmbedFrame({
   const [frameLoaded, setFrameLoaded] = useState(false);
   const loadedRef = useRef(false);
   const isGetplayEmbed = isGetplayEmbedSource(source);
+  const frameUrl = getplayRelayUrl(source) || source.url;
   const referrerPolicy = isGetplayEmbed
     ? "no-referrer"
     : sourceReferrerPolicy(source, "origin");
@@ -237,7 +249,7 @@ function EmbedFrame({
           </div>
         ) : null}
         <iframe
-          src={source.url}
+          src={frameUrl}
           title={source.label || "หน้ารับชม"}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
