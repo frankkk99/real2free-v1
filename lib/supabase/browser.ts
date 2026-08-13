@@ -6,6 +6,7 @@ let publicBrowserClient: SupabaseClient | null = null;
 
 const PUBLIC_CATALOG_RESOURCES = new Set([
   "real2free_public_cards",
+  "real2free_public_home_sections",
   "real2free_public_heroes",
   "real2free_public_titles",
   "real2free_public_episodes",
@@ -15,6 +16,7 @@ const PUBLIC_CATALOG_RESOURCES = new Set([
 const CACHEABLE_PUBLIC_RESOURCES = new Set([
   "real2free_public_cards",
   "real2free_public_heroes",
+  "real2free_public_home_sections",
 ]);
 
 async function sameOriginPublicFetch(input: RequestInfo | URL, init?: RequestInit) {
