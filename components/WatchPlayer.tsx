@@ -19,13 +19,24 @@ function sourceReferrerPolicy(
   return (source as PlaybackSourceWithPolicy).referrerPolicy || fallback;
 }
 
+function isEmbedSource(source: PlaybackSource): boolean {
+  if (!source.url) return source.kind === "embed";
+
+  try {
+    const pathname = new URL(source.url).pathname.toLowerCase();
+    return source.kind === "embed" || /\/(?:embed|player)(?:\/|$)/u.test(pathname);
+  } catch {
+    return source.kind === "embed";
+  }
+}
+
 function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
   if (isGetplayEmbedSource(source)) return "inline";
   return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
 function isGetplayEmbedSource(source: PlaybackSource): boolean {
-  if (source.kind !== "embed" || !source.url) return false;
+  if (!isEmbedSource(source) || !source.url) return false;
 
   try {
     const hostname = new URL(source.url).hostname.toLowerCase();
@@ -54,6 +65,7 @@ function HlsVideo({
 
     let disposed = false;
     let fatalTriggered = false;
+    let readyTriggered = false;
     let recoveryCount = 0;
     let referrerRetryUsed = false;
     let activeReferrerPolicy = sourceReferrerPolicy(source, "no-referrer");
@@ -66,18 +78,31 @@ function HlsVideo({
 
     video.setAttribute("referrerpolicy", activeReferrerPolicy);
 
+    let readyTimer: number | null = null;
+
     const fatal = () => {
       if (disposed || fatalTriggered) return;
       fatalTriggered = true;
+      if (readyTimer !== null) window.clearTimeout(readyTimer);
       onFatal();
     };
 
+    const markReady = () => {
+      if (disposed || readyTriggered) return;
+      readyTriggered = true;
+      if (readyTimer !== null) window.clearTimeout(readyTimer);
+      onReady();
+    };
+
     const handleCanPlay = () => {
-      if (!disposed) onReady();
+      markReady();
     };
 
     video.addEventListener("canplay", handleCanPlay);
     video.addEventListener("error", fatal);
+    readyTimer = window.setTimeout(() => {
+      if (!readyTriggered) fatal();
+    }, 20000);
 
     void import("hls.js")
       .then(({ default: Hls }) => {
@@ -103,7 +128,7 @@ function HlsVideo({
           instance = hls;
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             if (disposed) return;
-            onReady();
+            markReady();
             void video.play().catch(() => undefined);
           });
           hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -156,6 +181,7 @@ function HlsVideo({
 
     return () => {
       disposed = true;
+      if (readyTimer !== null) window.clearTimeout(readyTimer);
       instance?.destroy();
       video.removeEventListener("canplay", handleCanPlay);
       video.removeEventListener("error", fatal);
@@ -171,7 +197,7 @@ function HlsVideo({
       className={styles.media}
       controls
       playsInline
-      preload="none"
+      preload="auto"
       poster={poster || undefined}
     />
   );
@@ -351,14 +377,15 @@ export default function WatchPlayer({
     return <ExternalPlaybackFallback source={source} poster={poster} title={title} />;
   }
 
-  const getplayEmbed = source.kind === "embed" && isGetplayEmbedSource(source);
+  const embedSource = isEmbedSource(source);
+  const getplayEmbed = isGetplayEmbedSource(source);
 
   return (
     <div className={styles.shell}>
-      {source.kind === "hls" ? (
-        <HlsVideo source={source} poster={poster} onReady={handleReady} onFatal={handleFailed} />
-      ) : (
+      {embedSource ? (
         <EmbedFrame source={source} onReady={handleReady} onFatal={handleFailed} />
+      ) : (
+        <HlsVideo source={source} poster={poster} onReady={handleReady} onFatal={handleFailed} />
       )}
 
       {!getplayEmbed && (switching || !ready) ? (
