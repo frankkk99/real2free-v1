@@ -20,7 +20,7 @@ function sourceReferrerPolicy(
 }
 
 function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
-  if (isGetplayEmbedSource(source)) return "new-tab";
+  if (isGetplayEmbedSource(source)) return "inline";
   return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
@@ -186,18 +186,47 @@ function EmbedFrame({
   onReady: () => void;
   onFatal: () => void;
 }) {
+  const [frameLoaded, setFrameLoaded] = useState(false);
   const loadedRef = useRef(false);
-  const referrerPolicy = isGetplayEmbedSource(source)
+  const isGetplayEmbed = isGetplayEmbedSource(source);
+  const referrerPolicy = isGetplayEmbed
     ? "no-referrer"
     : sourceReferrerPolicy(source, "origin");
 
   useEffect(() => {
     loadedRef.current = false;
+    setFrameLoaded(false);
     const timer = window.setTimeout(() => {
       if (!loadedRef.current) onFatal();
     }, 12000);
     return () => window.clearTimeout(timer);
-  }, [onFatal, source.id]);
+  }, [onFatal, source.id, source.url]);
+
+  if (isGetplayEmbed) {
+    return (
+      <div className="player-shell">
+        {!frameLoaded ? (
+          <div className="player-shell-loading" aria-hidden="true">
+            <div className="player-loading" />
+          </div>
+        ) : null}
+        <iframe
+          src={source.url}
+          title={source.label || "หน้ารับชม"}
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          allowFullScreen
+          referrerPolicy="no-referrer"
+          loading="eager"
+          onLoad={() => {
+            loadedRef.current = true;
+            setFrameLoaded(true);
+            onReady();
+          }}
+          onError={onFatal}
+        />
+      </div>
+    );
+  }
 
   return (
     <iframe
@@ -322,6 +351,8 @@ export default function WatchPlayer({
     return <ExternalPlaybackFallback source={source} poster={poster} title={title} />;
   }
 
+  const getplayEmbed = source.kind === "embed" && isGetplayEmbedSource(source);
+
   return (
     <div className={styles.shell}>
       {source.kind === "hls" ? (
@@ -330,7 +361,7 @@ export default function WatchPlayer({
         <EmbedFrame source={source} onReady={handleReady} onFatal={handleFailed} />
       )}
 
-      {switching || !ready ? (
+      {!getplayEmbed && (switching || !ready) ? (
         <div className={styles.loadingLayer}>
           {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
           <span />
