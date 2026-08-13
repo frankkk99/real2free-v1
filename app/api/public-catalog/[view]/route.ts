@@ -6,6 +6,7 @@ export const runtime = "edge";
 
 const ALLOWED_VIEWS = new Set([
   "real2free_public_cards",
+  "real2free_public_home_sections",
   "real2free_public_heroes",
   "real2free_public_titles",
   "real2free_public_episodes",
@@ -44,7 +45,7 @@ function publicCacheControl(view: string) {
   if (view === "real2free_public_trailers") {
     return "public, max-age=300, s-maxage=300, stale-while-revalidate=86400";
   }
-  if (view === "real2free_public_cards" || view === "real2free_public_series_summary") {
+  if (view === "real2free_public_cards" || view === "real2free_public_home_sections" || view === "real2free_public_series_summary") {
     return "public, max-age=60, s-maxage=90, stale-while-revalidate=300";
   }
   return "public, max-age=20, s-maxage=30, stale-while-revalidate=120";
