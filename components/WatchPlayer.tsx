@@ -24,7 +24,7 @@ function isEmbedSource(source: PlaybackSource): boolean {
 
   try {
     const pathname = new URL(source.url).pathname.toLowerCase();
-    return source.kind === "embed" || /\\/(?:embed|player)(?:\\/|$)/u.test(pathname);
+    return source.kind === "embed" || /\/(?:embed|player)(?:\/|$)/u.test(pathname);
   } catch {
     return source.kind === "embed";
   }
