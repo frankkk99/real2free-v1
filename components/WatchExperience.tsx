@@ -54,6 +54,22 @@ type PlaybackPayload = {
   error?: string;
 };
 
+type ExternalFallbackCandidate = {
+  source: PlaybackSource;
+  index: number;
+};
+
+function isGetplaySource(source: PlaybackSource | null): boolean {
+  if (!source?.url) return false;
+
+  try {
+    const hostname = new URL(source.url).hostname.toLowerCase();
+    return hostname === "getplay-cdn.com" || hostname.endsWith(".getplay-cdn.com");
+  } catch {
+    return false;
+  }
+}
+
 export default function WatchExperience({
   item,
   episodes,
@@ -74,12 +90,14 @@ export default function WatchExperience({
   const [switching, setSwitching] = useState(false);
   const [allExhausted, setAllExhausted] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [forceExternalFallback, setForceExternalFallback] = useState(false);
   const [playerSession, setPlayerSession] = useState(0);
   const [favorite, setFavorite] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
   const requestRef = useRef(0);
   const playerStageRef = useRef<HTMLElement | null>(null);
+  const externalFallbackCandidateRef = useRef<ExternalFallbackCandidate | null>(null);
 
   const activeEpisode = useMemo(
     () => playableEpisodes.find((episode) => episode.id === activeEpisodeId) || playableEpisodes[0] || null,
@@ -104,6 +122,8 @@ export default function WatchExperience({
     setSwitching(false);
     setAllExhausted(false);
     setRequestError(null);
+    setForceExternalFallback(false);
+    externalFallbackCandidateRef.current = null;
     setPlayerSession((current) => current + 1);
   }, [activeEpisode?.id, activeEpisode?.playerCount, item.id, item.playerCount]);
 
@@ -126,7 +146,22 @@ export default function WatchExperience({
     setSwitching(true);
     setAllExhausted(false);
     setRequestError(null);
+    setForceExternalFallback(false);
+    if (startIndex === 0) externalFallbackCandidateRef.current = null;
     setPlayerSession((current) => current + 1);
+
+    const showExternalFallback = () => {
+      const candidate = externalFallbackCandidateRef.current;
+      if (!candidate) return false;
+
+      setSource(candidate.source);
+      setSourceIndex(candidate.index);
+      setForceExternalFallback(true);
+      setAllExhausted(true);
+      setHasNextSource(false);
+      setRequestError("ตัวรับชมแบบฝังเปิดไม่ได้");
+      return true;
+    };
 
     try {
       if (startIndex === 0) {
@@ -181,6 +216,7 @@ export default function WatchExperience({
         }
 
         if (!payload.source) {
+          if (showExternalFallback()) return;
           setHasNextSource(false);
           setAllExhausted(true);
           setRequestError("ไม่พบตัวรับชมที่ผ่านการตรวจสอบ");
@@ -188,6 +224,7 @@ export default function WatchExperience({
         }
 
         setSource(payload.source);
+        setForceExternalFallback(false);
         setSourceIndex(payload.index);
         setTotalSources(payload.total);
         setHasNextSource(payload.hasNext);
@@ -195,6 +232,7 @@ export default function WatchExperience({
         return;
       }
 
+      if (showExternalFallback()) return;
       setHasNextSource(false);
       setAllExhausted(true);
       setRequestError("ตัวรับชมหลายรายการไม่ผ่านการตรวจสอบความปลอดภัย");
@@ -216,8 +254,31 @@ export default function WatchExperience({
 
   const handleSourceFailed = useCallback(() => {
     if (switching) return;
+
+    const currentGetplayCandidate = source && isGetplaySource(source)
+      ? { source, index: sourceIndex }
+      : null;
+    const getplayCandidate = currentGetplayCandidate || externalFallbackCandidateRef.current;
+
+    // Step 1 is the inline iframe. Keep a failed getplay URL for the final
+    // external fallback while the normal source sequence continues.
+    if (currentGetplayCandidate) externalFallbackCandidateRef.current = currentGetplayCandidate;
+
+    // Step 2 is the next source returned by the existing Session/Ticket flow.
     if (sourceIndex + 1 < totalSources) {
       void requestSource(sourceIndex + 1);
+      return;
+    }
+
+    // Step 3 is opening the original getplay URL externally. This is useful
+    // when the mobile browser blocks the embedded player but allows the page.
+    if (getplayCandidate) {
+      setSource(getplayCandidate.source);
+      setSourceIndex(getplayCandidate.index);
+      setForceExternalFallback(true);
+      setAllExhausted(true);
+      setHasNextSource(false);
+      setRequestError("ตัวรับชมแบบฝังเปิดไม่ได้");
       return;
     }
 
@@ -225,7 +286,7 @@ export default function WatchExperience({
     setHasNextSource(false);
     setAllExhausted(true);
     setRequestError("ตัวรับชมทั้งหมดไม่ตอบสนองในขณะนี้");
-  }, [requestSource, sourceIndex, switching, totalSources]);
+  }, [requestSource, source, sourceIndex, switching, totalSources]);
 
   const retryAllSources = useCallback(() => {
     setPlayRequested(true);
@@ -394,6 +455,7 @@ export default function WatchExperience({
             switching={switching}
             exhausted={allExhausted}
             errorMessage={requestError}
+            forceExternal={forceExternalFallback}
             onStart={startPlayback}
             onFailed={handleSourceFailed}
             onRetry={retryAllSources}
@@ -407,7 +469,9 @@ export default function WatchExperience({
                 : switching
                   ? "กำลังขอตัวรับชมอย่างปลอดภัย"
                   : allExhausted
-                    ? "ยังเปิดตัวรับชมไม่ได้"
+                    ? forceExternalFallback
+                      ? "กำลังเปิดตัวรับชมภายนอก"
+                      : "ยังเปิดตัวรับชมไม่ได้"
                     : source
                       ? `กำลังใช้ ${source.label || "ตัวรับชม"}`
                       : "กำลังเตรียมการรับชม"}</strong>
