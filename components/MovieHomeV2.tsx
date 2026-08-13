@@ -166,22 +166,6 @@ function shuffleItems<T>(values: T[]): T[] {
   return next;
 }
 
-function releaseTimestamp(item: PublicCatalogItem) {
-  return new Date(item.releaseDate || item.updatedAt).getTime() || 0;
-}
-
-function newestRatedCompare(a: PublicCatalogItem, b: PublicCatalogItem) {
-  const yearDifference = (b.year || 0) - (a.year || 0);
-  if (yearDifference) return yearDifference;
-  const releaseDifference = releaseTimestamp(b) - releaseTimestamp(a);
-  if (releaseDifference) return releaseDifference;
-  const ratingDifference = b.rating - a.rating;
-  if (ratingDifference) return ratingDifference;
-  const voteDifference = b.voteCount - a.voteCount;
-  if (voteDifference) return voteDifference;
-  return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-}
-
 function SkeletonGrid() {
   return (
     <div className={styles.skeletonGrid} aria-hidden="true">
