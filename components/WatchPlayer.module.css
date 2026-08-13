@@ -102,7 +102,7 @@
   background: #000;
 }
 
-.player-shell {
+:global(.player-shell) {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -111,14 +111,14 @@
   border-radius: 16px;
 }
 
-.player-shell iframe {
+:global(.player-shell iframe) {
   display: block;
   width: 100%;
   height: 100%;
   border: 0;
 }
 
-.player-shell-loading {
+:global(.player-shell-loading) {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -128,7 +128,7 @@
   pointer-events: none;
 }
 
-.player-loading {
+:global(.player-loading) {
   position: relative;
   width: min(20rem, 70vw);
   height: 0.35rem;
@@ -137,7 +137,7 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-.player-loading::before {
+:global(.player-loading)::before {
   position: absolute;
   inset: 0 auto 0 -45%;
   width: 45%;
