@@ -230,10 +230,15 @@ function EmbedFrame({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const getplayReadyRef = useRef(false);
   const playerWatchdogRef = useRef<number | null>(null);
+  const onFatalRef = useRef(onFatal);
   const isGetplayEmbed = isGetplayEmbedSource(source);
   const referrerPolicy = isGetplayEmbed
     ? "no-referrer"
     : sourceReferrerPolicy(source, "origin");
+
+  useEffect(() => {
+    onFatalRef.current = onFatal;
+  }, [onFatal]);
 
   useEffect(() => {
     loadedRef.current = false;
@@ -262,13 +267,13 @@ function EmbedFrame({
       }
 
       if (GETPLAY_FAILURE_STATUSES.has(status)) {
-        onFatal();
+        onFatalRef.current();
       }
     };
 
     window.addEventListener("message", handleMessage);
     const timer = window.setTimeout(() => {
-      if (!loadedRef.current) onFatal();
+      if (!loadedRef.current) onFatalRef.current();
     }, GETPLAY_PLAYER_TIMEOUT_MS);
     return () => {
       window.clearTimeout(timer);
@@ -278,7 +283,7 @@ function EmbedFrame({
         playerWatchdogRef.current = null;
       }
     };
-  }, [isGetplayEmbed, onFatal, source.id, source.url]);
+  }, [isGetplayEmbed, source.id, source.url]);
 
   if (isGetplayEmbed) {
     return (
@@ -304,7 +309,7 @@ function EmbedFrame({
               window.clearTimeout(playerWatchdogRef.current);
             }
             playerWatchdogRef.current = window.setTimeout(() => {
-              if (!getplayReadyRef.current) onFatal();
+              if (!getplayReadyRef.current) onFatalRef.current();
             }, GETPLAY_PLAYER_TIMEOUT_MS);
           }}
           onError={onFatal}
