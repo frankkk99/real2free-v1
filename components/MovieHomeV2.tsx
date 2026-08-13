@@ -46,6 +46,10 @@ import {
 } from "@/lib/public-hero";
 import {
   languageFilterOptions,
+  brandFilterOptions,
+  countryFilterOptions,
+  type CatalogBrandFilter,
+  type CatalogCountryFilter,
   parseSmartCatalogSearch,
   sortModeOptions,
   type CatalogLanguageFilter,
@@ -181,6 +185,8 @@ export default function MovieHomeV2() {
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("ทั้งหมด");
+  const [brand, setBrand] = useState<CatalogBrandFilter>("ทั้งหมด");
+  const [country, setCountry] = useState<CatalogCountryFilter>("ทั้งหมด");
   const [year, setYear] = useState("ทั้งหมด");
   const [language, setLanguage] = useState<CatalogLanguageFilter>("ทั้งหมด");
   const [sortMode, setSortMode] = useState<CatalogSortMode>("updated");
@@ -265,13 +271,15 @@ export default function MovieHomeV2() {
   const titleQuery = parsedSearch.text;
   const effectiveViewMode: ViewMode = viewMode === "home" && parsedSearch.viewMode ? parsedSearch.viewMode : viewMode;
   const effectiveGenre = genre === "ทั้งหมด" ? parsedSearch.genre || "ทั้งหมด" : genre;
+  const effectiveBrand: CatalogBrandFilter = brand === "ทั้งหมด" ? parsedSearch.brand || "ทั้งหมด" : brand;
+  const effectiveCountry: CatalogCountryFilter = country === "ทั้งหมด" ? parsedSearch.country || "ทั้งหมด" : country;
   const effectiveYear = year === "ทั้งหมด" ? parsedSearch.year || "ทั้งหมด" : year;
   const effectiveLanguage: CatalogLanguageFilter = language === "ทั้งหมด" ? parsedSearch.language || "ทั้งหมด" : language;
   const effectiveSort: CatalogSortMode = viewMode === "new" ? "release" : sortMode;
 
   const cacheKey = useMemo(
-    () => `real2free-cards-v2:${effectiveViewMode}:${titleQuery}:${effectiveGenre}:${effectiveYear}:${effectiveLanguage}:${effectiveSort}`,
-    [effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, titleQuery],
+    () => `real2free-cards-v3:${effectiveViewMode}:${titleQuery}:${effectiveGenre}:${effectiveBrand}:${effectiveCountry}:${effectiveYear}:${effectiveLanguage}:${effectiveSort}`,
+    [effectiveBrand, effectiveCountry, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, titleQuery],
   );
 
 
@@ -310,10 +318,12 @@ export default function MovieHomeV2() {
 
       const supabase = getSupabaseBrowserClient();
       const countOptions = targetPage === 0 ? { count: "exact" as const } : undefined;
-      let builder = supabase.from("real2free_public_cards").select(PUBLIC_CATALOG_CARD_FIELDS, countOptions);
+      let builder = supabase.from("real2free_public_smart_cards").select(PUBLIC_CATALOG_CARD_FIELDS, countOptions);
 
       if (titleQuery) builder = builder.or(`title_th.ilike.%${titleQuery}%,title_en.ilike.%${titleQuery}%`);
       if (effectiveGenre !== "ทั้งหมด") builder = builder.contains("genres", [effectiveGenre]);
+      if (effectiveBrand !== "ทั้งหมด") builder = builder.contains("brand_tags", [effectiveBrand]);
+      if (effectiveCountry !== "ทั้งหมด") builder = builder.contains("countries", [effectiveCountry]);
       if (effectiveYear !== "ทั้งหมด") {
         builder = effectiveYear === "ก่อน 2020" ? builder.lt("year", 2020) : builder.eq("year", Number(effectiveYear));
       } else if (effectiveViewMode === "new") {
@@ -418,7 +428,7 @@ export default function MovieHomeV2() {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [cacheKey, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, favorites, history, titleQuery, viewMode]);
+  }, [cacheKey, effectiveBrand, effectiveCountry, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, favorites, history, titleQuery, viewMode]);
 
   useEffect(() => {
     void fetchCatalog(0, false);
@@ -428,6 +438,8 @@ export default function MovieHomeV2() {
   const isDefaultHome = viewMode === "home"
     && !query
     && genre === "ทั้งหมด"
+    && brand === "ทั้งหมด"
+    && country === "ทั้งหมด"
     && year === "ทั้งหมด"
     && language === "ทั้งหมด"
     && sortMode === "updated";
@@ -634,6 +646,8 @@ export default function MovieHomeV2() {
     setQueryInput("");
     setQuery("");
     setGenre("ทั้งหมด");
+    setBrand("ทั้งหมด");
+    setCountry("ทั้งหมด");
     setYear("ทั้งหมด");
     setLanguage("ทั้งหมด");
     setSortMode("updated");
@@ -643,6 +657,8 @@ export default function MovieHomeV2() {
   const hasFilters = Boolean(
     query
     || genre !== "ทั้งหมด"
+    || brand !== "ทั้งหมด"
+    || country !== "ทั้งหมด"
     || year !== "ทั้งหมด"
     || language !== "ทั้งหมด"
     || sortMode !== "updated"
@@ -676,6 +692,8 @@ export default function MovieHomeV2() {
   );
 
   const languageLabel = languageFilterOptions.find((option) => option.value === language)?.label;
+  const brandLabel = brandFilterOptions.find((option) => option.value === brand)?.label;
+  const countryLabel = countryFilterOptions.find((option) => option.value === country)?.label;
   const sortLabel = sortModeOptions.find((option) => option.value === sortMode)?.label;
   return (
     <main className={styles.page}>
@@ -684,6 +702,8 @@ export default function MovieHomeV2() {
         viewMode={viewMode}
         queryInput={queryInput}
         genre={genre}
+        brand={brand}
+        country={country}
         year={year}
         language={language}
         sortMode={sortMode}
@@ -693,6 +713,8 @@ export default function MovieHomeV2() {
         onViewChange={chooseMode}
         onQueryChange={setQueryInput}
         onGenreChange={setGenre}
+        onBrandChange={setBrand}
+        onCountryChange={setCountry}
         onYearChange={setYear}
         onLanguageChange={setLanguage}
         onSortChange={setSortMode}
@@ -779,11 +801,13 @@ export default function MovieHomeV2() {
 
       <HomeQuickFilters
         viewMode={viewMode}
-        year={year}
-        genre={genre}
+        year={effectiveYear}
+        genre={effectiveGenre}
+        brand={effectiveBrand}
         onViewChange={chooseMode}
         onYearChange={setYear}
         onGenreChange={setGenre}
+        onBrandChange={setBrand}
         onOpenMore={() => document.querySelector<HTMLButtonElement>('[aria-label="เปิดตัวกรองละเอียด"]')?.click()}
         onClear={clearAll}
       />
@@ -797,6 +821,8 @@ export default function MovieHomeV2() {
           <div className={styles.activeFilters}>
             {parsedSearch.labels.length ? <button type="button" onClick={() => setQueryInput("")}>{parsedSearch.labels.join(" • ")}<X /></button> : null}
             {genre !== "ทั้งหมด" ? <button type="button" onClick={() => setGenre("ทั้งหมด")}>{genreFilters.find((item) => item.value === genre)?.label}<X /></button> : null}
+            {brand !== "ทั้งหมด" ? <button type="button" onClick={() => setBrand("ทั้งหมด")}>{brandLabel}<X /></button> : null}
+            {country !== "ทั้งหมด" ? <button type="button" onClick={() => setCountry("ทั้งหมด")}>{countryLabel}<X /></button> : null}
             {year !== "ทั้งหมด" ? <button type="button" onClick={() => setYear("ทั้งหมด")}>{year}<X /></button> : null}
             {language !== "ทั้งหมด" ? <button type="button" onClick={() => setLanguage("ทั้งหมด")}>{languageLabel}<X /></button> : null}
             {sortMode !== "updated" ? <button type="button" onClick={() => setSortMode("updated")}>{sortLabel}<X /></button> : null}

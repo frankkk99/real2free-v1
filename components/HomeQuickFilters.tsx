@@ -2,6 +2,7 @@
 
 import { SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
+import type { CatalogBrandFilter } from "@/lib/smart-catalog-search";
 import styles from "./HomeQuickFilters.module.css";
 
 export type HomeQuickView =
@@ -20,10 +21,12 @@ type QuickOption<T extends string> = {
 };
 
 type BrandOption = {
-  value: string;
+  value: Exclude<CatalogBrandFilter, "ทั้งหมด">;
   label: string;
   logo: string;
 };
+
+export type HomeBrandOption = BrandOption;
 
 const viewOptions: Array<QuickOption<HomeQuickView>> = [
   { value: "home", label: "ทั้งหมด" },
@@ -36,7 +39,7 @@ const viewOptions: Array<QuickOption<HomeQuickView>> = [
   { value: "history", label: "ดูล่าสุด" },
 ];
 
-const brandOptions: BrandOption[] = [
+export const homeBrandOptions: BrandOption[] = [
   { value: "netflix", label: "Netflix", logo: "https://image.tmdb.org/t/p/w154/wwemzKWzjKYJFfCeiB57q3r4Bcm.png" },
   { value: "disney", label: "Disney+", logo: "https://image.tmdb.org/t/p/w154/1edZOYAfoyZyZ3rklNSiUpXX30Q.png" },
   { value: "hbo", label: "HBO / Max", logo: "https://cdn.simpleicons.org/hbo/FFFFFF" },
@@ -82,38 +85,41 @@ export default function HomeQuickFilters({
   viewMode,
   year,
   genre,
+  brand,
   onViewChange,
   onYearChange,
   onGenreChange,
+  onBrandChange,
   onOpenMore,
   onClear,
 }: {
   viewMode: HomeQuickView;
   year: string;
   genre: string;
+  brand: CatalogBrandFilter;
   onViewChange: (value: HomeQuickView) => void;
   onYearChange: (value: string) => void;
   onGenreChange: (value: string) => void;
+  onBrandChange: (value: CatalogBrandFilter) => void;
   onOpenMore: () => void;
   onClear: () => void;
 }) {
-  const activeBrand = genre.startsWith("brand:") ? genre.slice(6) : "";
-  const hasSelection = viewMode !== "home" || year !== "ทั้งหมด" || genre !== "ทั้งหมด";
+  const hasSelection = viewMode !== "home" || year !== "ทั้งหมด" || genre !== "ทั้งหมด" || brand !== "ทั้งหมด";
 
   return (
     <section className={styles.dock} aria-label="ค้นหาด่วน">
       <div className={styles.brandSection}>
         <span className={styles.sectionLabel}>ค่ายหนังและสตรีมมิง</span>
         <div className={styles.brandGrid}>
-          {brandOptions.map((option) => (
+          {homeBrandOptions.map((option) => (
             <button
               key={option.value}
-              className={`${styles.brandButton} ${activeBrand === option.value ? styles.brandActive : ""}`}
+              className={`${styles.brandButton} ${brand === option.value ? styles.brandActive : ""}`}
               type="button"
               title={option.label}
               aria-label={`แสดงรายการจาก ${option.label}`}
-              aria-pressed={activeBrand === option.value}
-              onClick={() => onGenreChange(activeBrand === option.value ? "ทั้งหมด" : `brand:${option.value}`)}
+              aria-pressed={brand === option.value}
+              onClick={() => onBrandChange(brand === option.value ? "ทั้งหมด" : option.value)}
             >
               <BrandLogo option={option} />
             </button>

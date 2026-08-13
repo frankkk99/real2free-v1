@@ -17,6 +17,10 @@ function cardLanguageBadges(movie: PublicCatalogItem) {
   return [...new Set(badges)].slice(0, 3);
 }
 
+function normalizedTitle(value: string) {
+  return value.normalize("NFKC").replace(/\s+/gu, " ").trim().toLocaleLowerCase("th-TH");
+}
+
 export default function CatalogPosterCard({
   movie,
   favorite,
@@ -36,6 +40,8 @@ export default function CatalogPosterCard({
 }) {
   const recent = isRecentlyAdded(movie);
   const languages = cardLanguageBadges(movie);
+  const hasDistinctEnglishTitle = Boolean(movie.title.trim())
+    && normalizedTitle(movie.title) !== normalizedTitle(movie.thaiTitle);
 
   return (
     <article className={styles.card} onPointerEnter={onPrefetch}>
@@ -96,7 +102,10 @@ export default function CatalogPosterCard({
         <Bookmark fill={favorite ? "currentColor" : "none"} />
       </button>
 
-      <button className={styles.cardTitle} type="button" onClick={onOpen}>{movie.thaiTitle}</button>
+      <div className={styles.cardTitles}>
+        <button className={styles.cardTitle} type="button" onClick={onOpen}>{movie.thaiTitle}</button>
+        {hasDistinctEnglishTitle ? <button className={`${styles.cardTitle} ${styles.cardTitleEnglish}`} type="button" onClick={onOpen}>{movie.title}</button> : null}
+      </div>
       <div className={styles.cardMeta}>
         <span>{movie.year || contentTypeLabel(movie.contentType)}</span>
         <span><Star fill="currentColor" /> {movie.rating ? movie.rating.toFixed(1) : "-"}</span>
