@@ -24,6 +24,13 @@ const baseSecurityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
 ];
 
+const relaySecurityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Content-Security-Policy", value: "default-src 'self' https://getplay-cdn.com; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; script-src 'self' 'unsafe-inline' https://getplay-cdn.com; style-src 'self' 'unsafe-inline' https://getplay-cdn.com; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https://getplay-cdn.com https: wss: blob:; media-src 'self' https: blob:; frame-src 'self' https:; worker-src 'self' blob:" },
+  { key: "Referrer-Policy", value: "no-referrer" },
+];
+
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -48,6 +55,10 @@ const nextConfig = {
           { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           { key: "X-Robots-Tag", value: "noindex, nofollow, nosnippet" },
         ],
+      },
+      {
+        source: "/api/getplay-relay/:path*",
+        headers: relaySecurityHeaders,
       },
     ];
   },
