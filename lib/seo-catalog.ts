@@ -17,7 +17,7 @@ export type SeoSitemapEntry = {
 
 const SITE_URL = "https://www.real2free.online";
 const SITEMAP_PAGE_SIZE = 1000;
-const SITEMAP_MAX_ROWS = 10000;
+const SITEMAP_MAX_ROWS = 2000;
 
 function upstreamUrl(view: string, params: URLSearchParams) {
   return `${SUPABASE_URL}/rest/v1/${view}?${params.toString()}`;
