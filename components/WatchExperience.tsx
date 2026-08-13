@@ -11,6 +11,7 @@ import {
   Play,
   RotateCcw,
   ShieldCheck,
+  Share2,
   Star,
 } from "lucide-react";
 import Link from "next/link";
@@ -75,6 +76,7 @@ export default function WatchExperience({
   const [requestError, setRequestError] = useState<string | null>(null);
   const [playerSession, setPlayerSession] = useState(0);
   const [favorite, setFavorite] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const requestRef = useRef(0);
   const playerStageRef = useRef<HTMLElement | null>(null);
@@ -257,6 +259,43 @@ export default function WatchExperience({
     });
   };
 
+  const shareMovie = useCallback(async () => {
+    const url = window.location.href;
+    const shareTitle = item.thaiTitle;
+    const shareText = "ดู" + contentTypeLabel(item.contentType) + "เรื่องนี้บน REAL2FREE";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        if (!copied) throw new Error("copy_failed");
+      }
+
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1800);
+    } catch {
+      setShareCopied(false);
+    }
+  }, [item.contentType, item.thaiTitle]);
+
   const seasonCount = useMemo(
     () => new Set(playableEpisodes.map((episode) => episode.seasonNumber)).size,
     [playableEpisodes],
@@ -321,7 +360,18 @@ export default function WatchExperience({
 
       <div className={styles.content}>
         <section className={styles.titleBlock}>
-          <div className={styles.eyebrow}><Play fill="currentColor" /> หน้ารับชม</div>
+          <div className={styles.titleTopline}>
+            <div className={styles.eyebrow}><Play fill="currentColor" /> หน้ารับชม</div>
+            <button
+              className={[styles.shareButton, shareCopied ? styles.shareButtonCopied : ""].filter(Boolean).join(" ")}
+              type="button"
+              onClick={shareMovie}
+              aria-label={shareCopied ? "คัดลอกลิงก์แล้ว" : "แชร์เรื่องนี้"}
+            >
+              <Share2 />
+              <span>{shareCopied ? "คัดลอกแล้ว" : "แชร์"}</span>
+            </button>
+          </div>
           <h1>{item.thaiTitle}</h1>
           {item.title !== item.thaiTitle ? <h2>{item.title}</h2> : null}
           <div className={styles.titleMeta}>{meta.map((entry) => <span key={entry}>{entry}</span>)}</div>
