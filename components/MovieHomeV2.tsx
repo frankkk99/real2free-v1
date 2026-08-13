@@ -416,9 +416,17 @@ export default function MovieHomeV2() {
     return () => abortRef.current?.abort();
   }, [fetchCatalog]);
 
+  const isDefaultHome = viewMode === "home"
+    && !query
+    && genre === "ทั้งหมด"
+    && year === "ทั้งหมด"
+    && language === "ทั้งหมด"
+    && sortMode === "updated";
+  const canLoadMore = !isDefaultHome && hasMore && items.length > 0;
+
   useEffect(() => {
     const target = loadMoreRef.current;
-    if (!target || !hasMore || loading || loadingMore) return;
+    if (!target || !canLoadMore || loading || loadingMore) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -429,7 +437,7 @@ export default function MovieHomeV2() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [fetchCatalog, hasMore, loading, loadingMore, page]);
+  }, [canLoadMore, fetchCatalog, loading, loadingMore, page]);
 
   const fallbackHeroItems = useMemo(
     () => items.filter((item) => Boolean(item.backdropUrl)).slice(0, 14),
@@ -616,13 +624,6 @@ export default function MovieHomeV2() {
 
   const languageLabel = languageFilterOptions.find((option) => option.value === language)?.label;
   const sortLabel = sortModeOptions.find((option) => option.value === sortMode)?.label;
-  const isDefaultHome = viewMode === "home"
-    && !query
-    && genre === "ทั้งหมด"
-    && year === "ทั้งหมด"
-    && language === "ทั้งหมด"
-    && sortMode === "updated";
-
   return (
     <main className={styles.page}>
       <SmartCatalogHeader
@@ -774,7 +775,7 @@ export default function MovieHomeV2() {
           renderCards(items, viewMode === "popular")
         )}
 
-        {hasMore && items.length ? (
+        {canLoadMore ? (
           <div ref={loadMoreRef} className={styles.loadMoreArea}>
             {loadingMore ? <span><LoaderCircle /> กำลังแสดงรายการเพิ่ม...</span> : <button type="button" onClick={() => void fetchCatalog(page + 1, true)}>แสดงเพิ่มเติม</button>}
           </div>
