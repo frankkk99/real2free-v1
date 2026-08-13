@@ -20,14 +20,7 @@ function sourceReferrerPolicy(
 }
 
 function isEmbedSource(source: PlaybackSource): boolean {
-  if (!source.url) return source.kind === "embed";
-
-  try {
-    const pathname = new URL(source.url).pathname.toLowerCase();
-    return source.kind === "embed" || /\/(?:embed|player)(?:\/|$)/u.test(pathname);
-  } catch {
-    return source.kind === "embed";
-  }
+  return source.kind === "embed";
 }
 
 function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
@@ -36,7 +29,7 @@ function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
 }
 
 function isGetplayEmbedSource(source: PlaybackSource): boolean {
-  if (!isEmbedSource(source) || !source.url) return false;
+  if (!source.url) return false;
 
   try {
     const hostname = new URL(source.url).hostname.toLowerCase();
@@ -274,6 +267,7 @@ function EmbedFrame({
 
 function ExternalPlaybackFallback({
   source,
+  poster,
   title,
 }: {
   source: PlaybackSource;
@@ -281,16 +275,23 @@ function ExternalPlaybackFallback({
   title: string;
 }) {
   return (
-    <div className={styles.shell} data-player-delivery="cropped-embed">
-      <iframe
-        className={styles.media}
-        src={source.url}
-        title={title}
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        allowFullScreen
-        referrerPolicy="no-referrer"
-      />
-    </div>
+    <a
+      className={styles.posterState}
+      href={source.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      referrerPolicy="no-referrer"
+      aria-label={`รับชม ${title}`}
+      style={{ textDecoration: "none" }}
+    >
+      {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
+      <span className={styles.posterShade} />
+      <span className={styles.startContent}>
+        <span className={styles.startButton}><Play fill="currentColor" /></span>
+        <strong>แตะเพื่อรับชม</strong>
+        <small>รับชมต่อได้ทันที</small>
+      </span>
+    </a>
   );
 }
 
@@ -377,8 +378,8 @@ export default function WatchPlayer({
     return <ExternalPlaybackFallback source={source} poster={poster} title={title} />;
   }
 
-  const embedSource = isEmbedSource(source);
   const getplayEmbed = isGetplayEmbedSource(source);
+  const embedSource = getplayEmbed || isEmbedSource(source);
 
   return (
     <div className={styles.shell}>
