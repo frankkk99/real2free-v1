@@ -425,6 +425,13 @@ export default function MovieHomeV2() {
     return () => abortRef.current?.abort();
   }, [fetchCatalog]);
 
+  const isDefaultHome = viewMode === "home"
+    && !query
+    && genre === "ทั้งหมด"
+    && year === "ทั้งหมด"
+    && language === "ทั้งหมด"
+    && sortMode === "updated";
+
   const fetchHomeSections = useCallback(async () => {
     const requestId = ++homeSectionsRequestRef.current;
     setHomeSectionsLoading(true);
@@ -466,12 +473,7 @@ export default function MovieHomeV2() {
     void fetchHomeSections();
   }, [fetchHomeSections, isDefaultHome]);
 
-  const isDefaultHome = viewMode === "home"
-    && !query
-    && genre === "ทั้งหมด"
-    && year === "ทั้งหมด"
-    && language === "ทั้งหมด"
-    && sortMode === "updated";
+
   const canLoadMore = !isDefaultHome && hasMore && items.length > 0;
 
   useEffect(() => {
