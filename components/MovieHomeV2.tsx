@@ -66,6 +66,26 @@ type CatalogCache = {
   hasMore: boolean;
 };
 
+type HomeSectionKey = "new" | "series" | "vertical" | "thai";
+type PublicHomeSectionRow = PublicCatalogCardRow & {
+  section_key: HomeSectionKey;
+  section_rank: number;
+};
+
+type HomeSectionsState = Record<HomeSectionKey, PublicCatalogItem[]>;
+
+const HOME_SECTION_KEYS: HomeSectionKey[] = ["new", "series", "vertical", "thai"];
+const HOME_SECTION_FIELDS = "section_key,section_rank,id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
+
+function createEmptyHomeSections(): HomeSectionsState {
+  return {
+    new: [],
+    series: [],
+    vertical: [],
+    thai: [],
+  };
+}
+
 type HeroSlide =
   | {
       key: string;
@@ -87,6 +107,7 @@ const CACHE_MS = 5 * 60 * 1000;
 const CURRENT_RELEASE_YEAR = 2026;
 const HERO_SLIDE_LIMIT = 10;
 const HERO_ROTATION_MS = 6800;
+const HOME_SECTION_LIMIT = 18;
 
 const mainNav: Array<{ mode: ViewMode; label: string; icon: typeof Home }> = [
   { mode: "home", label: "หน้าแรก", icon: Home },
@@ -192,6 +213,8 @@ export default function MovieHomeV2() {
   const [selectedMovie, setSelectedMovie] = useState<PublicCatalogItem | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [homeSections, setHomeSections] = useState<HomeSectionsState>(createEmptyHomeSections);
+  const [homeSectionsLoading, setHomeSectionsLoading] = useState(false);
 
   const requestRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -199,6 +222,7 @@ export default function MovieHomeV2() {
   const loadingMoreRef = useRef(false);
   const detailCacheRef = useRef(new Map<string, PublicCatalogItem>());
   const detailRequestsRef = useRef(new Map<string, Promise<PublicCatalogItem | null>>());
+  const homeSectionsRequestRef = useRef(0);
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("real2free-theme") as Theme | null;
@@ -265,6 +289,7 @@ export default function MovieHomeV2() {
     () => `real2free-cards-v2:${effectiveViewMode}:${titleQuery}:${effectiveGenre}:${effectiveYear}:${effectiveLanguage}:${effectiveSort}`,
     [effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, titleQuery],
   );
+
 
   const fetchCatalog = useCallback(async (targetPage: number, append: boolean) => {
     const requestId = ++requestRef.current;
@@ -416,6 +441,47 @@ export default function MovieHomeV2() {
     return () => abortRef.current?.abort();
   }, [fetchCatalog]);
 
+  const fetchHomeSections = useCallback(async () => {
+    const requestId = ++homeSectionsRequestRef.current;
+    setHomeSectionsLoading(true);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("real2free_public_home_sections")
+        .select(HOME_SECTION_FIELDS)
+        .order("section_key", { ascending: true })
+        .order("section_rank", { ascending: true })
+        .limit(HOME_SECTION_KEYS.length * HOME_SECTION_LIMIT);
+
+      if (error) throw error;
+      if (requestId !== homeSectionsRequestRef.current) return;
+
+      const next = createEmptyHomeSections();
+      ((data || []) as unknown as PublicHomeSectionRow[]).forEach((row) => {
+        if (!HOME_SECTION_KEYS.includes(row.section_key)) return;
+        const item = mapPublicCatalogCardRow(row);
+        if (item) next[row.section_key].push(item);
+      });
+      setHomeSections(next);
+    } catch {
+      if (requestId === homeSectionsRequestRef.current) setHomeSections(createEmptyHomeSections());
+    } finally {
+      if (requestId === homeSectionsRequestRef.current) setHomeSectionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDefaultHome) {
+      homeSectionsRequestRef.current += 1;
+      setHomeSections(createEmptyHomeSections());
+      setHomeSectionsLoading(false);
+      return;
+    }
+
+    void fetchHomeSections();
+  }, [fetchHomeSections, isDefaultHome]);
+
   const isDefaultHome = viewMode === "home"
     && !query
     && genre === "ทั้งหมด"
@@ -485,14 +551,6 @@ export default function MovieHomeV2() {
   const fallbackHero = activeHeroSlide?.kind === "catalog" ? activeHeroSlide.fallback : null;
   const activeHeroCount = heroSlides.length;
 
-  const freshItems = useMemo(
-    () => items.filter((item) => item.year === CURRENT_RELEASE_YEAR).sort(newestRatedCompare).slice(0, 18),
-    [items],
-  );
-  const popularItems = useMemo(
-    () => [...items].filter((item) => item.rating >= 6).sort(newestRatedCompare).slice(0, 18),
-    [items],
-  );
 
   useEffect(() => {
     if (activeHeroCount < 2) return;
@@ -619,6 +677,15 @@ export default function MovieHomeV2() {
           onPrefetch={() => prefetchMovie(movie.id)}
         />
       ))}
+    </div>
+  );
+
+  const renderHomeSection = (key: HomeSectionKey, title: string, subtitle: string, Icon: typeof Clock3) => (
+    <div key={key}>
+      <div className={styles.sectionTitle}>
+        <div><Icon /><span><strong>{title}</strong><small>{subtitle}</small></span></div>
+      </div>
+      {renderCards(homeSections[key])}
     </div>
   );
 
@@ -757,19 +824,14 @@ export default function MovieHomeV2() {
           <SkeletonGrid />
         ) : !items.length ? (
           <div className={styles.empty}><Search /><h3>ยังไม่พบรายการ</h3><p>ลองเปลี่ยนคำค้นหรือหมวดที่เลือก</p><button type="button" onClick={clearAll}>แสดงทั้งหมด</button></div>
+        ) : isDefaultHome && homeSectionsLoading ? (
+          <SkeletonGrid />
         ) : isDefaultHome ? (
           <>
-            <div className={styles.sectionTitle}>
-              <div><Clock3 /><span><strong>มาใหม่ 2026</strong><small>ใหม่ล่าสุดก่อน แล้วเรียงคะแนนสูง</small></span></div>
-              <button type="button" onClick={() => chooseMode("new")}>ดูทั้งหมด <ChevronRight /></button>
-            </div>
-            {freshItems.length ? renderCards(freshItems) : renderCards(items.slice(0, 18))}
-
-            <div className={styles.sectionTitle}>
-              <div><Flame /><span><strong>ใหม่และน่าดู</strong><small>ปีใหม่ก่อน พร้อมคะแนนและเสียงตอบรับดี</small></span></div>
-              <button type="button" onClick={() => chooseMode("popular")}>ดูทั้งหมด <ChevronRight /></button>
-            </div>
-            {renderCards(popularItems.length ? popularItems : items.slice(0, 18), true)}
+            {renderHomeSection("new", "มาใหม่", "ทุกเรื่อง เรียงตามวันที่ฉายล่าสุด", Clock3)}
+            {renderHomeSection("series", "ซีรีส์", "ซีรีส์แนวนอน อัปเดตล่าสุด", Tv)}
+            {renderHomeSection("vertical", "ซีรีส์แนวตั้ง", "ซีรีส์สัดส่วน 9:16", Sparkles)}
+            {renderHomeSection("thai", "หนังไทย", "ภาพยนตร์ไทย", Film)}
           </>
         ) : (
           renderCards(items, viewMode === "popular")
