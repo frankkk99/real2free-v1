@@ -276,13 +276,22 @@ async function probeOnce(
   return { status: null, unsafe: false, embedDenied: false };
 }
 
+function isGetplayEmbedUrl(rawUrl: string): boolean {
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase();
+    return hostname === "getplay-cdn.com" || hostname.endsWith(".getplay-cdn.com");
+  } catch {
+    return false;
+  }
+}
+
 async function choosePlaybackPolicy(
   url: string,
   kind: "hls" | "embed",
   siteOrigin: string,
 ): Promise<ProbeDecision> {
   const policies: PlaybackReferrerPolicy[] = kind === "embed"
-    ? ["origin", "no-referrer"]
+    ? (isGetplayEmbedUrl(url) ? ["no-referrer"] : ["origin", "no-referrer"])
     : ["no-referrer", "origin"];
 
   let lastHardBlock: number | null = null;
