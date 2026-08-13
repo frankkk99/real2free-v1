@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, Play } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -107,7 +108,7 @@ export default function AdminLoginPage() {
             {loading ? "กำลังตรวจสอบ..." : "เข้าสู่หลังบ้าน"}
           </button>
 
-          <a className="adminBackLink" href="/">← กลับหน้าเว็บไซต์</a>
+          <Link className="adminBackLink" href="/">← กลับหน้าเว็บไซต์</Link>
         </form>
       </section>
     </main>
