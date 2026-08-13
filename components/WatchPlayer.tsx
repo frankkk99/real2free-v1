@@ -12,6 +12,10 @@ type PlaybackSourceWithPolicy = PlaybackSource & {
   delivery?: PlaybackDelivery;
 };
 
+const GETPLAY_PLAYER_TIMEOUT_MS = 15_000;
+const GETPLAY_READY_STATUSES = new Set(["ready", "active", "playing", "completed"]);
+const GETPLAY_FAILURE_STATUSES = new Set(["error", "failed", "forbidden", "denied"]);
+
 function sourceReferrerPolicy(
   source: PlaybackSource,
   fallback: PlaybackReferrerPolicy,
@@ -40,6 +44,15 @@ function isGetplayEmbedSource(source: PlaybackSource): boolean {
 
   try {
     const hostname = new URL(source.url).hostname.toLowerCase();
+    return hostname === "getplay-cdn.com" || hostname.endsWith(".getplay-cdn.com");
+  } catch {
+    return false;
+  }
+}
+
+function isGetplayOrigin(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
     return hostname === "getplay-cdn.com" || hostname.endsWith(".getplay-cdn.com");
   } catch {
     return false;
@@ -214,6 +227,9 @@ function EmbedFrame({
 }) {
   const [frameLoaded, setFrameLoaded] = useState(false);
   const loadedRef = useRef(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const getplayReadyRef = useRef(false);
+  const playerWatchdogRef = useRef<number | null>(null);
   const isGetplayEmbed = isGetplayEmbedSource(source);
   const referrerPolicy = isGetplayEmbed
     ? "no-referrer"
@@ -221,12 +237,48 @@ function EmbedFrame({
 
   useEffect(() => {
     loadedRef.current = false;
+    getplayReadyRef.current = false;
     setFrameLoaded(false);
+    if (playerWatchdogRef.current !== null) {
+      window.clearTimeout(playerWatchdogRef.current);
+      playerWatchdogRef.current = null;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!isGetplayEmbed || event.source !== iframeRef.current?.contentWindow) return;
+      if (!isGetplayOrigin(event.origin)) return;
+
+      const payload = event.data;
+      if (!payload || typeof payload !== "object" || payload.type !== "video_stat") return;
+
+      const status = typeof payload.status === "string" ? payload.status.toLowerCase() : "";
+      if (GETPLAY_READY_STATUSES.has(status)) {
+        getplayReadyRef.current = true;
+        if (playerWatchdogRef.current !== null) {
+          window.clearTimeout(playerWatchdogRef.current);
+          playerWatchdogRef.current = null;
+        }
+        return;
+      }
+
+      if (GETPLAY_FAILURE_STATUSES.has(status)) {
+        onFatal();
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
     const timer = window.setTimeout(() => {
       if (!loadedRef.current) onFatal();
-    }, 12000);
-    return () => window.clearTimeout(timer);
-  }, [onFatal, source.id, source.url]);
+    }, GETPLAY_PLAYER_TIMEOUT_MS);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("message", handleMessage);
+      if (playerWatchdogRef.current !== null) {
+        window.clearTimeout(playerWatchdogRef.current);
+        playerWatchdogRef.current = null;
+      }
+    };
+  }, [isGetplayEmbed, onFatal, source.id, source.url]);
 
   if (isGetplayEmbed) {
     return (
@@ -237,6 +289,7 @@ function EmbedFrame({
           </div>
         ) : null}
         <iframe
+          ref={iframeRef}
           src={source.url}
           title={source.label || "หน้ารับชม"}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
@@ -247,6 +300,12 @@ function EmbedFrame({
             loadedRef.current = true;
             setFrameLoaded(true);
             onReady();
+            if (playerWatchdogRef.current !== null) {
+              window.clearTimeout(playerWatchdogRef.current);
+            }
+            playerWatchdogRef.current = window.setTimeout(() => {
+              if (!getplayReadyRef.current) onFatal();
+            }, GETPLAY_PLAYER_TIMEOUT_MS);
           }}
           onError={onFatal}
         />
@@ -325,6 +384,7 @@ export default function WatchPlayer({
   onStart,
   onFailed,
   onRetry,
+  forceExternal = false,
 }: {
   source: PlaybackSource | null;
   poster: string | null;
@@ -336,6 +396,7 @@ export default function WatchPlayer({
   onStart: () => void;
   onFailed: () => void;
   onRetry: () => void;
+  forceExternal?: boolean;
 }) {
   const [ready, setReady] = useState(false);
 
@@ -362,6 +423,10 @@ export default function WatchPlayer({
 
   if (switching && !source) {
     return <LoadingState poster={poster} message="กำลังเตรียมการรับชม..." />;
+  }
+
+  if (forceExternal && source) {
+    return <ExternalPlaybackFallback source={source} poster={poster} title={title} />;
   }
 
   if (exhausted || !source) {
