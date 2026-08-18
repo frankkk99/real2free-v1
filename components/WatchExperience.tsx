@@ -33,6 +33,7 @@ import {
   type PublicCatalogItem,
   type PublicEpisode,
 } from "@/lib/public-catalog";
+import AdSlot from "./AdSlot";
 import PlayerChoicePanel from "./PlayerChoicePanel";
 import SeriesEpisodeBrowser from "./SeriesEpisodeBrowser";
 import WatchPlayer from "./WatchPlayer";
@@ -456,6 +457,14 @@ export default function WatchExperience({
           ) : null}
         </section>
 
+        <AdSlot
+          code="AD-06"
+          name="แบนเนอร์หน้ารับชม"
+          placement="ใต้ชื่อเรื่อง เหนือ Player"
+          desktopSize="970×90 px"
+          mobileSize="320×100 px"
+        />
+
         <section ref={playerStageRef} className={styles.playerStage}>
           <WatchPlayer
             key={`${activeEpisode?.id || "movie"}-${source?.id || "none"}-${playerSession}`}
@@ -498,6 +507,15 @@ export default function WatchExperience({
           <SeriesEpisodeBrowser episodes={playableEpisodes} activeEpisodeId={activeEpisode?.id || null} onSelect={selectEpisode} />
         ) : null}
 
+        <AdSlot
+          code="AD-07"
+          name="แบนเนอร์คั่น Player"
+          placement="ระหว่าง Player และรายละเอียดเรื่อง"
+          desktopSize="728×90 px"
+          mobileSize="320×100 px"
+          variant="compact"
+        />
+
         <section className={styles.lowerGrid}>
           <article className={styles.infoCard}>
             <div className={styles.posterWrap}>
@@ -537,6 +555,14 @@ export default function WatchExperience({
             onRetry={retryAllSources}
           />
         </section>
+
+        <AdSlot
+          code="AD-08"
+          name="แบนเนอร์ท้ายหน้ารับชม"
+          placement="ท้ายรายละเอียดเรื่อง"
+          desktopSize="970×90 px"
+          mobileSize="320×100 px"
+        />
       </div>
     </main>
   );
