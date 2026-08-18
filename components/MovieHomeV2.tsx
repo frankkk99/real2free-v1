@@ -66,6 +66,7 @@ import {
   type CatalogLanguageFilter,
   type CatalogSortMode,
 } from "@/lib/smart-catalog-search";
+import AdSlot from "./AdSlot";
 import CatalogDetailModal from "./CatalogDetailModal";
 import CatalogPosterCard from "./CatalogPosterCard";
 import HomeQuickFilters, { type HomeQuickView } from "./HomeQuickFilters";
@@ -875,6 +876,16 @@ export default function MovieHomeV2() {
         </section>
       ) : null}
 
+      {isDefaultHome ? (
+        <AdSlot
+          code="AD-01"
+          name="แบนเนอร์หน้าแรก"
+          placement="ใต้ Hero หน้าแรก"
+          desktopSize="970×90 px"
+          mobileSize="320×100 px"
+        />
+      ) : null}
+
       <HomeQuickFilters
         viewMode={viewMode}
         year={effectiveYear}
@@ -886,6 +897,14 @@ export default function MovieHomeV2() {
         onBrandChange={setBrand}
         onOpenMore={() => document.querySelector<HTMLButtonElement>('[aria-label="เปิดตัวกรองละเอียด"]')?.click()}
         onClear={clearAll}
+      />
+
+      <AdSlot
+        code="AD-02"
+        name="แบนเนอร์เหนือรายการหนัง"
+        placement="เหนือกล่องรายการและผลค้นหา"
+        desktopSize="728×90 px"
+        mobileSize="320×100 px"
       />
 
       <section id="catalog" className={styles.catalog}>
@@ -924,7 +943,23 @@ export default function MovieHomeV2() {
         ) : isDefaultHome ? (
           <>
             {renderHomeSection("new", "มาใหม่", "ทุกเรื่อง เรียงตามวันที่ฉายล่าสุด", Clock3)}
+            <AdSlot
+              code="AD-03"
+              name="แบนเนอร์คั่นหมวดมาใหม่"
+              placement="ระหว่างหมวด มาใหม่ และ ซีรีส์"
+              desktopSize="728×90 px"
+              mobileSize="320×100 px"
+              variant="compact"
+            />
             {renderHomeSection("series", "ซีรีส์", "ซีรีส์แนวนอน อัปเดตล่าสุด", Tv)}
+            <AdSlot
+              code="AD-04"
+              name="แบนเนอร์คั่นหมวดซีรีส์"
+              placement="ระหว่างหมวด ซีรีส์ และ ซีรีส์แนวตั้ง"
+              desktopSize="728×90 px"
+              mobileSize="320×100 px"
+              variant="compact"
+            />
             {renderHomeSection("vertical", "ซีรีส์แนวตั้ง", "ซีรีส์สัดส่วน 9:16", Sparkles)}
             {renderHomeSection("thai", "หนังไทย", "ภาพยนตร์ไทย", Film)}
           </>
@@ -938,6 +973,14 @@ export default function MovieHomeV2() {
           </div>
         ) : null}
       </section>
+
+      <AdSlot
+        code="AD-05"
+        name="แบนเนอร์ท้ายหน้า"
+        placement="ท้ายรายการก่อนเมนูด้านล่าง"
+        desktopSize="970×90 px"
+        mobileSize="320×100 px"
+      />
 
       <nav className={styles.mobileBottomNav} aria-label="เมนูด้านล่าง">
         <button className={viewMode === "home" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("home")}><Home /><span>หน้าแรก</span></button>
