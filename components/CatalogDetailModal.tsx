@@ -15,7 +15,7 @@ import {
   X,
   Youtube,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   playerAvailabilityLabels,
   runtimeLabel,
@@ -109,8 +109,6 @@ export default function CatalogDetailModal({
   const [trailerLoading, setTrailerLoading] = useState(true);
   const [shareDone, setShareDone] = useState(false);
   const trailerEmbed = useMemo(() => youtubeEmbedUrl(trailerUrl), [trailerUrl]);
-  const previewImage = movie.backdropUrl || movie.posterUrl || "";
-  const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${movie.thaiTitle} ${movie.year || ""} trailer`)}`;
   const badges = formatBadges(movie);
   const durationValue = movie.contentType === "series"
     ? `${movie.episodeCount.toLocaleString("th-TH")} ตอน`
@@ -249,12 +247,10 @@ export default function CatalogDetailModal({
             </div>
           </div>
 
-          <section className={styles.trailerSection}>
-            <div className={styles.trailer}>
-              <span className={styles.trailerLabel}><Youtube /> ตัวอย่าง</span>
-              {trailerLoading ? (
-                <div className={styles.trailerLoading}><span /></div>
-              ) : trailerEmbed ? (
+          {!trailerLoading && trailerEmbed ? (
+            <section className={styles.trailerSection}>
+              <div className={styles.trailer}>
+                <span className={styles.trailerLabel}><Youtube /> ตัวอย่าง</span>
                 <iframe
                   src={trailerEmbed}
                   title={`ตัวอย่าง ${movie.thaiTitle}`}
@@ -263,19 +259,9 @@ export default function CatalogDetailModal({
                   allowFullScreen
                   referrerPolicy="strict-origin-when-cross-origin"
                 />
-              ) : (
-                <div
-                  className={styles.trailerEmpty}
-                  style={{ "--preview-image": previewImage ? `url(${JSON.stringify(previewImage)})` : "none" } as CSSProperties}
-                >
-                  <Youtube />
-                  <strong>ยังไม่มีตัวอย่างในข้อมูลเรื่องนี้</strong>
-                  <small>เปิดค้นหาตัวอย่างจาก YouTube ได้ในแท็บใหม่</small>
-                  <a href={youtubeSearchUrl} target="_blank" rel="noopener noreferrer">ค้นหาบน YouTube</a>
-                </div>
-              )}
-            </div>
-          </section>
+              </div>
+            </section>
+          ) : null}
 
           <section className={styles.overview}>
             <span><Info /> เรื่องย่อ</span>
