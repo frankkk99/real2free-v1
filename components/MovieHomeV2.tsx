@@ -23,11 +23,22 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  addStoredId,
+  BROWSE_STATE_KEY,
+  FAVORITES_KEY,
+  HISTORY_KEY,
+  readStoredIdList,
+  readStoredJson,
+  readStoredString,
+  THEME_KEY,
+  toggleStoredId,
+  writeStoredJson,
+  writeStoredString,
+} from "@/lib/client-storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   cleanCatalogSearch,
-  FAVORITES_KEY,
-  HISTORY_KEY,
   mapPublicCatalogCardRow,
   mapPublicCatalogRow,
   PUBLIC_CATALOG_CARD_FIELDS,
@@ -68,6 +79,17 @@ type CatalogCache = {
   items: PublicCatalogItem[];
   total: number;
   hasMore: boolean;
+};
+
+type BrowseState = {
+  viewMode: ViewMode;
+  queryInput: string;
+  genre: string;
+  brand: CatalogBrandFilter;
+  country: CatalogCountryFilter;
+  year: string;
+  language: CatalogLanguageFilter;
+  sortMode: CatalogSortMode;
 };
 
 type HomeSectionKey = "new" | "series" | "vertical" | "thai";
@@ -200,6 +222,7 @@ export default function MovieHomeV2() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<string[]>([]);
+  const [storageReady, setStorageReady] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<PublicCatalogItem | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -215,18 +238,63 @@ export default function MovieHomeV2() {
   const homeSectionsRequestRef = useRef(0);
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem("real2free-theme") as Theme | null;
-    const nextTheme = savedTheme ?? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    const savedTheme = readStoredString(THEME_KEY);
+    const nextTheme: Theme = savedTheme === "light" || savedTheme === "dark"
+      ? savedTheme
+      : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
     setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
 
-    try {
-      setFavorites(new Set(JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]") as string[]));
-      setHistory(JSON.parse(window.localStorage.getItem(HISTORY_KEY) || "[]") as string[]);
-    } catch {
-      window.localStorage.removeItem(FAVORITES_KEY);
-      window.localStorage.removeItem(HISTORY_KEY);
+    const savedState = readStoredJson<Partial<BrowseState>>(BROWSE_STATE_KEY);
+    const savedViewMode = savedState?.viewMode;
+    if (savedViewMode && ["home", "movie", "series", "anime", "new", "popular", "favorites", "history"].includes(savedViewMode)) {
+      setViewMode(savedViewMode);
     }
+
+    if (typeof savedState?.queryInput === "string") setQueryInput(savedState.queryInput);
+    if (typeof savedState?.genre === "string") setGenre(savedState.genre);
+    if (typeof savedState?.brand === "string") setBrand(savedState.brand);
+    if (typeof savedState?.country === "string") setCountry(savedState.country);
+    if (typeof savedState?.year === "string") setYear(savedState.year);
+    if (typeof savedState?.language === "string") setLanguage(savedState.language);
+    if (typeof savedState?.sortMode === "string") setSortMode(savedState.sortMode);
+
+    setFavorites(new Set(readStoredIdList(FAVORITES_KEY)));
+    setHistory(readStoredIdList(HISTORY_KEY));
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+
+    const savedState: BrowseState = {
+      viewMode,
+      queryInput,
+      genre,
+      brand,
+      country,
+      year,
+      language,
+      sortMode,
+    };
+    writeStoredJson(BROWSE_STATE_KEY, savedState);
+  }, [brand, country, genre, language, queryInput, sortMode, storageReady, viewMode, year]);
+
+  useEffect(() => {
+    const syncSharedLists = (event: StorageEvent) => {
+      if (event.key === FAVORITES_KEY) setFavorites(new Set(readStoredIdList(FAVORITES_KEY)));
+      if (event.key === HISTORY_KEY) setHistory(readStoredIdList(HISTORY_KEY));
+      if (event.key === THEME_KEY) {
+        const nextTheme = readStoredString(THEME_KEY);
+        if (nextTheme === "light" || nextTheme === "dark") {
+          setTheme(nextTheme);
+          document.documentElement.dataset.theme = nextTheme;
+        }
+      }
+    };
+
+    window.addEventListener("storage", syncSharedLists);
+    return () => window.removeEventListener("storage", syncSharedLists);
   }, []);
 
   useEffect(() => {
@@ -431,9 +499,10 @@ export default function MovieHomeV2() {
   }, [cacheKey, effectiveBrand, effectiveCountry, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, favorites, history, titleQuery, viewMode]);
 
   useEffect(() => {
+    if (!storageReady) return;
     void fetchCatalog(0, false);
     return () => abortRef.current?.abort();
-  }, [fetchCatalog]);
+  }, [fetchCatalog, storageReady]);
 
   const isDefaultHome = viewMode === "home"
     && !query
@@ -475,6 +544,7 @@ export default function MovieHomeV2() {
   }, []);
 
   useEffect(() => {
+    if (!storageReady) return;
     if (!isDefaultHome) {
       homeSectionsRequestRef.current += 1;
       setHomeSections(createEmptyHomeSections());
@@ -483,7 +553,7 @@ export default function MovieHomeV2() {
     }
 
     void fetchHomeSections();
-  }, [fetchHomeSections, isDefaultHome]);
+  }, [fetchHomeSections, isDefaultHome, storageReady]);
 
 
   const canLoadMore = !isDefaultHome && hasMore && items.length > 0;
@@ -601,16 +671,11 @@ export default function MovieHomeV2() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     document.documentElement.dataset.theme = next;
-    window.localStorage.setItem("real2free-theme", next);
+    writeStoredString(THEME_KEY, next);
   };
 
   const toggleFavorite = (id: string) => {
-    setFavorites((current) => {
-      const next = new Set(current);
-      next.has(id) ? next.delete(id) : next.add(id);
-      window.localStorage.setItem(FAVORITES_KEY, JSON.stringify([...next]));
-      return next;
-    });
+    setFavorites(new Set(toggleStoredId(FAVORITES_KEY, id)));
   };
 
   const prefetchMovie = useCallback((id: string) => {
@@ -625,9 +690,8 @@ export default function MovieHomeV2() {
   }, [loadMovieDetail, prefetchMovie]);
 
   const goWatch = (movie: PublicCatalogItem) => {
-    const nextHistory = [movie.id, ...history.filter((entryId) => entryId !== movie.id)].slice(0, 100);
+    const nextHistory = addStoredId(HISTORY_KEY, movie.id);
     setHistory(nextHistory);
-    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
     setSelectedMovie(null);
     router.push(`/watch/${movie.id}`);
   };
@@ -652,6 +716,18 @@ export default function MovieHomeV2() {
     setLanguage("ทั้งหมด");
     setSortMode("updated");
     setViewMode("home");
+  };
+
+  const clearFavorites = () => {
+    if (!favorites.size || !window.confirm("ล้างรายการโปรดทั้งหมดหรือไม่?")) return;
+    setFavorites(new Set());
+    writeStoredJson(FAVORITES_KEY, []);
+  };
+
+  const clearHistory = () => {
+    if (!history.length || !window.confirm("ล้างประวัติการดูทั้งหมดหรือไม่?")) return;
+    setHistory([]);
+    writeStoredJson(HISTORY_KEY, []);
   };
 
   const hasFilters = Boolean(
@@ -826,6 +902,8 @@ export default function MovieHomeV2() {
             {year !== "ทั้งหมด" ? <button type="button" onClick={() => setYear("ทั้งหมด")}>{year}<X /></button> : null}
             {language !== "ทั้งหมด" ? <button type="button" onClick={() => setLanguage("ทั้งหมด")}>{languageLabel}<X /></button> : null}
             {sortMode !== "updated" ? <button type="button" onClick={() => setSortMode("updated")}>{sortLabel}<X /></button> : null}
+            {viewMode === "favorites" && favorites.size ? <button className={styles.savedListAction} type="button" onClick={clearFavorites}>ล้างรายการโปรด</button> : null}
+            {viewMode === "history" && history.length ? <button className={styles.savedListAction} type="button" onClick={clearHistory}>ล้างประวัติ</button> : null}
             {hasFilters ? <button className={styles.clearButton} type="button" onClick={clearAll}>ล้างทั้งหมด</button> : null}
           </div>
         </div>
@@ -835,7 +913,12 @@ export default function MovieHomeV2() {
         ) : loading && !items.length ? (
           <SkeletonGrid />
         ) : !items.length ? (
-          <div className={styles.empty}><Search /><h3>ยังไม่พบรายการ</h3><p>ลองเปลี่ยนคำค้นหรือหมวดที่เลือก</p><button type="button" onClick={clearAll}>แสดงทั้งหมด</button></div>
+          <div className={styles.empty}>
+            {viewMode === "favorites" ? <Bookmark /> : viewMode === "history" ? <History /> : <Search />}
+            <h3>{viewMode === "favorites" ? "ยังไม่มีรายการโปรด" : viewMode === "history" ? "ยังไม่มีประวัติการดู" : "ยังไม่พบรายการ"}</h3>
+            <p>{viewMode === "favorites" ? "กดไอคอนบุ๊กมาร์กบนการ์ดเพื่อเก็บเรื่องที่อยากดู" : viewMode === "history" ? "เรื่องที่กดรับชมจะถูกเก็บไว้ให้กลับมาดูต่อได้ง่าย" : "ลองเปลี่ยนคำค้นหรือหมวดที่เลือก"}</p>
+            <button type="button" onClick={clearAll}>{viewMode === "favorites" || viewMode === "history" ? "เลือกหนัง" : "แสดงทั้งหมด"}</button>
+          </div>
         ) : isDefaultHome && homeSectionsLoading ? (
           <SkeletonGrid />
         ) : isDefaultHome ? (
@@ -859,8 +942,8 @@ export default function MovieHomeV2() {
       <nav className={styles.mobileBottomNav} aria-label="เมนูด้านล่าง">
         <button className={viewMode === "home" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("home")}><Home /><span>หน้าแรก</span></button>
         <button type="button" onClick={() => document.getElementById("catalog-search-input")?.focus()}><Search /><span>ค้นหา</span></button>
-        <button className={viewMode === "favorites" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("favorites")}><Bookmark /><span>รายการโปรด</span></button>
-        <button className={viewMode === "history" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("history")}><History /><span>ดูล่าสุด</span></button>
+        <button className={viewMode === "favorites" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("favorites")}><Bookmark /><span>รายการโปรด{favorites.size ? ` ${favorites.size}` : ""}</span></button>
+        <button className={viewMode === "history" ? styles.mobileActive : ""} type="button" onClick={() => chooseMode("history")}><History /><span>ดูล่าสุด{history.length ? ` ${history.length}` : ""}</span></button>
       </nav>
 
       {mobileMenuOpen ? (
