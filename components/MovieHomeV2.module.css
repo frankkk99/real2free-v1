@@ -331,6 +331,7 @@
 }
 .activeFilters button svg { width: 13px; height: 13px; }
 .activeFilters button.clearButton { border-color: transparent; background: transparent; color: var(--primary-bright); }
+.activeFilters button.savedListAction { border-color: color-mix(in srgb, var(--primary) 34%, var(--border)); background: var(--primary-soft); color: var(--primary-bright); }
 
 .sectionTitle { display: flex; align-items: center; justify-content: space-between; gap: 17px; margin: 27px 0 12px; }
 .sectionTitle > div { display: flex; align-items: center; gap: 10px; }
