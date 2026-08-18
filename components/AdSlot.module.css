@@ -1,0 +1,172 @@
+.slot {
+  width: min(100%, 1060px);
+  margin: 22px auto;
+}
+
+.link {
+  display: block;
+  padding: 13px 16px 12px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 42%, var(--border));
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--primary) 15%, transparent), transparent 30%),
+    color-mix(in srgb, var(--surface) 92%, var(--primary-soft));
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.link:hover {
+  border-color: var(--primary-bright);
+  background: color-mix(in srgb, var(--surface-hover) 92%, var(--primary-soft));
+  transform: translateY(-2px);
+}
+
+.heading,
+.main,
+.footer {
+  display: flex;
+  align-items: center;
+}
+
+.heading {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.badge,
+.code {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary-bright);
+}
+
+.badge svg,
+.footer svg {
+  width: 12px;
+  height: 12px;
+}
+
+.main {
+  gap: 11px;
+  margin-top: 9px;
+}
+
+.icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary-bright);
+}
+
+.icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.copy strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy small,
+.footer {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-left: auto;
+  color: var(--primary-bright);
+  font-size: 16px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.price small {
+  color: var(--muted-strong);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.footer {
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.footer span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary-bright);
+  font-weight: 750;
+  text-align: right;
+}
+
+.compact {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.compact .link {
+  padding-block: 10px;
+}
+
+@media (max-width: 560px) {
+  .slot {
+    margin: 16px auto;
+  }
+
+  .link {
+    padding: 11px 12px 10px;
+    border-radius: 13px;
+  }
+
+  .copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .price {
+    font-size: 14px;
+  }
+
+  .footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .footer span:last-child {
+    text-align: left;
+    word-break: break-word;
+  }
+}
