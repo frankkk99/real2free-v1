@@ -44,6 +44,8 @@ type PlaybackResponse = {
   id?: string;
   label?: string;
   url?: string;
+  fallback_url?: string | null;
+  fallback_kind?: "hls" | "embed" | null;
   kind?: "hls" | "embed";
   group_key?: "dub_th" | "sub_th" | "default";
   role?: "primary" | "backup";
@@ -378,6 +380,27 @@ function playbackSource(
   };
 }
 
+async function inspectPlaybackCandidate(
+  url: string,
+  kind: "hls" | "embed",
+  siteOrigin: string,
+) {
+  const validatedUrl = await safePlaybackUrl(url);
+  if (!validatedUrl) return null;
+
+  const getplayEmbed = kind === "embed" && isGetplayEmbedUrl(validatedUrl);
+  const probe = getplayEmbed
+    ? {
+        policy: "no-referrer" as PlaybackReferrerPolicy,
+        blocked: false,
+        requiresNewTab: false,
+        status: 200,
+      }
+    : await choosePlaybackPolicy(validatedUrl, kind, siteOrigin);
+
+  return { validatedUrl, probe, getplayEmbed };
+}
+
 export async function POST(request: NextRequest) {
   if (request.headers.get("x-real2free-playback") !== "1") {
     return NextResponse.json({ error: "missing_playback_header" }, { status: 403, headers: noStoreHeaders() });
@@ -446,8 +469,49 @@ export async function POST(request: NextRequest) {
     }
 
     const completeResult = result as PlaybackResponse & { id: string; kind: "hls" | "embed" };
-    const validatedUrl = await safePlaybackUrl(result.url);
-    if (!validatedUrl) {
+    const primaryCandidate = await inspectPlaybackCandidate(
+      result.url,
+      result.kind,
+      request.nextUrl.origin,
+    );
+    let selectedUrl = primaryCandidate?.validatedUrl || "";
+    let selectedKind = result.kind;
+    let selectedProbe = primaryCandidate?.probe || {
+      policy: "no-referrer" as PlaybackReferrerPolicy,
+      blocked: true,
+      requiresNewTab: false,
+      status: null,
+    };
+    let selectedGetplayEmbed = primaryCandidate?.getplayEmbed || false;
+
+    if (!primaryCandidate || selectedProbe.blocked || (selectedKind === "embed" && selectedProbe.requiresNewTab)) {
+      const fallbackUrl = typeof result.fallback_url === "string" ? result.fallback_url : "";
+      const fallbackKind = result.fallback_kind === "hls" || result.fallback_kind === "embed"
+        ? result.fallback_kind
+        : null;
+
+      if (fallbackUrl && fallbackKind) {
+        const fallbackCandidate = await inspectPlaybackCandidate(
+          fallbackUrl,
+          fallbackKind,
+          request.nextUrl.origin,
+        );
+        if (fallbackCandidate && !fallbackCandidate.probe.blocked
+          && !(fallbackKind === "embed" && fallbackCandidate.probe.requiresNewTab)) {
+          selectedUrl = fallbackCandidate.validatedUrl;
+          selectedKind = fallbackKind;
+          selectedProbe = fallbackCandidate.probe;
+          selectedGetplayEmbed = fallbackCandidate.getplayEmbed;
+          console.info("[api/playback/session] selected player URL fallback", {
+            playerId: result.id,
+            index: result.index,
+            kind: fallbackKind,
+          });
+        }
+      }
+    }
+
+    if (!selectedUrl) {
       console.warn("[api/playback/session] blocked unsafe player URL", { playerId: result.id, index: result.index });
       const response = NextResponse.json({
         source: null,
@@ -464,25 +528,16 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    const getplayEmbed = result.kind === "embed" && isGetplayEmbedUrl(validatedUrl);
-    const probe = getplayEmbed
-      ? {
-          policy: "no-referrer" as PlaybackReferrerPolicy,
-          blocked: false,
-          requiresNewTab: false,
-          status: 200,
-        }
-      : await choosePlaybackPolicy(validatedUrl, result.kind, request.nextUrl.origin);
-    const cannotEmbed = result.kind === "embed"
-      && !getplayEmbed
-      && (probe.requiresNewTab || probe.blocked);
+    const cannotEmbed = selectedKind === "embed"
+      && !selectedGetplayEmbed
+      && (selectedProbe.requiresNewTab || selectedProbe.blocked);
 
     if (cannotEmbed && result.has_next) {
       console.warn("[api/playback/session] skipped embed that cannot play inline", {
-        host: new URL(validatedUrl).hostname,
+        host: new URL(selectedUrl).hostname,
         playerId: result.id,
         index: result.index,
-        status: probe.status,
+        status: selectedProbe.status,
       });
       const response = NextResponse.json({
         source: null,
@@ -496,7 +551,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (cannotEmbed) {
-      const source = playbackSource(completeResult, validatedUrl, probe, "new-tab");
+      const source = playbackSource(
+        { ...completeResult, url: selectedUrl, kind: selectedKind },
+        selectedUrl,
+        selectedProbe,
+        "new-tab",
+      );
       const response = NextResponse.json({
         source,
         index: result.index,
@@ -507,12 +567,12 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    if (probe.blocked) {
+    if (selectedProbe.blocked) {
       console.warn("[api/playback/session] upstream player denied access", {
-        host: new URL(validatedUrl).hostname,
+        host: new URL(selectedUrl).hostname,
         playerId: result.id,
         index: result.index,
-        status: probe.status,
+        status: selectedProbe.status,
       });
       const response = NextResponse.json({
         source: null,
@@ -529,7 +589,12 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    const source = playbackSource(completeResult, validatedUrl, probe, "inline");
+    const source = playbackSource(
+      { ...completeResult, url: selectedUrl, kind: selectedKind },
+      selectedUrl,
+      selectedProbe,
+      "inline",
+    );
     const response = NextResponse.json({
       source,
       index: result.index,
