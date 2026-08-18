@@ -17,9 +17,17 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  contentTypeLabel,
+  addStoredId,
   FAVORITES_KEY,
   HISTORY_KEY,
+  LAST_EPISODES_KEY,
+  readStoredIdList,
+  readStoredStringMap,
+  toggleStoredId,
+  writeStoredStringMap,
+} from "@/lib/client-storage";
+import {
+  contentTypeLabel,
   runtimeLabel,
   type PlaybackSource,
   type PublicCatalogItem,
@@ -108,8 +116,16 @@ export default function WatchExperience({
     if (!playableEpisodes.length) return;
     const requestedEpisodeId = new URLSearchParams(window.location.search).get("episode");
     const requestedEpisode = playableEpisodes.find((episode) => episode.id === requestedEpisodeId);
-    if (requestedEpisode) setActiveEpisodeId(requestedEpisode.id);
-  }, [playableEpisodes]);
+    const savedEpisodeId = readStoredStringMap(LAST_EPISODES_KEY)[item.id];
+    const savedEpisode = playableEpisodes.find((episode) => episode.id === savedEpisodeId);
+    const selectedEpisodeId = requestedEpisode?.id || savedEpisode?.id || playableEpisodes[0].id;
+    setActiveEpisodeId(selectedEpisodeId);
+    if (selectedEpisodeId) {
+      const lastEpisodes = readStoredStringMap(LAST_EPISODES_KEY);
+      lastEpisodes[item.id] = selectedEpisodeId;
+      writeStoredStringMap(LAST_EPISODES_KEY, lastEpisodes);
+    }
+  }, [item.id, playableEpisodes]);
 
   useEffect(() => {
     const count = activeEpisode?.playerCount || item.playerCount;
@@ -128,16 +144,17 @@ export default function WatchExperience({
   }, [activeEpisode?.id, activeEpisode?.playerCount, item.id, item.playerCount]);
 
   useEffect(() => {
-    try {
-      const favorites = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]") as string[];
-      setFavorite(favorites.includes(item.id));
-      const history = JSON.parse(window.localStorage.getItem(HISTORY_KEY) || "[]") as string[];
-      const nextHistory = [item.id, ...history.filter((entry) => entry !== item.id)].slice(0, 100);
-      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
-    } catch {
-      window.localStorage.removeItem(FAVORITES_KEY);
-      window.localStorage.removeItem(HISTORY_KEY);
-    }
+    setFavorite(readStoredIdList(FAVORITES_KEY).includes(item.id));
+    addStoredId(HISTORY_KEY, item.id);
+  }, [item.id]);
+
+  useEffect(() => {
+    const syncSharedLists = (event: StorageEvent) => {
+      if (event.key === FAVORITES_KEY) setFavorite(readStoredIdList(FAVORITES_KEY).includes(item.id));
+    };
+
+    window.addEventListener("storage", syncSharedLists);
+    return () => window.removeEventListener("storage", syncSharedLists);
   }, [item.id]);
 
   const requestSource = useCallback(async (startIndex: number) => {
@@ -300,6 +317,9 @@ export default function WatchExperience({
 
   const selectEpisode = (episode: PublicEpisode) => {
     setActiveEpisodeId(episode.id);
+    const lastEpisodes = readStoredStringMap(LAST_EPISODES_KEY);
+    lastEpisodes[item.id] = episode.id;
+    writeStoredStringMap(LAST_EPISODES_KEY, lastEpisodes);
     const url = new URL(window.location.href);
     url.searchParams.set("episode", episode.id);
     window.history.replaceState(null, "", `${url.pathname}${url.search}`);
@@ -307,17 +327,8 @@ export default function WatchExperience({
   };
 
   const toggleFavorite = () => {
-    setFavorite((current) => {
-      const nextValue = !current;
-      try {
-        const stored = new Set(JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "[]") as string[]);
-        nextValue ? stored.add(item.id) : stored.delete(item.id);
-        window.localStorage.setItem(FAVORITES_KEY, JSON.stringify([...stored]));
-      } catch {
-        window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(nextValue ? [item.id] : []));
-      }
-      return nextValue;
-    });
+    const next = toggleStoredId(FAVORITES_KEY, item.id);
+    setFavorite(next.includes(item.id));
   };
 
   const shareMovie = useCallback(async () => {
