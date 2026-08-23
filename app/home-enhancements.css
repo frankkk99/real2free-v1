@@ -153,9 +153,9 @@
     font-size: 10px;
   }
 
-  /* Keep the movie detail sheet above, not over, the persistent bottom nav. */
+  /* Modal stays above the page/header while the persistent bottom nav stays above the modal. */
   [class*="CatalogDetailModal_backdrop__"] {
-    z-index: 50 !important;
+    z-index: 100 !important;
     bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
     align-items: end !important;
     padding: 0 !important;
@@ -163,6 +163,35 @@
 
   [class*="CatalogDetailModal_modal__"] {
     max-height: calc(100dvh - 66px - env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  [class*="MovieHomeV2_mobileBottomNav__"] {
+    z-index: 120 !important;
+  }
+
+  /* Keep an always-accessible close control even after the detail sheet scrolls. */
+  [class*="CatalogDetailModal_close__"] {
+    position: fixed !important;
+    z-index: 110 !important;
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    right: 12px !important;
+    border-radius: 999px !important;
+    background: rgba(2, 8, 17, .82) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .34);
+  }
+
+  /* Detach poster/trailer visually instead of joining them edge-to-edge. */
+  [class*="CatalogDetailModal_poster__"] {
+    border-radius: 12px !important;
+  }
+
+  [class*="CatalogDetailModal_trailerSection__"] {
+    margin-top: 9px !important;
+  }
+
+  [class*="CatalogDetailModal_trailer__"] {
+    border-top: 1px solid rgba(255, 255, 255, .1) !important;
+    border-radius: 12px !important;
   }
 }
 
