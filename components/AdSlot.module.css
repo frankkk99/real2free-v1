@@ -290,6 +290,10 @@
   margin-bottom: 12px;
 }
 
+.compact .mobileLink {
+  padding-block: 8px;
+}
+
 .sideRail {
   display: none;
 }
@@ -550,5 +554,9 @@
   .compact {
     margin-top: 9px;
     margin-bottom: 9px;
+  }
+
+  .compact .mobileLink {
+    padding-block: 6px;
   }
 }
