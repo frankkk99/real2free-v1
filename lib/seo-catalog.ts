@@ -16,6 +16,9 @@ export type SeoSitemapEntry = {
 };
 
 const SITE_URL = "https://www.real2free.online";
+const SMART_CATALOG_VIEW = "real2free_public_smart_cards";
+const SEO_PREVIEW_BATCH_SIZE = 100;
+const SEO_PREVIEW_MAX_ROWS = 500;
 const SITEMAP_PAGE_SIZE = 1000;
 const SITEMAP_MAX_ROWS = 2000;
 
@@ -40,19 +43,25 @@ async function fetchRows<T>(view: string, params: URLSearchParams, revalidate = 
   return Array.isArray(payload) ? payload as T[] : [];
 }
 
-function catalogParams(limit: number, filter: SeoCatalogFilter) {
+function catalogParams(limit: number, filter: SeoCatalogFilter, offset = 0) {
+  const order = filter === "new"
+    ? "release_date.desc.nullslast,year.desc.nullslast,updated_at.desc,rating.desc.nullslast,vote_count.desc.nullslast"
+    : "year.desc.nullslast,release_date.desc.nullslast,rating.desc.nullslast,vote_count.desc.nullslast,updated_at.desc";
+
   const params = new URLSearchParams({
     select: PUBLIC_CATALOG_CARD_FIELDS,
-    order: "year.desc.nullslast,release_date.desc.nullslast,rating.desc.nullslast,vote_count.desc.nullslast,updated_at.desc",
-    limit: String(Math.max(1, Math.min(limit, 100))),
+    order,
+    limit: String(Math.max(1, Math.min(limit, SEO_PREVIEW_BATCH_SIZE))),
+    offset: String(Math.max(0, offset)),
   });
 
-  if (filter === "movie" || filter === "series") {
-    params.set("content_type", `eq.${filter}`);
+  if (filter === "movie") {
+    params.set("content_type", "eq.movie");
+  } else if (filter === "series") {
+    params.set("content_type", "eq.series");
+    params.set("is_vertical", "eq.false");
   } else if (filter === "anime") {
     params.set("genres", "ov.{Animation,Anime}");
-  } else if (filter === "new") {
-    params.set("year", `eq.${new Date().getUTCFullYear()}`);
   } else if (filter === "popular") {
     params.set("rating", "gte.6");
   } else if (filter === "vertical") {
@@ -70,18 +79,28 @@ export async function getSeoCatalogPreview(
   limit = 24,
   filter: SeoCatalogFilter = "all",
 ): Promise<PublicCatalogItem[]> {
-  const view = filter === "vertical" || filter === "thai"
-    ? "real2free_public_smart_cards"
-    : "real2free_public_cards";
-  const rows = await fetchRows<PublicCatalogCardRow>(
-    view,
-    catalogParams(limit, filter),
-    600,
-  );
+  const targetLimit = Math.max(1, Math.min(limit, SEO_PREVIEW_MAX_ROWS));
+  const rows: PublicCatalogCardRow[] = [];
 
-  return rows
-    .map(mapPublicCatalogCardRow)
-    .filter((item): item is PublicCatalogItem => Boolean(item));
+  for (let offset = 0; offset < targetLimit; offset += SEO_PREVIEW_BATCH_SIZE) {
+    const batchLimit = Math.min(SEO_PREVIEW_BATCH_SIZE, targetLimit - offset);
+    const batch = await fetchRows<PublicCatalogCardRow>(
+      SMART_CATALOG_VIEW,
+      catalogParams(batchLimit, filter, offset),
+      600,
+    );
+
+    rows.push(...batch);
+    if (batch.length < batchLimit) break;
+  }
+
+  const deduped = new Map<string, PublicCatalogItem>();
+  rows.forEach((row) => {
+    const item = mapPublicCatalogCardRow(row);
+    if (item) deduped.set(item.id, item);
+  });
+
+  return [...deduped.values()];
 }
 
 export async function getSeoSitemapEntries(): Promise<SeoSitemapEntry[]> {
@@ -95,7 +114,7 @@ export async function getSeoSitemapEntries(): Promise<SeoSitemapEntry[]> {
       offset: String(offset),
     });
     const rows = await fetchRows<Array<{ id?: string; updated_at?: string }>[number]>(
-      "real2free_public_cards",
+      SMART_CATALOG_VIEW,
       params,
       3600,
     );
