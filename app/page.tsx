@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import MovieHomeV2 from "@/components/MovieHomeV2";
 import SeoCatalogLinks from "@/components/SeoCatalogLinks";
-import { absoluteWatchUrl, getSeoCatalogPreview } from "@/lib/seo-catalog";
+import { absoluteCatalogUrl, getSeoCatalogPreview } from "@/lib/seo-catalog";
 
 export const revalidate = 600;
 
@@ -47,14 +47,14 @@ export default async function HomePage() {
     itemListElement: items.map((item, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      url: absoluteWatchUrl(item.id),
+      url: absoluteCatalogUrl(item),
       item: {
         "@type": item.contentType === "series" ? "TVSeries" : "Movie",
         name: item.thaiTitle,
         alternateName: item.title !== item.thaiTitle ? item.title : undefined,
         image: item.posterUrl || item.backdropUrl || undefined,
         genre: item.genres,
-        url: absoluteWatchUrl(item.id),
+        url: absoluteCatalogUrl(item),
       },
     })),
   };
