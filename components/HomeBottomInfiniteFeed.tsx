@@ -263,7 +263,6 @@ export default function HomeBottomInfiniteFeed() {
           <div className={styles.blocks}>
             {visibleBlocks.map((block, blockIndex) => {
               const adCode = `HOME-CONTINUE-${String(blockIndex + 1).padStart(2, "0")}`;
-              const showAdAfterBlock = blockIndex < visibleBlocks.length - 1;
 
               return (
                 <div className={styles.block} key={block[0]?.id || adCode}>
@@ -281,18 +280,16 @@ export default function HomeBottomInfiniteFeed() {
                     ))}
                   </div>
 
-                  {showAdAfterBlock ? (
-                    <div className={styles.adBreak}>
-                      <AdSlot
-                        code={adCode}
-                        name={`เลือกดูต่อ • โฆษณาคั่นชุด ${blockIndex + 1}`}
-                        placement={`คั่นหลังการ์ดชุดที่ ${blockIndex + 1} ของหมวดเลือกดูต่อ`}
-                        desktopSize="21:9 x 3 ช่อง"
-                        mobileSize="responsive banner"
-                        variant="compact"
-                      />
-                    </div>
-                  ) : null}
+                  <div className={styles.adBreak}>
+                    <AdSlot
+                      code={adCode}
+                      name={`เลือกดูต่อ • โฆษณาคั่นชุด ${blockIndex + 1}`}
+                      placement={`คั่นหลังการ์ด 3 แถว ชุดที่ ${blockIndex + 1} ของหมวดเลือกดูต่อ`}
+                      desktopSize="21:9 x 3 ช่อง"
+                      mobileSize="21:9 x 2 ช่อง"
+                      variant="compact"
+                    />
+                  </div>
                 </div>
               );
             })}
