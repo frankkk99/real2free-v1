@@ -59,34 +59,6 @@ export default function SeoCategoryInfiniteGrid({
   const requestActiveRef = useRef(false);
   const revealActiveRef = useRef(false);
 
-  const applyFilter = useCallback((query: ReturnType<ReturnType<typeof getSupabaseBrowserClient>["from"]>) => {
-    if (filter === "movie") return query.eq("content_type", "movie");
-    if (filter === "series") return query.eq("content_type", "series").eq("is_vertical", false);
-    if (filter === "anime") return query.overlaps("genres", ["Animation", "Anime"]);
-    if (filter === "popular") return query.gte("rating", 6);
-    if (filter === "vertical") return query.eq("content_type", "series").eq("is_vertical", true);
-    if (filter === "thai") return query.eq("content_type", "movie").eq("is_thai", true);
-    return query;
-  }, [filter]);
-
-  const applyOrder = useCallback((query: ReturnType<ReturnType<typeof getSupabaseBrowserClient>["from"]>) => {
-    if (filter === "new") {
-      return query
-        .order("release_date", { ascending: false, nullsFirst: false })
-        .order("year", { ascending: false, nullsFirst: false })
-        .order("updated_at", { ascending: false })
-        .order("rating", { ascending: false, nullsFirst: false })
-        .order("vote_count", { ascending: false, nullsFirst: false });
-    }
-
-    return query
-      .order("year", { ascending: false, nullsFirst: false })
-      .order("release_date", { ascending: false, nullsFirst: false })
-      .order("rating", { ascending: false, nullsFirst: false })
-      .order("vote_count", { ascending: false, nullsFirst: false })
-      .order("updated_at", { ascending: false });
-  }, [filter]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -96,10 +68,18 @@ export default function SeoCategoryInfiniteGrid({
         let query = supabase
           .from("real2free_public_smart_cards")
           .select("id", { count: "exact", head: true });
-        query = applyFilter(query);
+
+        if (filter === "movie") query = query.eq("content_type", "movie");
+        else if (filter === "series") query = query.eq("content_type", "series").eq("is_vertical", false);
+        else if (filter === "anime") query = query.overlaps("genres", ["Animation", "Anime"]);
+        else if (filter === "popular") query = query.gte("rating", 6);
+        else if (filter === "vertical") query = query.eq("content_type", "series").eq("is_vertical", true);
+        else if (filter === "thai") query = query.eq("content_type", "movie").eq("is_thai", true);
+
         const { count, error } = await query;
         if (error) throw error;
         if (cancelled) return;
+
         const exactCount = typeof count === "number" ? count : null;
         setTotalCount(exactCount);
         if (exactCount !== null) setHasMore(nextOffsetRef.current < exactCount);
@@ -112,7 +92,7 @@ export default function SeoCategoryInfiniteGrid({
     return () => {
       cancelled = true;
     };
-  }, [applyFilter]);
+  }, [filter]);
 
   useEffect(() => {
     const grid = firstGridRef.current;
@@ -141,10 +121,31 @@ export default function SeoCategoryInfiniteGrid({
       let query = supabase
         .from("real2free_public_smart_cards")
         .select(PUBLIC_CATALOG_CARD_FIELDS);
-      query = applyFilter(query);
-      query = applyOrder(query).range(from, to);
 
-      const { data, error } = await query;
+      if (filter === "movie") query = query.eq("content_type", "movie");
+      else if (filter === "series") query = query.eq("content_type", "series").eq("is_vertical", false);
+      else if (filter === "anime") query = query.overlaps("genres", ["Animation", "Anime"]);
+      else if (filter === "popular") query = query.gte("rating", 6);
+      else if (filter === "vertical") query = query.eq("content_type", "series").eq("is_vertical", true);
+      else if (filter === "thai") query = query.eq("content_type", "movie").eq("is_thai", true);
+
+      if (filter === "new") {
+        query = query
+          .order("release_date", { ascending: false, nullsFirst: false })
+          .order("year", { ascending: false, nullsFirst: false })
+          .order("updated_at", { ascending: false })
+          .order("rating", { ascending: false, nullsFirst: false })
+          .order("vote_count", { ascending: false, nullsFirst: false });
+      } else {
+        query = query
+          .order("year", { ascending: false, nullsFirst: false })
+          .order("release_date", { ascending: false, nullsFirst: false })
+          .order("rating", { ascending: false, nullsFirst: false })
+          .order("vote_count", { ascending: false, nullsFirst: false })
+          .order("updated_at", { ascending: false });
+      }
+
+      const { data, error } = await query.range(from, to);
       if (error) throw error;
 
       const mapped = ((data || []) as unknown as PublicCatalogCardRow[])
@@ -168,7 +169,7 @@ export default function SeoCategoryInfiniteGrid({
       requestActiveRef.current = false;
       setLoadingMore(false);
     }
-  }, [applyFilter, applyOrder, hasMore, totalCount]);
+  }, [filter, hasMore, totalCount]);
 
   const visibleCount = columns * revealedRows;
   const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
