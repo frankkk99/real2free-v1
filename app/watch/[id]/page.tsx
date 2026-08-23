@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import WatchExperience from "@/components/WatchExperience";
+import { catalogPath, catalogSlug } from "@/lib/catalog-url";
 import { hashGatewayClient, Real2freeGatewayError } from "@/lib/real2free-gateway";
 import { loadSecureCatalogDetail } from "@/lib/secure-catalog";
+import { resolveSeoCatalogSlug } from "@/lib/seo-catalog";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const SITE_URL = "https://www.real2free.online";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type SeoContentType = "movie" | "series";
+type WatchSearchParams = { seoType?: string | string[] };
 
 function cleanDescription(value: string, fallback: string) {
   const text = value.replace(/\s+/g, " ").trim() || fallback;
@@ -21,8 +26,21 @@ function jsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
-const getWatchDetail = cache(async (id: string) => {
-  if (!UUID_PATTERN.test(id)) return null;
+function parseSeoContentType(value: string | string[] | undefined): SeoContentType | null {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate === "movie" || candidate === "series" ? candidate : null;
+}
+
+const resolveWatchId = cache(async (reference: string, contentTypeHint: SeoContentType | null) => {
+  if (UUID_PATTERN.test(reference)) return reference;
+  const resolved = await resolveSeoCatalogSlug(reference, contentTypeHint);
+  return resolved?.id || null;
+});
+
+const getWatchDetail = cache(async (reference: string, contentTypeHint: SeoContentType | null) => {
+  const id = await resolveWatchId(reference, contentTypeHint);
+  if (!id) return null;
+
   const requestHeaders = await headers();
   const forwardedFor = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
   const ip = forwardedFor || requestHeaders.get("x-real-ip") || "unknown";
@@ -41,11 +59,14 @@ const getWatchDetail = cache(async (id: string) => {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<WatchSearchParams>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const detail = await getWatchDetail(id);
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const contentTypeHint = parseSeoContentType(query.seoType);
+  const detail = await getWatchDetail(id, contentTypeHint);
   if (!detail) notFound();
 
   const { item } = detail;
@@ -56,7 +77,7 @@ export async function generateMetadata({
     item.overview,
     `ดูข้อมูล${typeLabel} ${item.thaiTitle}${yearLabel} พร้อมประเภท คะแนน และรายละเอียดเรื่องบน REAL2FREE`,
   );
-  const canonical = `/watch/${id}`;
+  const canonical = catalogPath(item);
   const image = item.backdropUrl || item.posterUrl || undefined;
 
   return {
@@ -99,13 +120,32 @@ export async function generateMetadata({
   };
 }
 
-export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const detail = await getWatchDetail(id);
+export default async function WatchPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<WatchSearchParams>;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const contentTypeHint = parseSeoContentType(query.seoType);
+  const detail = await getWatchDetail(id, contentTypeHint);
   if (!detail) notFound();
 
   const { item, episodes } = detail;
-  const canonicalUrl = `${SITE_URL}/watch/${encodeURIComponent(id)}`;
+  const canonicalPath = catalogPath(item);
+  const canonicalSlug = catalogSlug(item);
+  const isLegacyUuid = UUID_PATTERN.test(id);
+  const hasExplicitTypeMismatch = contentTypeHint !== null && contentTypeHint !== item.contentType;
+  const hasStaleSlug = !isLegacyUuid && id !== canonicalSlug;
+
+  // Legacy UUID URLs always consolidate to the readable path. If Next.js
+  // exposes the rewrite query normally, type mismatches are corrected too.
+  // A direct /watch/<slug> request can still render without risking a loop;
+  // canonical metadata always points to /movie/<slug> or /series/<slug>.
+  if (isLegacyUuid || hasExplicitTypeMismatch || hasStaleSlug) permanentRedirect(canonicalPath);
+
+  const canonicalUrl = `${SITE_URL}${canonicalPath}`;
   const aggregateRating = item.rating > 0 && item.voteCount > 0
     ? {
         "@type": "AggregateRating",

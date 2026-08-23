@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { absoluteWatchUrl, getSeoSitemapEntries } from "@/lib/seo-catalog";
+import { absoluteCatalogUrl, getSeoSitemapEntries } from "@/lib/seo-catalog";
 
 const SITE_URL = "https://www.real2free.online";
 
@@ -20,7 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticEntries,
     ...items.map((item) => ({
-      url: absoluteWatchUrl(item.id),
+      url: absoluteCatalogUrl(item),
       lastModified: new Date(item.updatedAt),
       changeFrequency: "weekly" as const,
       priority: 0.7,
