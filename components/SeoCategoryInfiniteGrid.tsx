@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { catalogPath } from "@/lib/catalog-url";
 import {
   mapPublicCatalogCardRow,
   PUBLIC_CATALOG_CARD_FIELDS,
@@ -240,7 +241,7 @@ export default function SeoCategoryInfiniteGrid({
                   <Link
                     key={item.id}
                     className={styles.card}
-                    href={`/watch/${item.id}`}
+                    href={catalogPath(item)}
                     aria-label={`ดูรายละเอียด ${item.thaiTitle}${item.year ? ` ปี ${item.year}` : ""}`}
                   >
                     <div className={styles.poster}>
