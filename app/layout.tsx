@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Prompt } from "next/font/google";
+import AdContactModal from "@/components/AdContactModal";
 import HomeBottomInfiniteFeed from "@/components/HomeBottomInfiniteFeed";
 import HomeSectionPagination from "@/components/HomeSectionPagination";
 import "./globals.css";
@@ -107,6 +108,7 @@ export default function RootLayout({
         {children}
         <HomeSectionPagination />
         <HomeBottomInfiniteFeed />
+        <AdContactModal />
       </body>
     </html>
   );
