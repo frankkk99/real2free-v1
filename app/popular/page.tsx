@@ -24,13 +24,14 @@ export const metadata: Metadata = {
 };
 
 export default async function PopularPage() {
-  const items = await getSeoCatalogPreview(72, "popular").catch(() => []);
+  const items = await getSeoCatalogPreview(30, "popular").catch(() => []);
   return (
     <SeoCategoryPage
       eyebrow="Popular"
       title="หนังยอดนิยมและซีรีส์น่าดู"
       description="เลือกจากรายการที่มีคะแนนและเสียงตอบรับดี พร้อมจัดเรียงเรื่องใหม่ก่อน เพื่อช่วยค้นหาภาพยนตร์และซีรีส์ที่น่าสนใจได้รวดเร็วขึ้น"
       items={items}
+      filter="popular"
     />
   );
 }
