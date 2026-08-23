@@ -1,0 +1,103 @@
+name: Step 4 production smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/step4-production-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify info, player, SEO and playback session
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="https://www.real2free.online"
+          TITLE_ID="4f957498-3ef1-419c-baab-ea1f1e409303"
+          SLUG="spider-man-brand-new-day-2026"
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+
+          echo "[1/6] Info page"
+          info_status=$(curl --fail-with-body -sS -D "$TMP/info.headers" -o "$TMP/info.body" -w '%{http_code}' "$BASE/movie/$SLUG")
+          test "$info_status" = "200"
+          ! grep -Eiq '^x-robots-tag:.*noindex' "$TMP/info.headers"
+          grep -Fqi 'rel="canonical"' "$TMP/info.body"
+          grep -Fqi "$BASE/movie/$SLUG" "$TMP/info.body"
+
+          echo "[2/6] Player page"
+          watch_status=$(curl --fail-with-body -sS -D "$TMP/watch.headers" -o "$TMP/watch.body" -w '%{http_code}' "$BASE/watch/$TITLE_ID")
+          test "$watch_status" = "200"
+          grep -Eiq '^x-robots-tag:.*noindex' "$TMP/watch.headers"
+          grep -Eiq '<meta[^>]+name="robots"[^>]+content="[^"]*noindex' "$TMP/watch.body"
+          grep -Fqi "$BASE/movie/$SLUG" "$TMP/watch.body"
+
+          echo "[3/6] Legacy slug redirect"
+          legacy_status=$(curl -sS -D "$TMP/legacy.headers" -o /dev/null -w '%{http_code}' "$BASE/watch/$SLUG")
+          test "$legacy_status" = "308"
+          grep -Eiq '^location:.*\/movie\/spider-man-brand-new-day-2026' "$TMP/legacy.headers"
+
+          echo "[4/6] Sitemap"
+          sitemap_status=$(curl --fail-with-body -sS -o "$TMP/sitemap.xml" -w '%{http_code}' "$BASE/sitemap.xml")
+          test "$sitemap_status" = "200"
+          grep -Fq "$BASE/movie/$SLUG" "$TMP/sitemap.xml"
+          if grep -Fq '/watch/' "$TMP/sitemap.xml"; then
+            echo "Sitemap unexpectedly contains /watch/ URL" >&2
+            exit 1
+          fi
+
+          echo "[5/6] Playback challenge"
+          challenge_status=$(curl --fail-with-body -sS \
+            -c "$TMP/cookies.txt" -b "$TMP/cookies.txt" \
+            -D "$TMP/challenge.headers" -o "$TMP/challenge.json" -w '%{http_code}' \
+            -X POST "$BASE/api/playback/challenge" \
+            -H "Origin: $BASE" \
+            -H "Referer: $BASE/watch/$TITLE_ID" \
+            -H 'Sec-Fetch-Site: same-origin' \
+            -H 'Content-Type: application/json' \
+            -H 'x-real2free-challenge: 1' \
+            --data "{\"titleId\":\"$TITLE_ID\",\"episodeId\":null}")
+          test "$challenge_status" = "200"
+          jq -e '.ready == true' "$TMP/challenge.json" >/dev/null
+
+          echo "[6/6] Playback session"
+          requested_index=0
+          source_found=0
+          for attempt in 1 2 3 4; do
+            session_status=$(curl --fail-with-body -sS \
+              -c "$TMP/cookies.txt" -b "$TMP/cookies.txt" \
+              -D "$TMP/session-$attempt.headers" -o "$TMP/session-$attempt.json" -w '%{http_code}' \
+              -X POST "$BASE/api/playback/session" \
+              -H "Origin: $BASE" \
+              -H "Referer: $BASE/watch/$TITLE_ID" \
+              -H 'Sec-Fetch-Site: same-origin' \
+              -H 'Content-Type: application/json' \
+              -H 'x-real2free-playback: 1' \
+              --data "{\"titleId\":\"$TITLE_ID\",\"episodeId\":null,\"index\":$requested_index}")
+            test "$session_status" = "200"
+
+            total=$(jq -r '.total // 0' "$TMP/session-$attempt.json")
+            index=$(jq -r '.index // 0' "$TMP/session-$attempt.json")
+            has_next=$(jq -r '.hasNext // false' "$TMP/session-$attempt.json")
+            if jq -e '.source != null' "$TMP/session-$attempt.json" >/dev/null; then
+              source_found=1
+              echo "Playback session OK: sourcePresent=true index=$index total=$total hasNext=$has_next"
+              break
+            fi
+
+            if [ "$has_next" != "true" ]; then
+              break
+            fi
+            requested_index=$((index + 1))
+          done
+
+          test "$source_found" = "1"
+          echo "STEP4_SMOKE_PASS"
