@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { catalogPath } from "@/lib/catalog-url";
 import {
   playerAvailabilityLabels,
   runtimeLabel,
@@ -325,10 +326,10 @@ export default function CatalogDetailModal({
   }, [movie.id]);
 
   const shareMovie = async () => {
-    const url = `${window.location.origin}/watch/${movie.id}`;
+    const url = `${window.location.origin}${catalogPath(movie)}`;
     const data = {
       title: movie.thaiTitle,
-      text: `รับชม ${movie.thaiTitle} บน REAL2FREE`,
+      text: `ข้อมูล ${movie.thaiTitle} บน REAL2FREE`,
       url,
     };
 
