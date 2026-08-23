@@ -1,16 +1,16 @@
 .slot {
   width: min(100%, 1060px);
-  margin: 22px auto;
+  margin: 16px auto;
 }
 
 .link {
   display: block;
-  padding: 13px 16px 12px;
+  padding: 10px 13px 9px;
   border: 1px dashed color-mix(in srgb, var(--primary) 42%, var(--border));
-  border-radius: 16px;
+  border-radius: 14px;
   background:
-    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--primary) 15%, transparent), transparent 30%),
-    color-mix(in srgb, var(--surface) 92%, var(--primary-soft));
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 28%),
+    color-mix(in srgb, var(--surface) 94%, var(--primary-soft));
   color: var(--text);
   text-decoration: none;
   transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
@@ -18,8 +18,8 @@
 
 .link:hover {
   border-color: var(--primary-bright);
-  background: color-mix(in srgb, var(--surface-hover) 92%, var(--primary-soft));
-  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--surface-hover) 94%, var(--primary-soft));
+  transform: translateY(-1px);
 }
 
 .heading,
@@ -31,61 +31,63 @@
 
 .heading {
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  min-height: 14px;
 }
 
 .badge,
 .code {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 800;
-  letter-spacing: .08em;
+  letter-spacing: .07em;
   text-transform: uppercase;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: var(--primary-bright);
 }
 
 .badge svg,
 .footer svg {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
 }
 
 .main {
-  gap: 11px;
-  margin-top: 9px;
+  gap: 9px;
+  margin-top: 5px;
 }
 
 .icon {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   background: var(--primary-soft);
   color: var(--primary-bright);
 }
 
 .icon svg {
-  width: 17px;
-  height: 17px;
+  width: 15px;
+  height: 15px;
 }
 
 .copy {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 1px;
 }
 
 .copy strong {
   overflow: hidden;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -93,32 +95,39 @@
 .copy small,
 .footer {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 8px;
+}
+
+.copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .price {
   display: inline-flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 2px;
   margin-left: auto;
   color: var(--primary-bright);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 850;
   white-space: nowrap;
 }
 
 .price small {
   color: var(--muted-strong);
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 700;
 }
 
 .footer {
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 9px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  line-height: 1.2;
 }
 
 .footer span:last-child {
@@ -131,42 +140,100 @@
 }
 
 .compact {
-  margin-top: 16px;
-  margin-bottom: 16px;
+  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .compact .link {
-  padding-block: 10px;
+  padding-block: 8px;
 }
 
 @media (max-width: 560px) {
   .slot {
-    margin: 16px auto;
+    margin: 10px auto;
   }
 
   .link {
-    padding: 11px 12px 10px;
-    border-radius: 13px;
+    padding: 7px 9px 7px;
+    border-radius: 11px;
+  }
+
+  .heading {
+    min-height: 11px;
+  }
+
+  .badge,
+  .code {
+    font-size: 6px;
+  }
+
+  .badge svg {
+    width: 9px;
+    height: 9px;
+  }
+
+  .main {
+    gap: 7px;
+    margin-top: 4px;
+  }
+
+  .icon {
+    width: 27px;
+    height: 27px;
+    border-radius: 8px;
+  }
+
+  .icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .copy strong {
+    font-size: 10.5px;
   }
 
   .copy small {
+    font-size: 6.5px;
+  }
+
+  .price {
+    font-size: 12px;
+  }
+
+  .price small {
+    font-size: 6px;
+  }
+
+  .footer {
+    justify-content: flex-end;
+    margin-top: 4px;
+    padding-top: 4px;
+    font-size: 6.5px;
+  }
+
+  .footer > span:first-child {
+    display: none;
+  }
+
+  .footer span:last-child {
+    max-width: 100%;
     overflow: hidden;
+    text-align: right;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .price {
-    font-size: 14px;
+  .footer svg {
+    width: 9px;
+    height: 9px;
   }
 
-  .footer {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 5px;
+  .compact {
+    margin-top: 9px;
+    margin-bottom: 9px;
   }
 
-  .footer span:last-child {
-    text-align: left;
-    word-break: break-word;
+  .compact .link {
+    padding-block: 6px;
   }
 }
