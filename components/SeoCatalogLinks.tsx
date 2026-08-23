@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { catalogPath } from "@/lib/catalog-url";
 import type { PublicCatalogItem } from "@/lib/public-catalog";
 import styles from "./SeoCatalogLinks.module.css";
 
@@ -34,7 +35,7 @@ export default function SeoCatalogLinks({ items }: { items: PublicCatalogItem[] 
                 <Link
                   key={item.id}
                   className={styles.card}
-                  href={`/watch/${item.id}`}
+                  href={catalogPath(item)}
                   aria-label={`ดูรายละเอียด ${item.thaiTitle}${item.year ? ` ปี ${item.year}` : ""}`}
                 >
                   <div className={styles.poster}>
