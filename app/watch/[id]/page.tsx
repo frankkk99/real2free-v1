@@ -135,11 +135,15 @@ export default async function WatchPage({
   const { item, episodes } = detail;
   const canonicalPath = catalogPath(item);
   const canonicalSlug = catalogSlug(item);
-  const isCanonicalRewrite = contentTypeHint === item.contentType && id === canonicalSlug;
+  const isLegacyUuid = UUID_PATTERN.test(id);
+  const hasExplicitTypeMismatch = contentTypeHint !== null && contentTypeHint !== item.contentType;
+  const hasStaleSlug = !isLegacyUuid && id !== canonicalSlug;
 
-  // Old UUID links and direct /watch/<slug> links remain valid, but they are
-  // permanently consolidated into one readable URL for users and search bots.
-  if (!isCanonicalRewrite) permanentRedirect(canonicalPath);
+  // Legacy UUID URLs always consolidate to the readable path. If Next.js
+  // exposes the rewrite query normally, type mismatches are corrected too.
+  // A direct /watch/<slug> request can still render without risking a loop;
+  // canonical metadata always points to /movie/<slug> or /series/<slug>.
+  if (isLegacyUuid || hasExplicitTypeMismatch || hasStaleSlug) permanentRedirect(canonicalPath);
 
   const canonicalUrl = `${SITE_URL}${canonicalPath}`;
   const aggregateRating = item.rating > 0 && item.voteCount > 0
