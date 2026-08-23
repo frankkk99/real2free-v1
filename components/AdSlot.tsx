@@ -10,6 +10,10 @@ const DESKTOP_PANELS = [
   { suffix: "B", label: "กลาง" },
   { suffix: "C", label: "ขวา" },
 ] as const;
+const MOBILE_PANELS = [
+  { suffix: "M1", label: "ซ้าย" },
+  { suffix: "M2", label: "ขวา" },
+] as const;
 const DEFAULT_SIDE_AD_COUNT = 6;
 const MAX_SIDE_AD_COUNT = 20;
 const SIDE_AD_MIN_GAP = 14;
@@ -67,15 +71,15 @@ function SideRail({ side, count, height }: { side: "left" | "right"; count: numb
       style={height ? { height: `${height}px`, justifyContent: "space-between" } : undefined}
     >
       {Array.from({ length: count }).map((_, index) => {
-        const code = `AD-${sideCode}${String(index + 1).padStart(2, "0")}`;
+        const railCode = `AD-${sideCode}${String(index + 1).padStart(2, "0")}`;
         return (
           <a
-            key={code}
+            key={railCode}
             className={styles.sideCard}
-            href={buildMailto(code, `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`, `ด้าน${sideLabel}ของรายการหนัง ตั้งแต่ระดับ AD-02 ถึงท้ายหมวดหนังไทย`, "9:16 vertical responsive")}
-            title={`${code} • พื้นที่โฆษณาแนวตั้ง 9:16`}
+            href={buildMailto(railCode, `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`, `ด้าน${sideLabel}ของรายการหนัง ตั้งแต่ระดับ AD-02 ถึงท้ายหมวดหนังไทย`, "9:16 vertical responsive")}
+            title={`${railCode} • พื้นที่โฆษณาแนวตั้ง 9:16`}
           >
-            <span className={styles.sideTop}><small>พื้นที่โฆษณา</small><em>{code}</em></span>
+            <span className={styles.sideTop}><small>พื้นที่โฆษณา</small><em>{railCode}</em></span>
             <span className={styles.sideCenter}><Megaphone /><strong>9:16</strong><small>แนวตั้ง • ด้าน{sideLabel}</small></span>
             <span className={styles.sidePrice}>฿2,000<small>/เดือน</small></span>
           </a>
@@ -95,7 +99,6 @@ export default function AdSlot({
 }: AdSlotProps) {
   const slotRef = useRef<HTMLElement>(null);
   const [sideRailLayout, setSideRailLayout] = useState<SideRailLayout>({ count: DEFAULT_SIDE_AD_COUNT, height: null });
-  const mobileMailto = buildMailto(code, name, placement, mobileSize);
   const hasDesktopSideRails = code === "AD-02";
 
   useEffect(() => {
@@ -211,26 +214,35 @@ export default function AdSlot({
         })}
       </div>
 
-      <a className={styles.mobileLink} href={mobileMailto}>
-        <div className={styles.heading}>
-          <span className={styles.badge}><Megaphone /> พื้นที่โฆษณา</span>
-          <span className={styles.code}>{code}</span>
-        </div>
-
-        <div className={styles.main}>
-          <span className={styles.icon}><Megaphone /></span>
-          <span className={styles.copy}>
-            <strong>{name}</strong>
-            <small>{placement} • {mobileSize} mobile</small>
-          </span>
-          <span className={styles.price}>฿2,000<small>/เดือน</small></span>
-        </div>
-
-        <div className={styles.footer}>
-          <span>พื้นที่ว่างสำหรับแบรนด์ของคุณ</span>
-          <span><Mail /> คลิกเพื่อติดต่อ: {CONTACT_EMAIL}</span>
-        </div>
-      </a>
+      <div className={styles.mobilePair} aria-label={`${name} มือถือแบ่ง 2 ช่อง 21:9`}>
+        {MOBILE_PANELS.map((panel) => {
+          const panelCode = `${code}-${panel.suffix}`;
+          return (
+            <a
+              key={panelCode}
+              className={styles.mobileCard}
+              href={buildMailto(panelCode, `${name} มือถือช่อง${panel.label}`, `${placement} • มือถือช่อง${panel.label}`, `21:9 responsive • เดิม ${mobileSize}`)}
+              title={`${panelCode} • โฆษณามือถือ 21:9`}
+            >
+              <span className={styles.mobileTop}>
+                <span><Megaphone /> AD</span>
+                <em>{panelCode}</em>
+              </span>
+              <span className={styles.mobileCenter}>
+                <span className={styles.mobileIcon}><Megaphone /></span>
+                <span>
+                  <strong>{name}</strong>
+                  <small>ช่อง{panel.label} • 21:9</small>
+                </span>
+              </span>
+              <span className={styles.mobileBottom}>
+                <strong>฿2,000<small>/เดือน</small></strong>
+                <span><Mail /> ติดต่อ</span>
+              </span>
+            </a>
+          );
+        })}
+      </div>
 
       {hasDesktopSideRails ? <SideRail side="right" count={sideRailLayout.count} height={sideRailLayout.height} /> : null}
     </section>
