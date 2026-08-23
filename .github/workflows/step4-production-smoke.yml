@@ -1,11 +1,9 @@
 name: Step 4 production smoke
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-    paths:
-      - .github/workflows/step4-production-smoke.yml
 
 permissions:
   contents: read
