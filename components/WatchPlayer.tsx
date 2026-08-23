@@ -228,8 +228,6 @@ function EmbedFrame({
   const [frameLoaded, setFrameLoaded] = useState(false);
   const loadedRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const getplayReadyRef = useRef(false);
-  const playerWatchdogRef = useRef<number | null>(null);
   const onFatalRef = useRef(onFatal);
   const isGetplayEmbed = isGetplayEmbedSource(source);
   const referrerPolicy = isGetplayEmbed
@@ -242,12 +240,7 @@ function EmbedFrame({
 
   useEffect(() => {
     loadedRef.current = false;
-    getplayReadyRef.current = false;
     setFrameLoaded(false);
-    if (playerWatchdogRef.current !== null) {
-      window.clearTimeout(playerWatchdogRef.current);
-      playerWatchdogRef.current = null;
-    }
 
     const handleMessage = (event: MessageEvent) => {
       if (!isGetplayEmbed || event.source !== iframeRef.current?.contentWindow) return;
@@ -257,14 +250,7 @@ function EmbedFrame({
       if (!payload || typeof payload !== "object" || payload.type !== "video_stat") return;
 
       const status = typeof payload.status === "string" ? payload.status.toLowerCase() : "";
-      if (GETPLAY_READY_STATUSES.has(status)) {
-        getplayReadyRef.current = true;
-        if (playerWatchdogRef.current !== null) {
-          window.clearTimeout(playerWatchdogRef.current);
-          playerWatchdogRef.current = null;
-        }
-        return;
-      }
+      if (GETPLAY_READY_STATUSES.has(status)) return;
 
       if (GETPLAY_FAILURE_STATUSES.has(status)) {
         onFatalRef.current();
@@ -278,10 +264,6 @@ function EmbedFrame({
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("message", handleMessage);
-      if (playerWatchdogRef.current !== null) {
-        window.clearTimeout(playerWatchdogRef.current);
-        playerWatchdogRef.current = null;
-      }
     };
   }, [isGetplayEmbed, source.id, source.url]);
 
@@ -305,12 +287,6 @@ function EmbedFrame({
             loadedRef.current = true;
             setFrameLoaded(true);
             onReady();
-            if (playerWatchdogRef.current !== null) {
-              window.clearTimeout(playerWatchdogRef.current);
-            }
-            playerWatchdogRef.current = window.setTimeout(() => {
-              if (!getplayReadyRef.current) onFatalRef.current();
-            }, GETPLAY_PLAYER_TIMEOUT_MS);
           }}
           onError={onFatal}
         />
