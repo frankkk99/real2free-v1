@@ -7,7 +7,7 @@ const DESKTOP_PANELS = [
   { suffix: "B", label: "กลาง" },
   { suffix: "C", label: "ขวา" },
 ] as const;
-const SIDE_AD_COUNT = 10;
+const SIDE_AD_COUNT = 6;
 
 export type AdSlotProps = {
   code: string;
