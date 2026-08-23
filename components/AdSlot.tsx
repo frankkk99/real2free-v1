@@ -36,18 +36,18 @@ function SideRail({ side }: { side: "left" | "right" }) {
   const sideCode = side === "left" ? "L" : "R";
 
   return (
-    <aside className={`${styles.sideRail} ${side === "left" ? styles.sideRailLeft : styles.sideRailRight}`} aria-label={`พื้นที่โฆษณาด้าน${sideLabel}`}>
+    <aside className={`${styles.sideRail} ${side === "left" ? styles.sideRailLeft : styles.sideRailRight}`} aria-label={`พื้นที่โฆษณาแนวตั้งด้าน${sideLabel}`}>
       {Array.from({ length: SIDE_AD_COUNT }).map((_, index) => {
         const code = `AD-${sideCode}${String(index + 1).padStart(2, "0")}`;
         return (
           <a
             key={code}
             className={styles.sideCard}
-            href={buildMailto(code, `Side Ad ${sideLabel} ${index + 1}`, `ด้าน${sideLabel}ของรายการหนัง เริ่มจากระดับ AD-02`, "16:9 responsive")}
-            title={`${code} • พื้นที่โฆษณา 16:9`}
+            href={buildMailto(code, `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`, `ด้าน${sideLabel}ของรายการหนัง เริ่มจากระดับ AD-02`, "9:16 vertical responsive")}
+            title={`${code} • พื้นที่โฆษณาแนวตั้ง 9:16`}
           >
             <span className={styles.sideTop}><small>พื้นที่โฆษณา</small><em>{code}</em></span>
-            <span className={styles.sideCenter}><Megaphone /><strong>16:9</strong><small>ด้าน{sideLabel}</small></span>
+            <span className={styles.sideCenter}><Megaphone /><strong>9:16</strong><small>แนวตั้ง • ด้าน{sideLabel}</small></span>
             <span className={styles.sidePrice}>฿2,000<small>/เดือน</small></span>
           </a>
         );
