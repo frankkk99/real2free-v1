@@ -5,12 +5,12 @@ import { getSeoCatalogPreview } from "@/lib/seo-catalog";
 export const revalidate = 600;
 
 export const metadata: Metadata = {
-  title: "หนังใหม่ 2026 ซีรีส์ใหม่ อัปเดตล่าสุด",
-  description: "รวมหนังใหม่ 2026 และซีรีส์ใหม่ที่อัปเดตล่าสุด ค้นหาตามชื่อ ประเภท คะแนน และปี พร้อมรายละเอียดเรื่องบน REAL2FREE",
+  title: "หนังใหม่ ซีรีส์ใหม่ อัปเดตล่าสุด",
+  description: "รวมหนังและซีรีส์ที่เพิ่มและอัปเดตล่าสุด เรียงตามวันที่ฉาย พร้อมรายละเอียดเรื่องบน REAL2FREE",
   alternates: { canonical: "/new" },
   openGraph: {
-    title: "หนังใหม่ 2026 ซีรีส์ใหม่ | REAL2FREE",
-    description: "รวมหนังและซีรีส์ใหม่ที่อัปเดตล่าสุด พร้อมข้อมูลก่อนรับชม",
+    title: "หนังใหม่ ซีรีส์ใหม่ อัปเดตล่าสุด | REAL2FREE",
+    description: "รวมหนังและซีรีส์ใหม่ เรียงตามวันที่ฉายและการอัปเดตล่าสุด",
     url: "/new",
     siteName: "REAL2FREE",
     locale: "th_TH",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "หนังใหม่ 2026 ซีรีส์ใหม่ | REAL2FREE",
+    title: "หนังใหม่ ซีรีส์ใหม่ | REAL2FREE",
     description: "รวมหนังและซีรีส์ใหม่ที่อัปเดตล่าสุด",
   },
 };
@@ -28,8 +28,8 @@ export default async function NewReleasesPage() {
   return (
     <SeoCategoryPage
       eyebrow="New Releases"
-      title="หนังใหม่ 2026 และซีรีส์ใหม่"
-      description="ดูรายการภาพยนตร์และซีรีส์ปีปัจจุบันที่อัปเดตล่าสุด พร้อมชื่อไทย ชื่อต้นฉบับ คะแนน ประเภท และข้อมูลจำนวนตอนสำหรับซีรีส์"
+      title="มาใหม่"
+      description="ดูภาพยนตร์และซีรีส์ที่เพิ่มล่าสุด เรียงตามวันที่ฉายล่าสุดให้ตรงกับหมวดมาใหม่บนหน้าแรก"
       items={items}
     />
   );
