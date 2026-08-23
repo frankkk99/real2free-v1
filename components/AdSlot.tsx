@@ -1,4 +1,7 @@
+"use client";
+
 import { Mail, Megaphone } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./AdSlot.module.css";
 
 const CONTACT_EMAIL = "dofree2026@gmail.com";
@@ -7,7 +10,15 @@ const DESKTOP_PANELS = [
   { suffix: "B", label: "กลาง" },
   { suffix: "C", label: "ขวา" },
 ] as const;
-const SIDE_AD_COUNT = 6;
+const DEFAULT_SIDE_AD_COUNT = 6;
+const MAX_SIDE_AD_COUNT = 20;
+const SIDE_AD_MIN_GAP = 14;
+const SIDE_AD_DESKTOP_BREAKPOINT = 1360;
+
+type SideRailLayout = {
+  count: number;
+  height: number | null;
+};
 
 export type AdSlotProps = {
   code: string;
@@ -31,19 +42,37 @@ function buildMailto(code: string, name: string, placement: string, sizeLabel: s
   return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-function SideRail({ side }: { side: "left" | "right" }) {
+function findThaiHomeSection(): HTMLElement | null {
+  const catalog = document.getElementById("catalog");
+  if (!catalog) return null;
+
+  for (const child of Array.from(catalog.children)) {
+    if (!(child instanceof HTMLElement)) continue;
+    const heading = child.querySelector("strong");
+    if (heading?.textContent?.trim() === "หนังไทย") return child;
+  }
+
+  return null;
+}
+
+function SideRail({ side, count, height }: { side: "left" | "right"; count: number; height: number | null }) {
   const sideLabel = side === "left" ? "ซ้าย" : "ขวา";
   const sideCode = side === "left" ? "L" : "R";
 
   return (
-    <aside className={`${styles.sideRail} ${side === "left" ? styles.sideRailLeft : styles.sideRailRight}`} aria-label={`พื้นที่โฆษณาแนวตั้งด้าน${sideLabel}`}>
-      {Array.from({ length: SIDE_AD_COUNT }).map((_, index) => {
+    <aside
+      className={`${styles.sideRail} ${side === "left" ? styles.sideRailLeft : styles.sideRailRight}`}
+      aria-label={`พื้นที่โฆษณาแนวตั้งด้าน${sideLabel}`}
+      data-side-rail={side}
+      style={height ? { height: `${height}px`, justifyContent: "space-between" } : undefined}
+    >
+      {Array.from({ length: count }).map((_, index) => {
         const code = `AD-${sideCode}${String(index + 1).padStart(2, "0")}`;
         return (
           <a
             key={code}
             className={styles.sideCard}
-            href={buildMailto(code, `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`, `ด้าน${sideLabel}ของรายการหนัง เริ่มจากระดับ AD-02`, "9:16 vertical responsive")}
+            href={buildMailto(code, `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`, `ด้าน${sideLabel}ของรายการหนัง ตั้งแต่ระดับ AD-02 ถึงท้ายหมวดหนังไทย`, "9:16 vertical responsive")}
             title={`${code} • พื้นที่โฆษณาแนวตั้ง 9:16`}
           >
             <span className={styles.sideTop}><small>พื้นที่โฆษณา</small><em>{code}</em></span>
@@ -64,15 +93,92 @@ export default function AdSlot({
   mobileSize,
   variant = "banner",
 }: AdSlotProps) {
+  const slotRef = useRef<HTMLElement>(null);
+  const [sideRailLayout, setSideRailLayout] = useState<SideRailLayout>({ count: DEFAULT_SIDE_AD_COUNT, height: null });
   const mobileMailto = buildMailto(code, name, placement, mobileSize);
   const hasDesktopSideRails = code === "AD-02";
 
+  useEffect(() => {
+    if (!hasDesktopSideRails) return;
+
+    let frame = 0;
+    const root = slotRef.current;
+    if (!root) return;
+
+    const setDefaultLayout = () => {
+      setSideRailLayout((current) => (
+        current.count === DEFAULT_SIDE_AD_COUNT && current.height === null
+          ? current
+          : { count: DEFAULT_SIDE_AD_COUNT, height: null }
+      ));
+    };
+
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        if (window.innerWidth < SIDE_AD_DESKTOP_BREAKPOINT) {
+          setDefaultLayout();
+          return;
+        }
+
+        const rail = root.querySelector<HTMLElement>('[data-side-rail="left"]');
+        const thaiSection = findThaiHomeSection();
+        if (!rail || !thaiSection) {
+          setDefaultLayout();
+          return;
+        }
+
+        const railRect = rail.getBoundingClientRect();
+        const thaiRect = thaiSection.getBoundingClientRect();
+        const targetHeight = Math.max(0, thaiRect.bottom - railRect.top);
+        const railWidth = railRect.width;
+        if (!targetHeight || !railWidth) return;
+
+        const cardHeight = railWidth * (16 / 9);
+        const fittedCount = Math.floor((targetHeight + SIDE_AD_MIN_GAP) / (cardHeight + SIDE_AD_MIN_GAP));
+        const count = Math.max(DEFAULT_SIDE_AD_COUNT, Math.min(MAX_SIDE_AD_COUNT, fittedCount));
+        const height = Math.round(targetHeight);
+
+        setSideRailLayout((current) => (
+          current.count === count && current.height !== null && Math.abs(current.height - height) < 2
+            ? current
+            : { count, height }
+        ));
+      });
+    };
+
+    measure();
+
+    const catalog = document.getElementById("catalog");
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    if (catalog) resizeObserver?.observe(catalog);
+
+    const mutationObserver = catalog && typeof MutationObserver !== "undefined"
+      ? new MutationObserver(measure)
+      : null;
+    mutationObserver?.observe(catalog as Node, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+
+    window.addEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", measure);
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+    };
+  }, [hasDesktopSideRails]);
+
   return (
     <section
+      ref={slotRef}
       className={`${styles.slot} ${variant === "compact" ? styles.compact : ""} ${hasDesktopSideRails ? styles.withSideRails : ""}`}
       aria-label={`พื้นที่โฆษณา ${name}`}
     >
-      {hasDesktopSideRails ? <SideRail side="left" /> : null}
+      {hasDesktopSideRails ? <SideRail side="left" count={sideRailLayout.count} height={sideRailLayout.height} /> : null}
 
       <div className={styles.desktopTriptych} aria-label={`${name} แบ่ง 3 ช่อง`}>
         {DESKTOP_PANELS.map((panel) => {
@@ -126,7 +232,7 @@ export default function AdSlot({
         </div>
       </a>
 
-      {hasDesktopSideRails ? <SideRail side="right" /> : null}
+      {hasDesktopSideRails ? <SideRail side="right" count={sideRailLayout.count} height={sideRailLayout.height} /> : null}
     </section>
   );
 }
