@@ -152,6 +152,18 @@
     padding: 0 9px;
     font-size: 10px;
   }
+
+  /* Keep the movie detail sheet above, not over, the persistent bottom nav. */
+  [class*="CatalogDetailModal_backdrop__"] {
+    z-index: 50 !important;
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+    align-items: end !important;
+    padding: 0 !important;
+  }
+
+  [class*="CatalogDetailModal_modal__"] {
+    max-height: calc(100dvh - 66px - env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
 
 @media (max-width: 560px) {
