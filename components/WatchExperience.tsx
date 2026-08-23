@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { catalogPath } from "@/lib/catalog-url";
 import {
   addStoredId,
   FAVORITES_KEY,
@@ -86,6 +87,7 @@ export default function WatchExperience({
   item: PublicCatalogItem;
   episodes: PublicEpisode[];
 }) {
+  const infoPath = catalogPath(item);
   const playableEpisodes = useMemo(
     () => episodes.filter((episode) => episode.playerCount > 0),
     [episodes],
@@ -337,9 +339,9 @@ export default function WatchExperience({
   };
 
   const shareMovie = useCallback(async () => {
-    const url = window.location.href;
+    const url = `${window.location.origin}${infoPath}`;
     const shareTitle = item.thaiTitle;
-    const shareText = "ดู" + contentTypeLabel(item.contentType) + "เรื่องนี้บน REAL2FREE";
+    const shareText = "ข้อมูล" + contentTypeLabel(item.contentType) + "เรื่องนี้บน REAL2FREE";
 
     if (navigator.share) {
       try {
@@ -371,7 +373,7 @@ export default function WatchExperience({
     } catch {
       setShareCopied(false);
     }
-  }, [item.contentType, item.thaiTitle]);
+  }, [infoPath, item.contentType, item.thaiTitle]);
 
   const seasonCount = useMemo(
     () => new Set(playableEpisodes.map((episode) => episode.seasonNumber)).size,
@@ -399,7 +401,7 @@ export default function WatchExperience({
         <RotateCcw />
         <h1>ยังเปิดหน้ารับชมไม่ได้</h1>
         <p>ยังไม่มีตอนที่พร้อมรับชม</p>
-        <Link href="/"><ArrowLeft /> กลับหน้าแรก</Link>
+        <Link href={infoPath}><ArrowLeft /> กลับหน้าข้อมูล</Link>
       </main>
     );
   }
@@ -410,7 +412,7 @@ export default function WatchExperience({
         <RotateCcw />
         <h1>ยังเปิดหน้ารับชมไม่ได้</h1>
         <p>เรื่องนี้ยังไม่มีตัวรับชมที่พร้อมใช้งาน</p>
-        <Link href="/"><ArrowLeft /> กลับหน้าแรก</Link>
+        <Link href={infoPath}><ArrowLeft /> กลับหน้าข้อมูล</Link>
       </main>
     );
   }
@@ -427,7 +429,7 @@ export default function WatchExperience({
       </div>
 
       <header className={styles.header}>
-        <Link className={styles.backButton} href="/"><ArrowLeft /><span>กลับหน้าแรก</span></Link>
+        <Link className={styles.backButton} href={infoPath}><ArrowLeft /><span>หน้าข้อมูล</span></Link>
         <Link href="/" className={styles.brandLink}><Brand /></Link>
         <button className={`${styles.favoriteButton} ${favorite ? styles.favoriteActive : ""}`} type="button" onClick={toggleFavorite}>
           <Heart fill={favorite ? "currentColor" : "none"} />
