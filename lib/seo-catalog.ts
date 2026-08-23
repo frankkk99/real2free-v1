@@ -39,9 +39,9 @@ const SMART_CATALOG_VIEW = "real2free_public_smart_cards";
 const SEO_PREVIEW_BATCH_SIZE = 100;
 const SEO_PREVIEW_MAX_ROWS = 500;
 const SITEMAP_PAGE_SIZE = 1000;
-const SITEMAP_MAX_ROWS = 2000;
+const SITEMAP_MAX_ROWS = 10000;
 const SLUG_LOOKUP_PAGE_SIZE = 500;
-const SLUG_LOOKUP_MAX_ROWS = 4000;
+const SLUG_LOOKUP_MAX_ROWS = 10000;
 
 function upstreamUrl(view: string, params: URLSearchParams) {
   return `${SUPABASE_URL}/rest/v1/${view}?${params.toString()}`;
@@ -165,16 +165,11 @@ export async function getSeoSitemapEntries(): Promise<SeoSitemapEntry[]> {
   return output;
 }
 
-export async function resolveSeoCatalogSlug(
-  slug: string,
-  expectedContentType?: "movie" | "series" | null,
+async function findSlugMatch(
+  targetSlug: string,
+  expectedContentType: "movie" | "series" | null | undefined,
+  yearFilter: number | null,
 ): Promise<SeoSlugResolution | null> {
-  const targetSlug = normalizeCatalogSlug(slug);
-  if (!targetSlug) return null;
-
-  const yearMatch = targetSlug.match(/-(\d{4})$/u);
-  const targetYear = yearMatch ? Number(yearMatch[1]) : null;
-
   for (let offset = 0; offset < SLUG_LOOKUP_MAX_ROWS; offset += SLUG_LOOKUP_PAGE_SIZE) {
     const params = new URLSearchParams({
       select: "id,content_type,title_th,title_en,year",
@@ -184,7 +179,7 @@ export async function resolveSeoCatalogSlug(
     });
 
     if (expectedContentType) params.set("content_type", `eq.${expectedContentType}`);
-    if (targetYear && targetYear >= 1900 && targetYear <= 2200) params.set("year", `eq.${targetYear}`);
+    if (yearFilter !== null) params.set("year", `eq.${yearFilter}`);
 
     const rows = await fetchRows<SeoSlugLookupRow>(SMART_CATALOG_VIEW, params, 3600);
     for (const row of rows) {
@@ -195,6 +190,7 @@ export async function resolveSeoCatalogSlug(
         title: String(row.title_en || row.title_th || "").trim(),
         year: typeof row.year === "number" ? row.year : null,
       };
+
       if (catalogSlug(candidate) === targetSlug) {
         return { id: row.id, contentType: row.content_type };
       }
@@ -204,6 +200,27 @@ export async function resolveSeoCatalogSlug(
   }
 
   return null;
+}
+
+export async function resolveSeoCatalogSlug(
+  slug: string,
+  expectedContentType?: "movie" | "series" | null,
+): Promise<SeoSlugResolution | null> {
+  const targetSlug = normalizeCatalogSlug(slug);
+  if (!targetSlug) return null;
+
+  const yearMatch = targetSlug.match(/-(\d{4})$/u);
+  const parsedYear = yearMatch ? Number(yearMatch[1]) : null;
+  const targetYear = parsedYear !== null && parsedYear >= 1900 && parsedYear <= 2200
+    ? parsedYear
+    : null;
+
+  if (targetYear !== null) {
+    const yearMatchResult = await findSlugMatch(targetSlug, expectedContentType, targetYear);
+    if (yearMatchResult) return yearMatchResult;
+  }
+
+  return findSlugMatch(targetSlug, expectedContentType, null);
 }
 
 export function absoluteCatalogUrl(item: CatalogUrlItem) {
