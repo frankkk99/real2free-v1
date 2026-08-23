@@ -21,6 +21,7 @@ import {
   type PublicCatalogRow,
 } from "@/lib/public-catalog";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import AdSlot from "./AdSlot";
 import CatalogDetailModal from "./CatalogDetailModal";
 import CatalogPosterCard from "./CatalogPosterCard";
 import homeStyles from "./MovieHomeV2.module.css";
@@ -163,6 +164,14 @@ export default function HomeBottomInfiniteFeed() {
   const visibleCount = columns * revealedRows;
   const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
   const canContinue = visibleItems.length < items.length || hasMore;
+  const cardsPerBlock = Math.max(1, columns * ROWS_PER_REVEAL);
+  const visibleBlocks = useMemo(() => {
+    const blocks: PublicCatalogItem[][] = [];
+    for (let index = 0; index < visibleItems.length; index += cardsPerBlock) {
+      blocks.push(visibleItems.slice(index, index + cardsPerBlock));
+    }
+    return blocks;
+  }, [cardsPerBlock, visibleItems]);
 
   const revealMore = useCallback(async () => {
     if (revealActiveRef.current || loading || loadingMore) return;
@@ -251,18 +260,42 @@ export default function HomeBottomInfiniteFeed() {
         <div className={styles.status}><span><LoaderCircle /> กำลังจัดรายการ...</span></div>
       ) : items.length ? (
         <>
-          <div ref={gridRef} className={homeStyles.grid}>
-            {visibleItems.map((movie) => (
-              <CatalogPosterCard
-                key={movie.id}
-                movie={movie}
-                favorite={favorites.has(movie.id)}
-                onOpen={() => void openMovie(movie)}
-                onPlay={() => goWatch(movie)}
-                onFavorite={() => toggleFavorite(movie.id)}
-                onPrefetch={() => router.prefetch(`/watch/${movie.id}`)}
-              />
-            ))}
+          <div className={styles.blocks}>
+            {visibleBlocks.map((block, blockIndex) => {
+              const adCode = `HOME-CONTINUE-${String(blockIndex + 1).padStart(2, "0")}`;
+              const showAdAfterBlock = blockIndex < visibleBlocks.length - 1;
+
+              return (
+                <div className={styles.block} key={block[0]?.id || adCode}>
+                  <div ref={blockIndex === 0 ? gridRef : undefined} className={homeStyles.grid}>
+                    {block.map((movie) => (
+                      <CatalogPosterCard
+                        key={movie.id}
+                        movie={movie}
+                        favorite={favorites.has(movie.id)}
+                        onOpen={() => void openMovie(movie)}
+                        onPlay={() => goWatch(movie)}
+                        onFavorite={() => toggleFavorite(movie.id)}
+                        onPrefetch={() => router.prefetch(`/watch/${movie.id}`)}
+                      />
+                    ))}
+                  </div>
+
+                  {showAdAfterBlock ? (
+                    <div className={styles.adBreak}>
+                      <AdSlot
+                        code={adCode}
+                        name={`เลือกดูต่อ • โฆษณาคั่นชุด ${blockIndex + 1}`}
+                        placement={`คั่นหลังการ์ดชุดที่ ${blockIndex + 1} ของหมวดเลือกดูต่อ`}
+                        desktopSize="21:9 x 3 ช่อง"
+                        mobileSize="responsive banner"
+                        variant="compact"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
 
           {canContinue || loadFailed ? (
