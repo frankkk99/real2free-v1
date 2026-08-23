@@ -187,6 +187,8 @@ export default function WatchExperience({
           method: "POST",
           cache: "no-store",
           credentials: "same-origin",
+          referrer: `/watch/${item.id}`,
+          referrerPolicy: "same-origin",
           headers: {
             "content-type": "application/json",
             "x-real2free-challenge": "1",
@@ -208,6 +210,8 @@ export default function WatchExperience({
           method: "POST",
           cache: "no-store",
           credentials: "same-origin",
+          referrer: `/watch/${item.id}`,
+          referrerPolicy: "same-origin",
           headers: {
             "content-type": "application/json",
             "x-real2free-playback": "1",
