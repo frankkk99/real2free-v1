@@ -6,13 +6,32 @@ import {
   type PublicCatalogCardRow,
   type PublicCatalogItem,
 } from "@/lib/public-catalog";
+import {
+  catalogPath,
+  catalogSlug,
+  normalizeCatalogSlug,
+  type CatalogUrlItem,
+} from "@/lib/catalog-url";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 
 export type SeoCatalogFilter = "all" | "movie" | "series" | "anime" | "new" | "popular" | "vertical" | "thai";
 
-export type SeoSitemapEntry = {
+export type SeoSitemapEntry = CatalogUrlItem & {
   id: string;
   updatedAt: string;
+};
+
+export type SeoSlugResolution = {
+  id: string;
+  contentType: "movie" | "series";
+};
+
+type SeoSlugLookupRow = {
+  id: string;
+  content_type: "movie" | "series";
+  title_th: string | null;
+  title_en: string | null;
+  year: number | null;
 };
 
 const SITE_URL = "https://www.real2free.online";
@@ -21,6 +40,8 @@ const SEO_PREVIEW_BATCH_SIZE = 100;
 const SEO_PREVIEW_MAX_ROWS = 500;
 const SITEMAP_PAGE_SIZE = 1000;
 const SITEMAP_MAX_ROWS = 2000;
+const SLUG_LOOKUP_PAGE_SIZE = 500;
+const SLUG_LOOKUP_MAX_ROWS = 4000;
 
 function upstreamUrl(view: string, params: URLSearchParams) {
   return `${SUPABASE_URL}/rest/v1/${view}?${params.toString()}`;
@@ -108,22 +129,33 @@ export async function getSeoSitemapEntries(): Promise<SeoSitemapEntry[]> {
 
   for (let offset = 0; offset < SITEMAP_MAX_ROWS; offset += SITEMAP_PAGE_SIZE) {
     const params = new URLSearchParams({
-      select: "id,updated_at",
+      select: "id,updated_at,content_type,title_th,title_en,year",
       order: "updated_at.desc",
       limit: String(SITEMAP_PAGE_SIZE),
       offset: String(offset),
     });
-    const rows = await fetchRows<Array<{ id?: string; updated_at?: string }>[number]>(
-      SMART_CATALOG_VIEW,
-      params,
-      3600,
-    );
+    const rows = await fetchRows<{
+      id?: string;
+      updated_at?: string;
+      content_type?: "movie" | "series";
+      title_th?: string | null;
+      title_en?: string | null;
+      year?: number | null;
+    }>(SMART_CATALOG_VIEW, params, 3600);
 
     for (const row of rows) {
-      if (!row.id) continue;
+      if (!row.id || (row.content_type !== "movie" && row.content_type !== "series")) continue;
+      const thaiTitle = String(row.title_th || row.title_en || "").trim();
+      const title = String(row.title_en || row.title_th || "").trim();
+      if (!thaiTitle && !title) continue;
+
       output.push({
         id: row.id,
         updatedAt: row.updated_at || new Date().toISOString(),
+        contentType: row.content_type,
+        thaiTitle: thaiTitle || title,
+        title: title || thaiTitle,
+        year: typeof row.year === "number" ? row.year : null,
       });
     }
 
@@ -133,6 +165,53 @@ export async function getSeoSitemapEntries(): Promise<SeoSitemapEntry[]> {
   return output;
 }
 
+export async function resolveSeoCatalogSlug(
+  slug: string,
+  expectedContentType?: "movie" | "series" | null,
+): Promise<SeoSlugResolution | null> {
+  const targetSlug = normalizeCatalogSlug(slug);
+  if (!targetSlug) return null;
+
+  const yearMatch = targetSlug.match(/-(\d{4})$/u);
+  const targetYear = yearMatch ? Number(yearMatch[1]) : null;
+
+  for (let offset = 0; offset < SLUG_LOOKUP_MAX_ROWS; offset += SLUG_LOOKUP_PAGE_SIZE) {
+    const params = new URLSearchParams({
+      select: "id,content_type,title_th,title_en,year",
+      order: "updated_at.desc",
+      limit: String(SLUG_LOOKUP_PAGE_SIZE),
+      offset: String(offset),
+    });
+
+    if (expectedContentType) params.set("content_type", `eq.${expectedContentType}`);
+    if (targetYear && targetYear >= 1900 && targetYear <= 2200) params.set("year", `eq.${targetYear}`);
+
+    const rows = await fetchRows<SeoSlugLookupRow>(SMART_CATALOG_VIEW, params, 3600);
+    for (const row of rows) {
+      if (!row.id || (row.content_type !== "movie" && row.content_type !== "series")) continue;
+      const candidate: CatalogUrlItem = {
+        contentType: row.content_type,
+        thaiTitle: String(row.title_th || row.title_en || "").trim(),
+        title: String(row.title_en || row.title_th || "").trim(),
+        year: typeof row.year === "number" ? row.year : null,
+      };
+      if (catalogSlug(candidate) === targetSlug) {
+        return { id: row.id, contentType: row.content_type };
+      }
+    }
+
+    if (rows.length < SLUG_LOOKUP_PAGE_SIZE) break;
+  }
+
+  return null;
+}
+
+export function absoluteCatalogUrl(item: CatalogUrlItem) {
+  return `${SITE_URL}${catalogPath(item)}`;
+}
+
+// Kept only for old links during the migration. /watch/:id permanently redirects
+// to the readable canonical URL once the title metadata has been resolved.
 export function absoluteWatchUrl(id: string) {
   return `${SITE_URL}/watch/${encodeURIComponent(id)}`;
 }
