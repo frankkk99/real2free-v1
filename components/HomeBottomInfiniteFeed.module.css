@@ -4,6 +4,24 @@
   border-top: 1px solid var(--border);
 }
 
+.blocks {
+  display: grid;
+  gap: 0;
+}
+
+.block {
+  min-width: 0;
+}
+
+.adBreak {
+  margin: 18px 0 20px;
+}
+
+.adBreak > section {
+  width: 100%;
+  margin: 0;
+}
+
 .status {
   display: grid;
   place-items: center;
@@ -37,6 +55,7 @@
 
 @media (max-width: 820px) {
   .section { margin-top: 28px; }
+  .adBreak { margin: 14px 0 16px; }
   .status { min-height: 62px; }
 }
 
