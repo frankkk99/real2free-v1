@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Prompt } from "next/font/google";
+import HomeSectionPagination from "@/components/HomeSectionPagination";
 import "./globals.css";
 import "./home-enhancements.css";
 
@@ -103,6 +104,7 @@ export default function RootLayout({
     <html lang="th" suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         {children}
+        <HomeSectionPagination />
       </body>
     </html>
   );
