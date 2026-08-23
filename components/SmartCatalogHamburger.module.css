@@ -1,0 +1,402 @@
+.trigger {
+  display: grid !important;
+  place-items: center;
+  width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 150ms ease !important;
+}
+
+.trigger:hover {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--primary-bright) !important;
+  transform: translateY(-1px);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb,var(--primary) 58%,transparent);
+  outline-offset: 2px;
+}
+
+.lines {
+  display: grid;
+  gap: 5px;
+  width: 24px;
+}
+
+.lines i {
+  display: block;
+  width: 24px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+  transition: transform 180ms ease, width 180ms ease, opacity 180ms ease;
+}
+
+.lines i:nth-child(2) {
+  width: 18px;
+  justify-self: end;
+}
+
+.triggerOpen .lines i:nth-child(2) {
+  width: 24px;
+}
+
+.panel {
+  position: absolute;
+  z-index: 98;
+  top: calc(100% + 8px);
+  right: max(12px,calc((100vw - 1460px) / 2));
+  width: min(390px,calc(100vw - 16px));
+  max-height: min(78dvh,720px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb,var(--surface-solid) 97%,transparent);
+  box-shadow: 0 26px 70px rgba(0,0,0,.28);
+  backdrop-filter: blur(20px) saturate(135%);
+  animation: menuIn 180ms cubic-bezier(.22,1,.36,1) both;
+  scrollbar-width: thin;
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1px 1px 11px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panelHead span,
+.panelHead small,
+.panelHead strong {
+  display: block;
+}
+
+.panelHead small {
+  color: var(--primary-bright);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.panelHead strong {
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.panelHead > button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+}
+
+.panelHead > button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.panelHead svg {
+  width: 16px;
+  height: 16px;
+}
+
+.menuSearch {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 9px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.menuSearch > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.menuSearch input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.menuSearch input::placeholder {
+  color: var(--muted);
+}
+
+.menuSearch button {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.menuSearch button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.menuSearch button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.quickActions {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.quickActions > button {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  cursor: pointer;
+  text-align: left;
+}
+
+.quickActions > button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.quickActions > button > svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary-bright);
+}
+
+.quickActions span,
+.quickActions strong,
+.quickActions small {
+  display: block;
+  min-width: 0;
+}
+
+.quickActions strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickActions small {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickActions b {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: white;
+  font-size: 7px;
+}
+
+.sectionLabel {
+  margin: 14px 2px 6px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.menuNav {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 5px;
+}
+
+.menuNav button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 10px;
+  text-align: left;
+}
+
+.menuNav button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.menuNav button.activeItem {
+  background: var(--primary-soft);
+  color: var(--primary-bright);
+  font-weight: 750;
+}
+
+.menuNav button i {
+  flex: 0 0 auto;
+  color: var(--primary-bright);
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.clearButton {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 9px;
+}
+
+.clearButton:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .trigger {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .lines,
+  .lines i {
+    width: 22px;
+  }
+
+  .lines i:nth-child(2) {
+    width: 17px;
+  }
+
+  .triggerOpen .lines i:nth-child(2) {
+    width: 22px;
+  }
+
+  .panel {
+    right: 8px;
+    width: min(380px,calc(100vw - 16px));
+    max-height: calc(100dvh - 74px);
+  }
+}
+
+@media (max-width: 560px) {
+  .trigger {
+    width: 35px !important;
+    height: 35px !important;
+  }
+
+  .lines,
+  .lines i {
+    width: 21px;
+  }
+
+  .lines i:nth-child(2) {
+    width: 16px;
+  }
+
+  .triggerOpen .lines i:nth-child(2) {
+    width: 21px;
+  }
+
+  .panel {
+    top: calc(100% + 2px);
+    right: 6px;
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 66px);
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .quickActions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .menuNav button {
+    min-height: 40px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger,
+  .lines i,
+  .panel {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

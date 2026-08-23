@@ -3,7 +3,6 @@
 import {
   Check,
   ChevronDown,
-  Menu,
   Moon,
   Search,
   SlidersHorizontal,
@@ -26,6 +25,7 @@ import {
 } from "@/lib/smart-catalog-search";
 import type { HomeQuickView } from "./HomeQuickFilters";
 import styles from "./SmartCatalogHeader.module.css";
+import menuStyles from "./SmartCatalogHamburger.module.css";
 
 type Theme = "dark" | "light";
 
@@ -41,6 +41,12 @@ const navItems: Array<{ value: HomeQuickView; label: string }> = [
   { value: "anime", label: "อนิเมะ" },
   { value: "new", label: "มาใหม่" },
   { value: "popular", label: "ยอดนิยม" },
+];
+
+const menuNavItems: Array<{ value: HomeQuickView; label: string }> = [
+  ...navItems,
+  { value: "favorites", label: "รายการโปรด" },
+  { value: "history", label: "ดูล่าสุด" },
 ];
 
 const typeOptions: Array<{ value: HomeQuickView; label: string }> = [
@@ -112,6 +118,7 @@ export default function SmartCatalogHeader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const parsedSearch = useMemo(() => parseSmartCatalogSearch(queryInput), [queryInput]);
   const activeViewMode = viewMode === "home" && parsedSearch.viewMode ? parsedSearch.viewMode : viewMode;
   const activeGenre = genre === "ทั้งหมด" ? parsedSearch.genre || "ทั้งหมด" : genre;
@@ -119,6 +126,9 @@ export default function SmartCatalogHeader({
   const activeCountry = country === "ทั้งหมด" ? parsedSearch.country || "ทั้งหมด" : country;
   const activeYear = year === "ทั้งหมด" ? parsedSearch.year || "ทั้งหมด" : year;
   const activeLanguage = language === "ทั้งหมด" ? parsedSearch.language || "ทั้งหมด" : language;
+
+  // Keep the legacy callback in the public component contract while the header now owns the unified menu.
+  void onOpenMenu;
 
   const suggestions = useMemo(() => {
     const needle = (parsedSearch.text || queryInput).trim().toLocaleLowerCase("th-TH");
@@ -144,17 +154,33 @@ export default function SmartCatalogHeader({
       if (!rootRef.current?.contains(event.target as Node)) {
         setSearchOpen(false);
         setFilterOpen(false);
+        setMenuOpen(false);
       }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setSearchOpen(false);
+      setFilterOpen(false);
+      setMenuOpen(false);
     };
 
     document.addEventListener("pointerdown", closeMenus);
-    return () => document.removeEventListener("pointerdown", closeMenus);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenus);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, []);
 
   const chooseSuggestion = (title: string) => {
     onQueryChange(title);
     setSearchOpen(false);
     inputRef.current?.blur();
+  };
+
+  const chooseMenuView = (value: HomeQuickView) => {
+    onViewChange(value);
+    setMenuOpen(false);
   };
 
   return (
@@ -246,11 +272,13 @@ export default function SmartCatalogHeader({
       <div className={styles.controls}>
         <div className={styles.filterWrap}>
           <button
+            id="catalog-filter-button"
             className={`${styles.filterButton} ${filterOpen || selectedFilterCount ? styles.controlActive : ""}`}
             type="button"
             onClick={() => {
               setFilterOpen((current) => !current);
               setSearchOpen(false);
+              setMenuOpen(false);
             }}
             aria-label="เปิดตัวกรองละเอียด"
             aria-expanded={filterOpen}
@@ -358,9 +386,93 @@ export default function SmartCatalogHeader({
         </button>
       </div>
 
-      <button className={styles.menuButton} type="button" onClick={onOpenMenu} aria-label="เปิดเมนู">
-        <Menu />
+      <button
+        className={`${styles.menuButton} ${menuStyles.trigger} ${menuOpen ? menuStyles.triggerOpen : ""}`}
+        type="button"
+        onClick={() => {
+          setMenuOpen((current) => !current);
+          setSearchOpen(false);
+          setFilterOpen(false);
+        }}
+        aria-label={menuOpen ? "ปิดเมนู" : "เปิดเมนูทั้งหมด"}
+        aria-expanded={menuOpen}
+        aria-controls="catalog-universal-menu"
+      >
+        <span className={menuStyles.lines} aria-hidden="true"><i /><i /><i /></span>
       </button>
+
+      {menuOpen ? (
+        <section id="catalog-universal-menu" className={menuStyles.panel} aria-label="เมนูทั้งหมด">
+          <div className={menuStyles.panelHead}>
+            <span><small>REAL2FREE</small><strong>เมนูทั้งหมด</strong></span>
+            <button type="button" onClick={() => setMenuOpen(false)} aria-label="ปิดเมนู"><X /></button>
+          </div>
+
+          <label className={menuStyles.menuSearch}>
+            <Search />
+            <input
+              value={queryInput}
+              onChange={(event) => onQueryChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  setMenuOpen(false);
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="ค้นหาหนัง ซีรีส์ อนิเมะ"
+              autoComplete="off"
+            />
+            {queryInput ? <button type="button" onClick={() => onQueryChange("")} aria-label="ล้างคำค้น"><X /></button> : null}
+          </label>
+
+          <div className={menuStyles.quickActions}>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setFilterOpen(true);
+              }}
+            >
+              <SlidersHorizontal />
+              <span><strong>ตัวกรองละเอียด</strong><small>{selectedFilterCount ? `เลือกอยู่ ${selectedFilterCount} รายการ` : "ประเภท • ปี • แนว • ภาษา"}</small></span>
+              {selectedFilterCount ? <b>{selectedFilterCount}</b> : null}
+            </button>
+
+            <button type="button" onClick={onToggleTheme}>
+              {theme === "dark" ? <Sun /> : <Moon />}
+              <span><strong>{theme === "dark" ? "โหมดสว่าง" : "โหมดมืด"}</strong><small>สลับธีมหน้าเว็บ</small></span>
+            </button>
+          </div>
+
+          <div className={menuStyles.sectionLabel}>ไปที่</div>
+          <nav className={menuStyles.menuNav} aria-label="ทางลัดทั้งหมด">
+            {menuNavItems.map((item) => (
+              <button
+                key={item.value}
+                className={activeViewMode === item.value ? menuStyles.activeItem : ""}
+                type="button"
+                onClick={() => chooseMenuView(item.value)}
+              >
+                <span>{item.label}</span>
+                {activeViewMode === item.value ? <i>กำลังดู</i> : null}
+              </button>
+            ))}
+          </nav>
+
+          {selectedFilterCount ? (
+            <button
+              className={menuStyles.clearButton}
+              type="button"
+              onClick={() => {
+                onClearFilters();
+                setMenuOpen(false);
+              }}
+            >
+              ล้างการค้นหาและตัวกรองทั้งหมด
+            </button>
+          ) : null}
+        </section>
+      ) : null}
     </header>
   );
 }
