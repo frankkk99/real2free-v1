@@ -33,7 +33,12 @@ function trustedWatchRequest(request: NextRequest): boolean {
 
   try {
     const refererUrl = new URL(referer);
-    return refererUrl.origin === request.nextUrl.origin && refererUrl.pathname.startsWith("/watch/");
+    if (refererUrl.origin !== request.nextUrl.origin) return false;
+
+    const pathname = refererUrl.pathname;
+    return pathname.startsWith("/watch/")
+      || pathname.startsWith("/movie/")
+      || pathname.startsWith("/series/");
   } catch {
     return false;
   }
