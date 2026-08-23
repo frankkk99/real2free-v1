@@ -24,13 +24,14 @@ export const metadata: Metadata = {
 };
 
 export default async function MoviesPage() {
-  const items = await getSeoCatalogPreview(72, "movie").catch(() => []);
+  const items = await getSeoCatalogPreview(30, "movie").catch(() => []);
   return (
     <SeoCategoryPage
       eyebrow="Movies"
       title="ดูหนังออนไลน์และหนังใหม่"
       description="เลือกดูข้อมูลภาพยนตร์จากชื่อไทย ชื่อต้นฉบับ ปีที่ฉาย คะแนน และประเภทเรื่อง รวมหนังใหม่และหนังน่าดูที่อัปเดตในระบบล่าสุด"
       items={items}
+      filter="movie"
     />
   );
 }

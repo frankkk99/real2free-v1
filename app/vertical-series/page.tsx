@@ -19,13 +19,14 @@ export const metadata: Metadata = {
 };
 
 export default async function VerticalSeriesPage() {
-  const items = await getSeoCatalogPreview(100, "vertical").catch(() => []);
+  const items = await getSeoCatalogPreview(30, "vertical").catch(() => []);
   return (
     <SeoCategoryPage
       eyebrow="Vertical Series"
       title="ซีรีส์แนวตั้ง"
       description="ดูซีรีส์แนวตั้งสัดส่วน 9:16 ที่มีในระบบ เรียงจากรายการอัปเดตล่าสุด"
       items={items}
+      filter="vertical"
     />
   );
 }

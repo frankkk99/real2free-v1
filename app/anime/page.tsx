@@ -24,13 +24,14 @@ export const metadata: Metadata = {
 };
 
 export default async function AnimePage() {
-  const items = await getSeoCatalogPreview(72, "anime").catch(() => []);
+  const items = await getSeoCatalogPreview(30, "anime").catch(() => []);
   return (
     <SeoCategoryPage
       eyebrow="Anime & Animation"
       title="ดูอนิเมะออนไลน์และแอนิเมชัน"
       description="รวมอนิเมะและภาพยนตร์แอนิเมชันที่ค้นหาได้จากชื่อ ปี คะแนน และประเภท พร้อมรายละเอียดก่อนเปิดหน้ารับชม"
       items={items}
+      filter="anime"
     />
   );
 }

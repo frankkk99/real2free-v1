@@ -19,13 +19,14 @@ export const metadata: Metadata = {
 };
 
 export default async function ThaiMoviesPage() {
-  const items = await getSeoCatalogPreview(100, "thai").catch(() => []);
+  const items = await getSeoCatalogPreview(30, "thai").catch(() => []);
   return (
     <SeoCategoryPage
       eyebrow="Thai Movies"
       title="หนังไทย"
       description="ดูภาพยนตร์ไทยทั้งหมดที่มีในระบบ เรียงจากปีฉายและรายการอัปเดตล่าสุด"
       items={items}
+      filter="thai"
     />
   );
 }

@@ -24,13 +24,14 @@ export const metadata: Metadata = {
 };
 
 export default async function NewReleasesPage() {
-  const items = await getSeoCatalogPreview(72, "new").catch(() => []);
+  const items = await getSeoCatalogPreview(30, "new").catch(() => []);
   return (
     <SeoCategoryPage
       eyebrow="New Releases"
       title="มาใหม่"
       description="ดูภาพยนตร์และซีรีส์ที่เพิ่มล่าสุด เรียงตามวันที่ฉายล่าสุดให้ตรงกับหมวดมาใหม่บนหน้าแรก"
       items={items}
+      filter="new"
     />
   );
 }

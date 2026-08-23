@@ -24,13 +24,14 @@ export const metadata: Metadata = {
 };
 
 export default async function SeriesPage() {
-  const items = await getSeoCatalogPreview(72, "series").catch(() => []);
+  const items = await getSeoCatalogPreview(30, "series").catch(() => []);
   return (
     <SeoCategoryPage
       eyebrow="Series"
       title="ดูซีรีส์ออนไลน์และซีรีส์ใหม่"
       description="ค้นหาซีรีส์จากชื่อไทย ชื่อต้นฉบับ ปีที่ฉาย ประเภท จำนวนซีซัน และจำนวนตอน พร้อมรายการที่มีการอัปเดตล่าสุดในระบบ"
       items={items}
+      filter="series"
     />
   );
 }
