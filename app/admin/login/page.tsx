@@ -1,14 +1,15 @@
 "use client";
 
-import { Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, Play } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle, LockKeyhole, Play } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+const ADMIN_EMAIL = "dofree2026@gmail.com";
+
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,12 +28,12 @@ export default function AdminLoginPage() {
     setError("");
     const supabase = getSupabaseBrowserClient();
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: ADMIN_EMAIL,
       password,
     });
 
     if (signInError || !data.user) {
-      setError(signInError?.message || "เข้าสู่ระบบไม่สำเร็จ");
+      setError("รหัสผู้ดูแลไม่ถูกต้อง");
       setLoading(false);
       return;
     }
@@ -82,19 +83,22 @@ export default function AdminLoginPage() {
           <div className="adminLoginHeading">
             <span>REAL2FREE BACK OFFICE</span>
             <h2>เข้าสู่ระบบผู้ดูแล</h2>
-            <p>ใช้บัญชี Admin ที่อยู่ใน Supabase</p>
+            <p>ใส่รหัสผู้ดูแลเพียงอย่างเดียว</p>
           </div>
 
           <label className="adminField">
-            <span>อีเมล</span>
-            <div><Mail /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required placeholder="admin@example.com" /></div>
-          </label>
-
-          <label className="adminField">
-            <span>รหัสผ่าน</span>
+            <span>รหัสผู้ดูแล</span>
             <div>
               <LockKeyhole />
-              <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required placeholder="••••••••" />
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                autoFocus
+                required
+                placeholder="กรอกรหัสผู้ดูแล"
+              />
               <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label="แสดงหรือซ่อนรหัสผ่าน">
                 {showPassword ? <EyeOff /> : <Eye />}
               </button>
