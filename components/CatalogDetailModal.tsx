@@ -3,6 +3,7 @@
 import {
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronRight,
   Clock3,
   Film,
@@ -15,7 +16,8 @@ import {
   X,
   Youtube,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   playerAvailabilityLabels,
   runtimeLabel,
@@ -26,6 +28,18 @@ import styles from "./CatalogDetailModal.module.css";
 type TrailerRow = {
   trailer_url: string | null;
 };
+
+type DragState = {
+  pointerId: number;
+  startY: number;
+  lastY: number;
+  lastAt: number;
+  currentY: number;
+  velocity: number;
+};
+
+const CLOSE_DURATION_MS = 280;
+const SNAP_DURATION_MS = 360;
 
 function releaseLabel(value: string | null, year: number | null) {
   if (!value) return year ? String(year) : "ไม่ระบุ";
@@ -108,19 +122,175 @@ export default function CatalogDetailModal({
   const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
   const [trailerLoading, setTrailerLoading] = useState(true);
   const [shareDone, setShareDone] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const modalRef = useRef<HTMLElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const snapTimerRef = useRef<number | null>(null);
+  const closingRef = useRef(false);
+  const dragRef = useRef<DragState>({
+    pointerId: -1,
+    startY: 0,
+    lastY: 0,
+    lastAt: 0,
+    currentY: 0,
+    velocity: 0,
+  });
   const trailerEmbed = useMemo(() => youtubeEmbedUrl(trailerUrl), [trailerUrl]);
   const badges = formatBadges(movie);
   const durationValue = movie.contentType === "series"
     ? `${movie.episodeCount.toLocaleString("th-TH")} ตอน`
     : runtimeLabel(movie.runtime) || "ไม่ระบุ";
 
+  const setSheetPosition = useCallback((y: number) => {
+    const clampedY = Math.max(0, y);
+    modalRef.current?.style.setProperty("--sheet-drag-y", `${clampedY}px`);
+
+    const fadeProgress = Math.min(clampedY / 420, 1);
+    const backdropAlpha = Math.max(0.18, 0.78 - (fadeProgress * 0.56));
+    backdropRef.current?.style.setProperty("--sheet-backdrop-alpha", backdropAlpha.toFixed(3));
+  }, []);
+
+  const clearMotionTimers = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    if (snapTimerRef.current !== null) {
+      window.clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = null;
+    }
+  }, []);
+
+  const closeWithMotion = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    setDragging(false);
+    clearMotionTimers();
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      onClose();
+      return;
+    }
+
+    const modal = modalRef.current;
+    if (!modal) {
+      onClose();
+      return;
+    }
+
+    modal.style.animation = "none";
+    modal.style.transition = `transform ${CLOSE_DURATION_MS}ms cubic-bezier(.32,.72,0,1)`;
+    backdropRef.current?.style.setProperty("--sheet-backdrop-alpha", "0");
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setSheetPosition(Math.max(window.innerHeight, modal.offsetHeight + 120));
+      });
+    });
+
+    closeTimerRef.current = window.setTimeout(onClose, CLOSE_DURATION_MS + 30);
+  }, [clearMotionTimers, onClose, setSheetPosition]);
+
+  const snapSheetBack = useCallback(() => {
+    const modal = modalRef.current;
+    setDragging(false);
+    dragRef.current.pointerId = -1;
+
+    if (!modal) return;
+    modal.style.animation = "none";
+    modal.style.transition = `transform ${SNAP_DURATION_MS}ms cubic-bezier(.2,.88,.24,1)`;
+    setSheetPosition(0);
+    backdropRef.current?.style.setProperty("--sheet-backdrop-alpha", "0.78");
+
+    if (snapTimerRef.current !== null) window.clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = window.setTimeout(() => {
+      modal.style.removeProperty("transition");
+      snapTimerRef.current = null;
+    }, SNAP_DURATION_MS + 20);
+  }, [setSheetPosition]);
+
+  const startSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (closingRef.current) return;
+    if (!window.matchMedia("(max-width: 820px)").matches) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    clearMotionTimers();
+    const now = performance.now();
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      lastY: event.clientY,
+      lastAt: now,
+      currentY: 0,
+      velocity: 0,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const modal = modalRef.current;
+    if (modal) {
+      modal.style.animation = "none";
+      modal.style.transition = "none";
+    }
+    setDragging(true);
+  };
+
+  const moveSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (drag.pointerId !== event.pointerId || closingRef.current) return;
+
+    const now = performance.now();
+    const elapsed = Math.max(1, now - drag.lastAt);
+    const deltaSinceLast = event.clientY - drag.lastY;
+    drag.velocity = deltaSinceLast / elapsed;
+    drag.lastY = event.clientY;
+    drag.lastAt = now;
+    drag.currentY = Math.max(0, event.clientY - drag.startY);
+    setSheetPosition(drag.currentY);
+  };
+
+  const finishSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (drag.pointerId !== event.pointerId) return;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    const modalHeight = modalRef.current?.offsetHeight || window.innerHeight;
+    const distanceThreshold = Math.min(170, modalHeight * 0.22);
+    const fastFlick = drag.currentY > 34 && drag.velocity > 0.62;
+    const farEnough = drag.currentY >= distanceThreshold;
+
+    drag.pointerId = -1;
+    if (farEnough || fastFlick) closeWithMotion();
+    else snapSheetBack();
+  };
+
+  const cancelSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragRef.current.pointerId !== event.pointerId) return;
+    dragRef.current.pointerId = -1;
+    snapSheetBack();
+  };
+
+  useEffect(() => {
+    closingRef.current = false;
+    setClosing(false);
+    setDragging(false);
+    setSheetPosition(0);
+
+    return clearMotionTimers;
+  }, [clearMotionTimers, movie.id, setSheetPosition]);
+
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") closeWithMotion();
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
+  }, [closeWithMotion]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -186,13 +356,31 @@ export default function CatalogDetailModal({
     }
   };
 
+  const modalClassName = [
+    styles.modal,
+    dragging ? styles.modalDragging : "",
+    closing ? styles.modalClosing : "",
+  ].filter(Boolean).join(" ");
+
   return (
-    <div className={styles.backdrop} role="presentation" onMouseDown={onClose}>
-      <section className={styles.modal} role="dialog" aria-modal="true" aria-label={`ข้อมูล ${movie.thaiTitle}`} onMouseDown={(event) => event.stopPropagation()}>
+    <div ref={backdropRef} className={styles.backdrop} role="presentation" onMouseDown={closeWithMotion}>
+      <section ref={modalRef} className={modalClassName} role="dialog" aria-modal="true" aria-label={`ข้อมูล ${movie.thaiTitle}`} onMouseDown={(event) => event.stopPropagation()}>
+        <div
+          className={styles.dragAffordance}
+          onPointerDown={startSwipe}
+          onPointerMove={moveSwipe}
+          onPointerUp={finishSwipe}
+          onPointerCancel={cancelSwipe}
+          aria-hidden="true"
+        >
+          <span className={styles.dragGrip} />
+          <ChevronDown />
+        </div>
+
         <div className={styles.hero}>
           {movie.backdropUrl ? <img src={movie.backdropUrl} alt="" referrerPolicy="no-referrer" /> : null}
           <span className={styles.heroShade} />
-          <button className={styles.close} type="button" onClick={onClose} aria-label="ปิด"><X /></button>
+          <button className={styles.close} type="button" onClick={closeWithMotion} aria-label="ปิด"><X /></button>
 
           <div className={styles.heroContent}>
             <h2>{movie.thaiTitle}</h2>
