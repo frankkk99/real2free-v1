@@ -7,8 +7,7 @@ export type CatalogUrlItem = Pick<
 
 function cleanSlugPart(value: string) {
   return value
-    .normalize("NFKD")
-    .replace(/\p{Mark}+/gu, "")
+    .normalize("NFKC")
     .toLocaleLowerCase("en-US")
     .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
     .replace(/^-+|-+$/gu, "")
