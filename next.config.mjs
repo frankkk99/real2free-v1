@@ -28,23 +28,12 @@ const watchHeaders = [
   { key: "Content-Security-Policy", value: watchContentSecurityPolicy },
   { key: "Referrer-Policy", value: "same-origin" },
   { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Robots-Tag", value: "noindex, follow, nosnippet" },
 ];
 
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  async rewrites() {
-    return [
-      {
-        source: "/movie/:slug",
-        destination: "/watch/:slug?seoType=movie",
-      },
-      {
-        source: "/series/:slug",
-        destination: "/watch/:slug?seoType=series",
-      },
-    ];
-  },
   async headers() {
     return [
       {
@@ -53,14 +42,6 @@ const nextConfig = {
       },
       {
         source: "/watch/:path*",
-        headers: watchHeaders,
-      },
-      {
-        source: "/movie/:slug",
-        headers: watchHeaders,
-      },
-      {
-        source: "/series/:slug",
         headers: watchHeaders,
       },
       {
