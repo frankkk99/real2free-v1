@@ -8,7 +8,7 @@ import {
 } from "@/lib/public-catalog";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 
-export type SeoCatalogFilter = "all" | "movie" | "series" | "anime" | "new" | "popular";
+export type SeoCatalogFilter = "all" | "movie" | "series" | "anime" | "new" | "popular" | "vertical" | "thai";
 
 export type SeoSitemapEntry = {
   id: string;
@@ -55,6 +55,12 @@ function catalogParams(limit: number, filter: SeoCatalogFilter) {
     params.set("year", `eq.${new Date().getUTCFullYear()}`);
   } else if (filter === "popular") {
     params.set("rating", "gte.6");
+  } else if (filter === "vertical") {
+    params.set("content_type", "eq.series");
+    params.set("is_vertical", "eq.true");
+  } else if (filter === "thai") {
+    params.set("content_type", "eq.movie");
+    params.set("is_thai", "eq.true");
   }
 
   return params;
@@ -64,8 +70,11 @@ export async function getSeoCatalogPreview(
   limit = 24,
   filter: SeoCatalogFilter = "all",
 ): Promise<PublicCatalogItem[]> {
+  const view = filter === "vertical" || filter === "thai"
+    ? "real2free_public_smart_cards"
+    : "real2free_public_cards";
   const rows = await fetchRows<PublicCatalogCardRow>(
-    "real2free_public_cards",
+    view,
     catalogParams(limit, filter),
     600,
   );
