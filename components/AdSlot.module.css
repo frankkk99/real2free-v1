@@ -149,149 +149,158 @@
   font-weight: 700;
 }
 
-.mobileLink {
+.mobilePair {
   display: none;
-  padding: 10px 13px 9px;
-  border: 1px dashed color-mix(in srgb, var(--primary) 42%, var(--border));
-  border-radius: 14px;
+}
+
+.mobileCard {
+  display: flex;
+  aspect-ratio: 21 / 9;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 7px 8px 6px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 44%, var(--border));
+  border-radius: 12px;
   background:
-    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 28%),
-    color-mix(in srgb, var(--surface) 94%, var(--primary-soft));
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 36%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 96%, var(--primary-soft)), var(--surface));
+  box-shadow: var(--shadow-soft);
   color: var(--text);
   text-decoration: none;
   transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
 }
 
-.mobileLink:hover {
-  border-color: var(--primary-bright);
-  background: color-mix(in srgb, var(--surface-hover) 94%, var(--primary-soft));
-  transform: translateY(-1px);
+.mobileCard:active {
+  transform: scale(.985);
 }
 
-.heading,
-.main,
-.footer {
+.mobileTop,
+.mobileCenter,
+.mobileBottom {
   display: flex;
   align-items: center;
 }
 
-.heading {
+.mobileTop {
   justify-content: space-between;
-  gap: 8px;
-  min-height: 14px;
-}
-
-.badge,
-.code {
-  color: var(--muted);
-  font-size: 7px;
-  font-weight: 800;
-  letter-spacing: .07em;
+  gap: 5px;
+  min-width: 0;
+  color: var(--primary-bright);
+  font-size: 5.5px;
+  font-weight: 850;
+  letter-spacing: .06em;
   text-transform: uppercase;
 }
 
-.badge {
+.mobileTop > span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--primary-bright);
+  gap: 3px;
 }
 
-.badge svg,
-.footer svg {
-  width: 10px;
-  height: 10px;
+.mobileTop svg {
+  width: 8px;
+  height: 8px;
 }
 
-.main {
-  gap: 9px;
-  margin-top: 5px;
+.mobileTop em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 5px;
+  font-style: normal;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.icon {
+.mobileCenter {
+  gap: 6px;
+  min-width: 0;
+}
+
+.mobileIcon {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 23px;
+  height: 23px;
+  border-radius: 7px;
   background: var(--primary-soft);
   color: var(--primary-bright);
 }
 
-.icon svg {
-  width: 15px;
-  height: 15px;
+.mobileIcon svg {
+  width: 12px;
+  height: 12px;
 }
 
-.copy {
+.mobileCenter > span:last-child {
   display: grid;
   min-width: 0;
   gap: 1px;
 }
 
-.copy strong {
+.mobileCenter strong,
+.mobileCenter small {
   overflow: hidden;
-  font-size: 12px;
-  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.copy small,
-.footer {
+.mobileCenter strong {
+  font-size: 8.5px;
+  line-height: 1.15;
+}
+
+.mobileCenter small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 5.7px;
 }
 
-.copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.mobileBottom {
+  justify-content: space-between;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
 }
 
-.price {
+.mobileBottom > strong {
   display: inline-flex;
   align-items: baseline;
-  gap: 2px;
-  margin-left: auto;
+  gap: 1px;
   color: var(--primary-bright);
-  font-size: 14px;
-  font-weight: 850;
+  font-size: 9.5px;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.price small {
+.mobileBottom > strong small {
   color: var(--muted-strong);
-  font-size: 7px;
+  font-size: 4.8px;
   font-weight: 700;
 }
 
-.footer {
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 6px;
-  padding-top: 5px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  line-height: 1.2;
-}
-
-.footer span:last-child {
+.mobileBottom > span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: var(--primary-bright);
+  gap: 2px;
+  color: var(--muted);
+  font-size: 5.3px;
   font-weight: 750;
-  text-align: right;
+  white-space: nowrap;
+}
+
+.mobileBottom svg {
+  width: 7px;
+  height: 7px;
 }
 
 .compact {
   margin-top: 12px;
   margin-bottom: 12px;
-}
-
-.compact .mobileLink {
-  padding-block: 8px;
 }
 
 .sideRail {
@@ -471,8 +480,10 @@
     display: none;
   }
 
-  .mobileLink {
-    display: block;
+  .mobilePair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 }
 
@@ -481,87 +492,48 @@
     margin: 10px auto;
   }
 
-  .mobileLink {
-    padding: 7px 9px 7px;
-    border-radius: 11px;
+  .mobilePair {
+    gap: 6px;
   }
 
-  .heading {
-    min-height: 11px;
+  .mobileCard {
+    padding: 6px 7px 5px;
+    border-radius: 10px;
   }
 
-  .badge,
-  .code {
-    font-size: 6px;
+  .mobileIcon {
+    width: 21px;
+    height: 21px;
+    border-radius: 6px;
   }
 
-  .badge svg {
-    width: 9px;
-    height: 9px;
+  .mobileIcon svg {
+    width: 11px;
+    height: 11px;
   }
 
-  .main {
-    gap: 7px;
-    margin-top: 4px;
+  .mobileCenter strong {
+    font-size: 8px;
   }
 
-  .icon {
-    width: 27px;
-    height: 27px;
-    border-radius: 8px;
+  .mobileCenter small {
+    font-size: 5.3px;
   }
 
-  .icon svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .copy strong {
-    font-size: 10.5px;
-  }
-
-  .copy small {
-    font-size: 6.5px;
-  }
-
-  .price {
-    font-size: 12px;
-  }
-
-  .price small {
-    font-size: 6px;
-  }
-
-  .footer {
-    justify-content: flex-end;
-    margin-top: 4px;
-    padding-top: 4px;
-    font-size: 6.5px;
-  }
-
-  .footer > span:first-child {
-    display: none;
-  }
-
-  .footer span:last-child {
-    max-width: 100%;
-    overflow: hidden;
-    text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .footer svg {
-    width: 9px;
-    height: 9px;
+  .mobileBottom > strong {
+    font-size: 9px;
   }
 
   .compact {
     margin-top: 9px;
     margin-bottom: 9px;
   }
+}
 
-  .compact .mobileLink {
-    padding-block: 6px;
+@media (prefers-reduced-motion: reduce) {
+  .desktopCard,
+  .mobileCard,
+  .sideCard {
+    transition: none;
   }
 }
