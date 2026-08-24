@@ -18,6 +18,15 @@ const DEFAULT_SIDE_AD_COUNT = 6;
 const MAX_SIDE_AD_COUNT = 20;
 const SIDE_AD_MIN_GAP = 14;
 const SIDE_AD_DESKTOP_BREAKPOINT = 1360;
+const SIDE_AD_PRICE = 2_000;
+
+const AD_PRICING: Record<string, { desktop: number; mobile: number }> = {
+  "AD-01": { desktop: 20_000, mobile: 10_000 },
+  "AD-02": { desktop: 10_000, mobile: 5_000 },
+  "AD-03": { desktop: 5_000, mobile: 2_000 },
+  "AD-04": { desktop: 5_000, mobile: 2_000 },
+  "AD-05": { desktop: 2_000, mobile: 2_000 },
+};
 
 type SideRailLayout = {
   count: number;
@@ -33,14 +42,22 @@ export type AdSlotProps = {
   variant?: "banner" | "compact";
 };
 
-function buildMailto(code: string, name: string, placement: string, sizeLabel: string) {
+function getAdPrice(code: string, device: "desktop" | "mobile") {
+  return AD_PRICING[code]?.[device] ?? 2_000;
+}
+
+function formatAdPrice(price: number) {
+  return price.toLocaleString("en-US");
+}
+
+function buildMailto(code: string, name: string, placement: string, sizeLabel: string, price: number) {
   const subject = `สนใจลงโฆษณา ${code} - REAL2FREE`;
   const body = [
     `สนใจจองพื้นที่โฆษณา: ${name}`,
     `รหัสตำแหน่ง: ${code}`,
     `ตำแหน่ง: ${placement}`,
     `สัดส่วน/ขนาด: ${sizeLabel}`,
-    "ราคา: 2,000 บาท/เดือน",
+    `ราคา: ${formatAdPrice(price)} บาท/เดือน`,
     "รบกวนแจ้งรายละเอียดและวันที่เริ่มลงโฆษณากลับด้วยครับ",
   ].join("\n");
   return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -76,12 +93,18 @@ function SideRail({ side, count, height }: { side: "left" | "right"; count: numb
           <a
             key={railCode}
             className={styles.sideCard}
-            href={buildMailto(railCode, `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`, `ด้าน${sideLabel}ของรายการหนัง ตั้งแต่ระดับ AD-02 ถึงท้ายหมวดหนังไทย`, "9:16 vertical responsive")}
+            href={buildMailto(
+              railCode,
+              `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`,
+              `ด้าน${sideLabel}ของรายการหนัง ตั้งแต่ระดับ AD-02 ถึงท้ายหมวดหนังไทย`,
+              "9:16 vertical responsive",
+              SIDE_AD_PRICE,
+            )}
             title={`${railCode} • พื้นที่โฆษณาแนวตั้ง 9:16`}
           >
             <span className={styles.sideTop}><small>พื้นที่โฆษณา</small><em>{railCode}</em></span>
             <span className={styles.sideCenter}><Megaphone /><strong>9:16</strong><small>แนวตั้ง • ด้าน{sideLabel}</small></span>
-            <span className={styles.sidePrice}>฿2,000<small>/เดือน</small></span>
+            <span className={styles.sidePrice}>฿{formatAdPrice(SIDE_AD_PRICE)}<small>/เดือน</small></span>
           </a>
         );
       })}
@@ -100,6 +123,8 @@ export default function AdSlot({
   const slotRef = useRef<HTMLElement>(null);
   const [sideRailLayout, setSideRailLayout] = useState<SideRailLayout>({ count: DEFAULT_SIDE_AD_COUNT, height: null });
   const hasDesktopSideRails = code === "AD-02";
+  const desktopPrice = getAdPrice(code, "desktop");
+  const mobilePrice = getAdPrice(code, "mobile");
 
   useEffect(() => {
     if (!hasDesktopSideRails) return;
@@ -190,7 +215,13 @@ export default function AdSlot({
             <a
               key={panelCode}
               className={styles.desktopCard}
-              href={buildMailto(panelCode, `${name} ช่อง${panel.label}`, `${placement} • ช่อง${panel.label}`, `21:9 responsive • อ้างอิงเดิม ${desktopSize}`)}
+              href={buildMailto(
+                panelCode,
+                `${name} ช่อง${panel.label}`,
+                `${placement} • ช่อง${panel.label}`,
+                `21:9 responsive • อ้างอิงเดิม ${desktopSize}`,
+                desktopPrice,
+              )}
             >
               <span className={styles.desktopTop}>
                 <span><Megaphone /> พื้นที่โฆษณา</span>
@@ -207,7 +238,7 @@ export default function AdSlot({
 
               <span className={styles.desktopBottom}>
                 <small>{placement}</small>
-                <span className={styles.desktopPrice}>฿2,000<small>/เดือน</small></span>
+                <span className={styles.desktopPrice}>฿{formatAdPrice(desktopPrice)}<small>/เดือน</small></span>
               </span>
             </a>
           );
@@ -221,7 +252,13 @@ export default function AdSlot({
             <a
               key={panelCode}
               className={styles.mobileCard}
-              href={buildMailto(panelCode, `${name} มือถือช่อง${panel.label}`, `${placement} • มือถือช่อง${panel.label}`, `21:9 responsive • เดิม ${mobileSize}`)}
+              href={buildMailto(
+                panelCode,
+                `${name} มือถือช่อง${panel.label}`,
+                `${placement} • มือถือช่อง${panel.label}`,
+                `21:9 responsive • เดิม ${mobileSize}`,
+                mobilePrice,
+              )}
               title={`${panelCode} • โฆษณามือถือ 21:9`}
             >
               <span className={styles.mobileTop}>
@@ -236,7 +273,7 @@ export default function AdSlot({
                 </span>
               </span>
               <span className={styles.mobileBottom}>
-                <strong>฿2,000<small>/เดือน</small></strong>
+                <strong>฿{formatAdPrice(mobilePrice)}<small>/เดือน</small></strong>
                 <span><Mail /> ติดต่อ</span>
               </span>
             </a>
