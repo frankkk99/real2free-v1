@@ -1,0 +1,107 @@
+name: Production security smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verify production security and playback flow
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="https://www.real2free.online"
+          TITLE_ID="4f957498-3ef1-419c-baab-ea1f1e409303"
+          SLUG="spider-man-brand-new-day-2026"
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+
+          echo "[1/7] Info and watch pages"
+          test "$(curl --fail-with-body -sS -D "$TMP/info.h" -o "$TMP/info.html" -w '%{http_code}' "$BASE/movie/$SLUG")" = "200"
+          test "$(curl --fail-with-body -sS -D "$TMP/watch.h" -o "$TMP/watch.html" -w '%{http_code}' "$BASE/watch/$TITLE_ID")" = "200"
+          grep -Eiq '^strict-transport-security:.*max-age=31536000' "$TMP/watch.h"
+          grep -Eiq '^origin-agent-cluster:[[:space:]]*\?1' "$TMP/watch.h"
+          grep -Eiq '^cache-control:.*no-store' "$TMP/watch.h"
+          grep -Eiq '^x-robots-tag:.*noindex' "$TMP/watch.h"
+
+          echo "[2/7] Source-map exposure"
+          chunk=$(grep -oE 'src="[^"]+\.js[^\"]*"' "$TMP/watch.html" | head -n 1 | sed -E 's/^src="//; s/"$//')
+          test -n "$chunk"
+          curl --fail-with-body -sS "$BASE$chunk" -o "$TMP/chunk.js"
+          if grep -Fq 'sourceMappingURL=' "$TMP/chunk.js"; then
+            echo "Unexpected browser sourceMappingURL exposed" >&2
+            exit 1
+          fi
+
+          echo "[3/7] Reject navigation-shaped challenge"
+          blocked_status=$(curl -sS -o "$TMP/blocked.json" -w '%{http_code}' \
+            -X POST "$BASE/api/playback/challenge" \
+            -H "Origin: $BASE" \
+            -H "Referer: $BASE/watch/$TITLE_ID" \
+            -H 'Sec-Fetch-Site: same-origin' \
+            -H 'Sec-Fetch-Mode: navigate' \
+            -H 'Sec-Fetch-Dest: document' \
+            -H 'Content-Type: application/json' \
+            -H 'x-real2free-challenge: 1' \
+            --data "{\"titleId\":\"$TITLE_ID\",\"episodeId\":null}")
+          test "$blocked_status" = "403"
+
+          echo "[4/7] Reject non-JSON challenge"
+          type_status=$(curl -sS -o "$TMP/type.json" -w '%{http_code}' \
+            -X POST "$BASE/api/playback/challenge" \
+            -H "Origin: $BASE" \
+            -H "Referer: $BASE/watch/$TITLE_ID" \
+            -H 'Sec-Fetch-Site: same-origin' \
+            -H 'Sec-Fetch-Mode: cors' \
+            -H 'Sec-Fetch-Dest: empty' \
+            -H 'Content-Type: text/plain' \
+            -H 'x-real2free-challenge: 1' \
+            --data "{\"titleId\":\"$TITLE_ID\",\"episodeId\":null}")
+          test "$type_status" = "415"
+
+          echo "[5/7] Valid playback challenge"
+          challenge_status=$(curl --fail-with-body -sS \
+            -c "$TMP/cookies.txt" -b "$TMP/cookies.txt" \
+            -D "$TMP/challenge.h" -o "$TMP/challenge.json" -w '%{http_code}' \
+            -X POST "$BASE/api/playback/challenge" \
+            -H "Origin: $BASE" \
+            -H "Referer: $BASE/watch/$TITLE_ID" \
+            -H 'Sec-Fetch-Site: same-origin' \
+            -H 'Sec-Fetch-Mode: cors' \
+            -H 'Sec-Fetch-Dest: empty' \
+            -H 'Content-Type: application/json' \
+            -H 'x-real2free-challenge: 1' \
+            --data "{\"titleId\":\"$TITLE_ID\",\"episodeId\":null}")
+          test "$challenge_status" = "200"
+          jq -e '.ready == true' "$TMP/challenge.json" >/dev/null
+
+          echo "[6/7] Valid playback session"
+          session_status=$(curl --fail-with-body -sS \
+            -c "$TMP/cookies.txt" -b "$TMP/cookies.txt" \
+            -D "$TMP/session.h" -o "$TMP/session.json" -w '%{http_code}' \
+            -X POST "$BASE/api/playback/session" \
+            -H "Origin: $BASE" \
+            -H "Referer: $BASE/watch/$TITLE_ID" \
+            -H 'Sec-Fetch-Site: same-origin' \
+            -H 'Sec-Fetch-Mode: cors' \
+            -H 'Sec-Fetch-Dest: empty' \
+            -H 'Content-Type: application/json' \
+            -H 'x-real2free-playback: 1' \
+            --data "{\"titleId\":\"$TITLE_ID\",\"episodeId\":null,\"index\":0}")
+          test "$session_status" = "200"
+          jq -e '.source != null and (.total // 0) > 0' "$TMP/session.json" >/dev/null
+          echo "Playback session OK: sourcePresent=true total=$(jq -r '.total' "$TMP/session.json")"
+
+          echo "[7/7] Security headers remain active"
+          grep -Eiq '^x-content-type-options:[[:space:]]*nosniff' "$TMP/challenge.h"
+          grep -Eiq '^cross-origin-resource-policy:[[:space:]]*same-origin' "$TMP/challenge.h"
+
+          echo "SECURITY_SMOKE_PASS"
