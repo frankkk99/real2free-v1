@@ -43,11 +43,20 @@ function renderDesktopLoadMore(
     card.style.display = index < visibleCount ? "" : "none";
   });
 
-  wrapper.querySelector(":scope > .r2f-section-pagination")?.remove();
+  let controls = wrapper.querySelector(":scope > .r2f-section-pagination") as HTMLElement | null;
+  if (controls && !controls.classList.contains("r2f-section-load-controls")) {
+    controls.remove();
+    controls = null;
+  }
 
-  if (visibleCount >= cards.length) return;
+  if (visibleCount >= cards.length) {
+    controls?.remove();
+    return;
+  }
 
-  const controls = document.createElement("div");
+  if (controls) return;
+
+  controls = document.createElement("div");
   controls.className = `r2f-section-pagination r2f-section-load-controls ${styles.loadControls}`;
   controls.setAttribute("aria-label", `โหลดรายการเพิ่มในหมวด${title}`);
 
@@ -58,7 +67,7 @@ function renderDesktopLoadMore(
   button.setAttribute("aria-label", `โหลดรายการเพิ่มในหมวด${title}`);
   button.addEventListener("click", () => {
     const currentVisible = Number(wrapper.dataset.r2fVisibleCount || String(batchSize));
-    wrapper.dataset.r2fVisibleCount = String(Math.min(cards.length, currentVisible + batchSize));
+    wrapper.dataset.r2fVisibleCount = String(currentVisible + batchSize);
     renderSection(wrapper, title, SECTION_LINKS[title]);
   });
 
