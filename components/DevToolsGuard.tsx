@@ -30,19 +30,47 @@ function blockedDeveloperShortcut(event: KeyboardEvent) {
   return event.key === "F12" || inspectorChord || viewSource;
 }
 
+function neutralizeActiveMedia() {
+  document.querySelectorAll<HTMLMediaElement>("video, audio").forEach((media) => {
+    media.pause();
+    media.removeAttribute("src");
+    media.querySelectorAll("source").forEach((source) => source.removeAttribute("src"));
+    media.load();
+  });
+
+  document.querySelectorAll<HTMLIFrameElement>("iframe").forEach((frame) => {
+    if (frame.getAttribute("src") !== "about:blank") frame.setAttribute("src", "about:blank");
+    frame.removeAttribute("srcdoc");
+  });
+}
+
 export default function DevToolsGuard() {
   const [locked, setLocked] = useState(false);
   const lockedRef = useRef(false);
+  const reloadAfterUnlockRef = useRef(false);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
 
     const publishLock = (nextLocked: boolean) => {
       if (lockedRef.current === nextLocked) return;
+
+      const wasLocked = lockedRef.current;
       lockedRef.current = nextLocked;
       setLocked(nextLocked);
       document.documentElement.toggleAttribute("data-r2f-security-lock", nextLocked);
       window.dispatchEvent(new CustomEvent(SECURITY_EVENT, { detail: { locked: nextLocked } }));
+
+      if (nextLocked) {
+        reloadAfterUnlockRef.current = true;
+        neutralizeActiveMedia();
+        return;
+      }
+
+      if (wasLocked && reloadAfterUnlockRef.current) {
+        reloadAfterUnlockRef.current = false;
+        window.location.reload();
+      }
     };
 
     const checkDockedTools = () => {
@@ -63,17 +91,28 @@ export default function DevToolsGuard() {
       event.stopPropagation();
     };
 
+    const mediaObserver = new MutationObserver(() => {
+      if (lockedRef.current) neutralizeActiveMedia();
+    });
+
     document.addEventListener("keydown", preventShortcut, true);
     document.addEventListener("contextmenu", preventContextMenu, true);
     window.addEventListener("resize", checkDockedTools, { passive: true });
     window.addEventListener("focus", checkDockedTools, { passive: true });
     document.addEventListener("visibilitychange", checkDockedTools, { passive: true });
+    mediaObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["src", "srcdoc"],
+    });
 
     const timer = window.setInterval(checkDockedTools, POLL_INTERVAL_MS);
     checkDockedTools();
 
     return () => {
       window.clearInterval(timer);
+      mediaObserver.disconnect();
       document.removeEventListener("keydown", preventShortcut, true);
       document.removeEventListener("contextmenu", preventContextMenu, true);
       window.removeEventListener("resize", checkDockedTools);
