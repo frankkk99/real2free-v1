@@ -64,12 +64,12 @@ export default function AdContactModal() {
             <div className={styles.copy}>
               <p className={styles.kicker}>ADVERTISING</p>
               <h2 id="real2free-ad-contact-title">ติดต่อโฆษณา</h2>
-              <p>สนใจลงโฆษณา ประชาสัมพันธ์ หรือจองพื้นที่บน REAL2FREE ติดต่อเราได้ทางอีเมล</p>
+              <p>สนใจลงโฆษณา ประชาสัมพันธ์ หรือจองพื้นที่บน REAL2FREE เลือกตำแหน่งได้ตามระดับการมองเห็นและงบประมาณ</p>
             </div>
 
             <div className={styles.priceBox}>
-              <span>พื้นที่โฆษณา</span>
-              <strong>2,000 บาท<small>/เดือน</small></strong>
+              <span>ราคาโฆษณาตามตำแหน่ง</span>
+              <strong>2,000–20,000 บาท<small>/เดือน</small></strong>
             </div>
 
             <a
