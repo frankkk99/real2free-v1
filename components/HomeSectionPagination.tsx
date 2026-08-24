@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import styles from "./HomeSectionPagination.module.css";
 
 const SECTION_LINKS: Record<string, string> = {
   "มาใหม่": "/new",
@@ -9,30 +10,78 @@ const SECTION_LINKS: Record<string, string> = {
   "หนังไทย": "/thai-movies",
 };
 
+const DESKTOP_QUERY = "(min-width: 821px)";
+
 function getColumnCount(grid: HTMLElement) {
   const template = window.getComputedStyle(grid).gridTemplateColumns.trim();
   if (!template || template === "none") return 1;
   return Math.max(1, template.split(/\s+/).filter(Boolean).length);
 }
 
-function renderSection(wrapper: HTMLElement, title: string, href: string) {
-  const heading = wrapper.firstElementChild as HTMLElement | null;
-  const grid = heading?.nextElementSibling as HTMLElement | null;
-  if (!heading || !grid) return;
+function ensureViewAll(heading: HTMLElement, title: string, href: string) {
+  if (heading.querySelector(":scope > .r2f-section-view-all")) return;
 
-  if (!heading.querySelector(":scope > .r2f-section-view-all")) {
-    const viewAll = document.createElement("a");
-    viewAll.className = "r2f-section-view-all";
-    viewAll.href = href;
-    viewAll.textContent = "ดูทั้งหมด";
-    viewAll.setAttribute("aria-label", `ดูทั้งหมดในหมวด${title}`);
-    heading.appendChild(viewAll);
+  const viewAll = document.createElement("a");
+  viewAll.className = "r2f-section-view-all";
+  viewAll.href = href;
+  viewAll.textContent = "ดูทั้งหมด";
+  viewAll.setAttribute("aria-label", `ดูทั้งหมดในหมวด${title}`);
+  heading.appendChild(viewAll);
+}
+
+function renderDesktopLoadMore(
+  wrapper: HTMLElement,
+  cards: HTMLElement[],
+  batchSize: number,
+  title: string,
+) {
+  const requestedVisible = Number(wrapper.dataset.r2fVisibleCount || String(batchSize));
+  const visibleCount = Math.min(cards.length, Math.max(batchSize, requestedVisible));
+  wrapper.dataset.r2fVisibleCount = String(visibleCount);
+
+  cards.forEach((card, index) => {
+    card.style.display = index < visibleCount ? "" : "none";
+  });
+
+  let controls = wrapper.querySelector(":scope > .r2f-section-pagination") as HTMLElement | null;
+  if (controls && !controls.classList.contains("r2f-section-load-controls")) {
+    controls.remove();
+    controls = null;
   }
 
-  const cards = Array.from(grid.children) as HTMLElement[];
-  if (!cards.length) return;
+  if (visibleCount >= cards.length) {
+    controls?.remove();
+    return;
+  }
 
-  const perPage = Math.max(1, getColumnCount(grid) * 2);
+  if (controls) return;
+
+  controls = document.createElement("div");
+  controls.className = `r2f-section-pagination r2f-section-load-controls ${styles.loadControls}`;
+  controls.setAttribute("aria-label", `โหลดรายการเพิ่มในหมวด${title}`);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = styles.loadMore;
+  button.innerHTML = `<span>โหลดเพิ่ม</span><span class="${styles.loadIcon}" aria-hidden="true">↓</span>`;
+  button.setAttribute("aria-label", `โหลดรายการเพิ่มในหมวด${title}`);
+  button.addEventListener("click", () => {
+    const currentVisible = Number(wrapper.dataset.r2fVisibleCount || String(batchSize));
+    wrapper.dataset.r2fVisibleCount = String(currentVisible + batchSize);
+    renderSection(wrapper, title, SECTION_LINKS[title]);
+  });
+
+  controls.appendChild(button);
+  wrapper.appendChild(controls);
+}
+
+function renderMobileDots(
+  wrapper: HTMLElement,
+  cards: HTMLElement[],
+  perPage: number,
+  title: string,
+  href: string,
+) {
   const pageCount = Math.max(1, Math.ceil(cards.length / perPage));
   const requestedPage = Number(wrapper.dataset.r2fPage || "0");
   const page = Math.min(Math.max(0, requestedPage), pageCount - 1);
@@ -44,7 +93,8 @@ function renderSection(wrapper: HTMLElement, title: string, href: string) {
   });
 
   let controls = wrapper.querySelector(":scope > .r2f-section-pagination") as HTMLElement | null;
-  if (!controls) {
+  if (!controls || controls.classList.contains("r2f-section-load-controls")) {
+    controls?.remove();
     controls = document.createElement("div");
     controls.className = "r2f-section-pagination";
     controls.setAttribute("aria-label", `เปลี่ยนหน้าหมวด${title}`);
@@ -84,6 +134,27 @@ function renderSection(wrapper: HTMLElement, title: string, href: string) {
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
+}
+
+function renderSection(wrapper: HTMLElement, title: string, href: string) {
+  const heading = wrapper.firstElementChild as HTMLElement | null;
+  const grid = heading?.nextElementSibling as HTMLElement | null;
+  if (!heading || !grid) return;
+
+  ensureViewAll(heading, title, href);
+
+  const cards = Array.from(grid.children) as HTMLElement[];
+  if (!cards.length) return;
+
+  const batchSize = Math.max(1, getColumnCount(grid) * 2);
+  const desktop = window.matchMedia(DESKTOP_QUERY).matches;
+
+  if (desktop) {
+    renderDesktopLoadMore(wrapper, cards, batchSize, title);
+    return;
+  }
+
+  renderMobileDots(wrapper, cards, batchSize, title, href);
 }
 
 function enhanceHomeSections() {
