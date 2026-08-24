@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Prompt } from "next/font/google";
 import AdContactModal from "@/components/AdContactModal";
+import DevToolsGuard from "@/components/DevToolsGuard";
 import HomeBottomInfiniteFeed from "@/components/HomeBottomInfiniteFeed";
 import HomeSectionPagination from "@/components/HomeSectionPagination";
 import "./globals.css";
@@ -105,6 +106,7 @@ export default function RootLayout({
   return (
     <html lang="th" suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
+        <DevToolsGuard />
         {children}
         <HomeSectionPagination />
         <HomeBottomInfiniteFeed />

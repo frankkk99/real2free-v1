@@ -24,12 +24,22 @@ function noStoreHeaders() {
   };
 }
 
+function trustedFetchMetadata(request: NextRequest): boolean {
+  const mode = request.headers.get("sec-fetch-mode");
+  const destination = request.headers.get("sec-fetch-dest");
+
+  if (mode && mode !== "cors" && mode !== "same-origin") return false;
+  if (destination && destination !== "empty") return false;
+  return true;
+}
+
 function trustedWatchRequest(request: NextRequest): boolean {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
   const referer = request.headers.get("referer");
   if (origin !== request.nextUrl.origin || !referer) return false;
   if (fetchSite && fetchSite !== "same-origin") return false;
+  if (!trustedFetchMetadata(request)) return false;
 
   try {
     const refererUrl = new URL(referer);
@@ -55,6 +65,9 @@ export async function POST(request: NextRequest) {
   }
   if (request.headers.get("x-real2free-challenge") !== "1") {
     return NextResponse.json({ error: "missing_challenge_header" }, { status: 403, headers: noStoreHeaders() });
+  }
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    return NextResponse.json({ error: "unsupported_media_type" }, { status: 415, headers: noStoreHeaders() });
   }
 
   const contentLength = Number(request.headers.get("content-length") || 0);
