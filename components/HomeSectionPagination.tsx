@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import styles from "./HomeSectionPagination.module.css";
 
 const SECTION_LINKS: Record<string, string> = {
   "มาใหม่": "/new",
@@ -47,13 +48,13 @@ function renderDesktopLoadMore(
   if (visibleCount >= cards.length) return;
 
   const controls = document.createElement("div");
-  controls.className = "r2f-section-pagination r2f-section-load-controls";
+  controls.className = `r2f-section-pagination r2f-section-load-controls ${styles.loadControls}`;
   controls.setAttribute("aria-label", `โหลดรายการเพิ่มในหมวด${title}`);
 
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "r2f-section-load-more";
-  button.textContent = "โหลดเพิ่ม";
+  button.className = styles.loadMore;
+  button.innerHTML = `<span>โหลดเพิ่ม</span><span class="${styles.loadIcon}" aria-hidden="true">↓</span>`;
   button.setAttribute("aria-label", `โหลดรายการเพิ่มในหมวด${title}`);
   button.addEventListener("click", () => {
     const currentVisible = Number(wrapper.dataset.r2fVisibleCount || String(batchSize));
