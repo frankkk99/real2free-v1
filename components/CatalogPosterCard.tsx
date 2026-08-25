@@ -1,7 +1,7 @@
 "use client";
 
 import { Bookmark, Film, Play, Star } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { contentTypeLabel, type PublicCatalogItem } from "@/lib/public-catalog";
 import styles from "./CatalogPosterCard.module.css";
@@ -54,31 +54,6 @@ export default function CatalogPosterCard({
   const languages = cardLanguageBadges(movie);
   const hasDistinctEnglishTitle = Boolean(movie.title.trim())
     && normalizedTitle(movie.title) !== normalizedTitle(movie.thaiTitle);
-
-  useEffect(() => {
-    const card = cardRef.current;
-    const grid = card?.parentElement;
-    const sectionHeading = grid?.previousElementSibling;
-    if (!grid || !sectionHeading?.querySelector("strong")) return;
-    if (grid.dataset.spatialCarousel === "true") return;
-
-    grid.dataset.spatialCarousel = "true";
-    grid.classList.add(styles.spatialCarousel);
-
-    const handleWheel = (event: WheelEvent) => {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      if (grid.scrollWidth <= grid.clientWidth + 4) return;
-
-      const atStart = grid.scrollLeft <= 1;
-      const atEnd = Math.ceil(grid.scrollLeft + grid.clientWidth) >= grid.scrollWidth - 1;
-      if ((event.deltaY < 0 && atStart) || (event.deltaY > 0 && atEnd)) return;
-
-      event.preventDefault();
-      grid.scrollLeft += event.deltaY * 0.82;
-    };
-
-    grid.addEventListener("wheel", handleWheel, { passive: false });
-  }, []);
 
   const resetTilt = () => {
     if (tiltFrameRef.current !== null) {
