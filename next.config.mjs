@@ -1,3 +1,5 @@
+import path from "node:path";
+
 /** @type {import('next').NextConfig} */
 const watchContentSecurityPolicy = [
   "default-src 'self'",
@@ -39,6 +41,13 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  webpack(config) {
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "@": path.resolve(process.cwd()),
+    };
+    return config;
+  },
   async headers() {
     return [
       {
