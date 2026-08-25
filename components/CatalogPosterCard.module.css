@@ -340,7 +340,7 @@
 .cardMeta span:last-child { display: inline-flex; align-items: center; gap: 3px; }
 .cardMeta svg { width: 11px; height: 11px; color: #ffc83d; }
 
-:global([data-spatial-carousel="true"]) {
+.spatialCarousel {
   display: flex !important;
   grid-template-columns: none !important;
   gap: 14px !important;
@@ -358,9 +358,9 @@
   mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
 
-:global([data-spatial-carousel="true"])::-webkit-scrollbar { display: none; }
+.spatialCarousel::-webkit-scrollbar { display: none; }
 
-:global([data-spatial-carousel="true"]) > .card {
+.spatialCarousel > .card {
   flex: 0 0 clamp(132px, 12.2vw, 182px);
   scroll-snap-align: start;
   scroll-snap-stop: normal;
@@ -369,15 +369,15 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :global([data-spatial-carousel="true"]) > .card:nth-child(odd) {
+  .spatialCarousel > .card:nth-child(odd) {
     transform: rotateY(1.55deg) translateZ(-7px);
   }
 
-  :global([data-spatial-carousel="true"]) > .card:nth-child(even) {
+  .spatialCarousel > .card:nth-child(even) {
     transform: rotateY(-1.55deg) translateZ(-7px);
   }
 
-  :global([data-spatial-carousel="true"]) > .card:hover {
+  .spatialCarousel > .card:hover {
     z-index: 5;
     filter: saturate(1.025);
     transform: rotateY(0deg) translate3d(0, -3px, 22px);
@@ -401,7 +401,7 @@
 
   .poster::after { display: none; }
 
-  :global([data-spatial-carousel="true"]) {
+  .spatialCarousel {
     gap: 10px !important;
     padding: 5px 3px 18px;
     scroll-snap-type: x mandatory;
@@ -410,7 +410,7 @@
     mask-image: linear-gradient(90deg, transparent 0, #000 7px, #000 calc(100% - 7px), transparent 100%);
   }
 
-  :global([data-spatial-carousel="true"]) > .card {
+  .spatialCarousel > .card {
     flex-basis: clamp(108px, 29vw, 144px);
     transform: none;
   }
@@ -463,7 +463,7 @@
   .cardTitles,
   .playHover,
   .playHover svg,
-  :global([data-spatial-carousel="true"]) > .card {
+  .spatialCarousel > .card {
     transform: none !important;
     transition-duration: 0.01ms !important;
   }
