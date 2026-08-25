@@ -11,6 +11,7 @@ const SECTION_LINKS: Record<string, string> = {
 };
 
 const DESKTOP_QUERY = "(min-width: 821px)";
+const SWIPE_HINT_CLASS = "r2f-mobile-swipe-hint";
 
 function getColumnCount(grid: HTMLElement) {
   const template = window.getComputedStyle(grid).gridTemplateColumns.trim();
@@ -75,65 +76,97 @@ function renderDesktopLoadMore(
   wrapper.appendChild(controls);
 }
 
-function renderMobileDots(
+function ensureSwipeHint(heading: HTMLElement) {
+  let hint = heading.querySelector(`:scope > .${SWIPE_HINT_CLASS}`) as HTMLElement | null;
+  if (hint) return hint;
+
+  hint = document.createElement("span");
+  hint.className = `${SWIPE_HINT_CLASS} ${styles.swipeHint}`;
+  hint.setAttribute("aria-hidden", "true");
+
+  const track = document.createElement("span");
+  track.className = styles.swipeTrack;
+  track.setAttribute("aria-hidden", "true");
+
+  const label = document.createElement("span");
+  label.className = styles.swipeLabel;
+  label.textContent = "ปัดดูต่อ";
+
+  const arrow = document.createElement("span");
+  arrow.className = styles.swipeArrow;
+  arrow.textContent = "›";
+  arrow.setAttribute("aria-hidden", "true");
+
+  hint.append(track, label, arrow);
+
+  const viewAll = heading.querySelector(":scope > .r2f-section-view-all");
+  if (viewAll) heading.insertBefore(hint, viewAll);
+  else heading.appendChild(hint);
+
+  return hint;
+}
+
+function syncMobileRailState(wrapper: HTMLElement, heading: HTMLElement, grid: HTMLElement) {
+  const maxScroll = Math.max(0, grid.scrollWidth - grid.clientWidth);
+  const atEnd = maxScroll <= 4 || grid.scrollLeft >= maxScroll - 8;
+  wrapper.classList.toggle(styles.railAtEnd, atEnd);
+
+  if (grid.scrollLeft > 12 && wrapper.dataset.r2fSwipeSeen !== "1") {
+    wrapper.dataset.r2fSwipeSeen = "1";
+    heading
+      .querySelector(`:scope > .${SWIPE_HINT_CLASS}`)
+      ?.classList.add(styles.swipeHintSeen);
+  }
+}
+
+function bindMobileRail(wrapper: HTMLElement, heading: HTMLElement, grid: HTMLElement) {
+  if (grid.dataset.r2fSwipeBound === "1") return;
+  grid.dataset.r2fSwipeBound = "1";
+
+  grid.addEventListener(
+    "scroll",
+    () => syncMobileRailState(wrapper, heading, grid),
+    { passive: true },
+  );
+}
+
+function renderMobileCarousel(
   wrapper: HTMLElement,
+  heading: HTMLElement,
+  grid: HTMLElement,
   cards: HTMLElement[],
-  perPage: number,
   title: string,
-  href: string,
 ) {
-  const pageCount = Math.max(1, Math.ceil(cards.length / perPage));
-  const requestedPage = Number(wrapper.dataset.r2fPage || "0");
-  const page = Math.min(Math.max(0, requestedPage), pageCount - 1);
-  wrapper.dataset.r2fPage = String(page);
+  wrapper.querySelector(":scope > .r2f-section-pagination")?.remove();
+  delete wrapper.dataset.r2fPage;
 
-  cards.forEach((card, index) => {
-    const visible = index >= page * perPage && index < (page + 1) * perPage;
-    card.style.display = visible ? "" : "none";
+  cards.forEach((card) => {
+    card.style.display = "";
   });
 
-  let controls = wrapper.querySelector(":scope > .r2f-section-pagination") as HTMLElement | null;
-  if (!controls || controls.classList.contains("r2f-section-load-controls")) {
-    controls?.remove();
-    controls = document.createElement("div");
-    controls.className = "r2f-section-pagination";
-    controls.setAttribute("aria-label", `เปลี่ยนหน้าหมวด${title}`);
-    wrapper.appendChild(controls);
-  }
+  wrapper.classList.add(styles.mobileSection);
+  heading.classList.add(styles.mobileHeading);
+  grid.classList.add(styles.mobileRail);
+  grid.setAttribute("role", "region");
+  grid.setAttribute("aria-label", `${title} ปัดซ้ายขวาเพื่อดูรายการเพิ่มเติม`);
 
-  let dots = controls.querySelector(":scope > .r2f-section-dots") as HTMLElement | null;
-  if (!dots) {
-    dots = document.createElement("div");
-    dots.className = "r2f-section-dots";
-    dots.setAttribute("role", "group");
-    controls.appendChild(dots);
-  }
+  const hint = ensureSwipeHint(heading);
+  if (wrapper.dataset.r2fSwipeSeen === "1") hint.classList.add(styles.swipeHintSeen);
+  else hint.classList.remove(styles.swipeHintSeen);
 
-  if (Number(dots.dataset.pageCount || "0") !== pageCount) {
-    dots.replaceChildren();
-    dots.dataset.pageCount = String(pageCount);
+  bindMobileRail(wrapper, heading, grid);
+  window.requestAnimationFrame(() => syncMobileRailState(wrapper, heading, grid));
+}
 
-    for (let index = 0; index < pageCount; index += 1) {
-      const dot = document.createElement("button");
-      dot.type = "button";
-      dot.className = "r2f-section-dot";
-      dot.dataset.page = String(index);
-      dot.setAttribute("aria-label", `${title} หน้าที่ ${index + 1}`);
-      dot.addEventListener("click", () => {
-        wrapper.dataset.r2fPage = String(index);
-        renderSection(wrapper, title, href);
-      });
-      dots.appendChild(dot);
-    }
-  }
-
-  Array.from(dots.children).forEach((dot, index) => {
-    const button = dot as HTMLButtonElement;
-    const active = index === page;
-    button.classList.toggle("is-active", active);
-    if (active) button.setAttribute("aria-current", "page");
-    else button.removeAttribute("aria-current");
-  });
+function cleanupMobileCarousel(wrapper: HTMLElement, heading: HTMLElement, grid: HTMLElement) {
+  wrapper.classList.remove(styles.mobileSection, styles.railAtEnd);
+  heading.classList.remove(styles.mobileHeading);
+  grid.classList.remove(styles.mobileRail);
+  grid.removeAttribute("role");
+  grid.removeAttribute("aria-label");
+  heading.querySelector(`:scope > .${SWIPE_HINT_CLASS}`)?.remove();
+  delete wrapper.dataset.r2fSwipeSeen;
+  if (grid.scrollLeft) grid.scrollLeft = 0;
 }
 
 function renderSection(wrapper: HTMLElement, title: string, href: string) {
@@ -146,15 +179,16 @@ function renderSection(wrapper: HTMLElement, title: string, href: string) {
   const cards = Array.from(grid.children) as HTMLElement[];
   if (!cards.length) return;
 
-  const batchSize = Math.max(1, getColumnCount(grid) * 2);
   const desktop = window.matchMedia(DESKTOP_QUERY).matches;
 
-  if (desktop) {
-    renderDesktopLoadMore(wrapper, cards, batchSize, title);
+  if (!desktop) {
+    renderMobileCarousel(wrapper, heading, grid, cards, title);
     return;
   }
 
-  renderMobileDots(wrapper, cards, batchSize, title, href);
+  cleanupMobileCarousel(wrapper, heading, grid);
+  const batchSize = Math.max(1, getColumnCount(grid) * 2);
+  renderDesktopLoadMore(wrapper, cards, batchSize, title);
 }
 
 function enhanceHomeSections() {
