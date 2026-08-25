@@ -104,7 +104,12 @@ export default function CatalogInfoPage({
 
             <div className={styles.actions}>
               {canWatch ? (
-                <Link className={styles.watchButton} href={`/watch/${encodeURIComponent(item.id)}`}>
+                <Link
+                  className={styles.watchButton}
+                  href={`/watch/${encodeURIComponent(item.id)}`}
+                  prefetch={false}
+                  rel="nofollow"
+                >
                   <Play fill="currentColor" />
                   <span><strong>ไปหน้ารับชม</strong><small>เปิด Player ในหน้ารับชมแยกต่างหาก</small></span>
                 </Link>
