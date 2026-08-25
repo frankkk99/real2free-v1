@@ -44,7 +44,8 @@ export default function CatalogInfoPage({
 }) {
   const isSeries = item.contentType === "series";
   const playableEpisodes = isSeries ? episodes.filter((episode) => episode.playerCount > 0) : [];
-  const canWatch = isSeries ? playableEpisodes.length > 0 : item.playerCount > 0;
+  const hasSeriesPlayback = episodes.length > 0 ? playableEpisodes.length > 0 : item.playerCount > 0;
+  const canWatch = isSeries ? hasSeriesPlayback : item.playerCount > 0;
   const durationLabel = isSeries
     ? `${(item.episodeCount || episodes.length).toLocaleString("th-TH")} ตอน`
     : runtimeLabel(item.runtime) || "ไม่ระบุ";
@@ -164,7 +165,7 @@ export default function CatalogInfoPage({
             <dl>
               <div><dt>ซีซัน</dt><dd>{item.seasonCount.toLocaleString("th-TH") || "-"}</dd></div>
               <div><dt>ตอนในข้อมูล</dt><dd>{(item.episodeCount || episodes.length).toLocaleString("th-TH")}</dd></div>
-              <div><dt>ตอนที่พร้อมรับชม</dt><dd>{playableEpisodes.length.toLocaleString("th-TH")}</dd></div>
+              <div><dt>สถานะรับชม</dt><dd>{canWatch ? "พร้อมรับชม" : "รออัปเดต"}</dd></div>
             </dl>
             <p>หน้านี้ใช้สำหรับข้อมูลเรื่องและการค้นหา ส่วนการเลือกตอนและ Player จะอยู่ในหน้ารับชมโดยเฉพาะ</p>
           </section>
