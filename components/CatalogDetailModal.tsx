@@ -391,7 +391,7 @@ export default function CatalogDetailModal({
 
         <div className={styles.body}>
           <div className={styles.summary}>
-            <div className={styles.poster}>
+            <div className={styles.poster} data-shared-poster-id={movie.id}>
               {movie.posterUrl ? <img src={movie.posterUrl} alt={movie.thaiTitle} referrerPolicy="no-referrer" /> : <Film />}
             </div>
 
