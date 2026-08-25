@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import CatalogInfoPage from "@/components/CatalogInfoPage";
-import { catalogPath, catalogSlug } from "@/lib/catalog-url";
+import { catalogPath, catalogSlug, normalizeCatalogSlug } from "@/lib/catalog-url";
 import {
   buildCatalogMetadata,
   buildCatalogSchemas,
@@ -33,7 +33,7 @@ export default async function MovieInfoPage({
   if (!detail) notFound();
 
   const { item, episodes } = detail;
-  if (slug !== catalogSlug(item)) permanentRedirect(catalogPath(item));
+  if (normalizeCatalogSlug(slug) !== catalogSlug(item)) permanentRedirect(catalogPath(item));
 
   const { mediaSchema, breadcrumbSchema } = buildCatalogSchemas(item, episodes);
 
