@@ -4,6 +4,7 @@ import WatchExperience from "@/components/WatchExperience";
 import { catalogSlug, normalizeCatalogSlug, watchPath } from "@/lib/catalog-url";
 import {
   loadCatalogDetailById,
+  SITE_URL,
   UUID_PATTERN,
 } from "@/lib/catalog-detail-page";
 import { resolveSeoCatalogSlug } from "@/lib/seo-catalog";
@@ -36,7 +37,7 @@ export async function generateMetadata({
   const description = item.overview?.trim()
     ? item.overview.replace(/\s+/g, " ").trim().slice(0, 180)
     : `รับชม${typeLabel} ${item.thaiTitle}${yearLabel} บน REAL2FREE`;
-  const image = item.posterUrl || item.backdropUrl || undefined;
+  const socialImage = `${SITE_URL}/api/og/watch/${encodeURIComponent(item.id)}`;
 
   return {
     title,
@@ -60,13 +61,19 @@ export async function generateMetadata({
       siteName: "REAL2FREE",
       locale: "th_TH",
       type: "website",
-      images: image ? [{ url: image, alt: `โปสเตอร์ ${item.thaiTitle}` }] : undefined,
+      images: [{
+        url: socialImage,
+        width: 1200,
+        height: 630,
+        type: "image/png",
+        alt: `REAL2FREE • ${item.thaiTitle}`,
+      }],
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title: `${title} | REAL2FREE`,
       description,
-      images: image ? [image] : undefined,
+      images: [socialImage],
     },
   };
 }
