@@ -44,8 +44,14 @@ export default function CatalogPosterCard({
     && normalizedTitle(movie.title) !== normalizedTitle(movie.thaiTitle);
 
   return (
-    <article className={styles.card} onPointerEnter={onPrefetch}>
-      <button className={styles.posterButton} type="button" onClick={onOpen} aria-label={`ดูข้อมูล ${movie.thaiTitle}`}>
+    <article className={styles.card}>
+      <button
+        className={styles.posterButton}
+        type="button"
+        onPointerDown={onPrefetch}
+        onClick={onOpen}
+        aria-label={`ดูข้อมูล ${movie.thaiTitle}`}
+      >
         <span className={styles.poster}>
           {movie.posterUrl ? (
             <img
