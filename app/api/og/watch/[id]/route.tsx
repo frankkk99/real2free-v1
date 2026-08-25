@@ -1,11 +1,11 @@
 import { ImageResponse } from "next/og";
-import { loadCatalogDetailById, UUID_PATTERN } from "@/lib/catalog-detail-page";
 import type { PublicCatalogItem } from "@/lib/public-catalog";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 const size = { width: 1200, height: 630 };
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function safeHttpsUrl(value: string | null | undefined) {
   if (!value) return null;
@@ -20,7 +20,7 @@ function safeHttpsUrl(value: string | null | undefined) {
 function SocialCard({ item }: { item: PublicCatalogItem | null }) {
   const poster = safeHttpsUrl(item?.posterUrl);
   const backdrop = safeHttpsUrl(item?.backdropUrl || item?.posterUrl);
-  const englishTitle = item?.title || item?.thaiTitle || "ดูหนังออนไลน์";
+  const englishTitle = item?.title || item?.thaiTitle || "Watch movies online";
   const thaiTitle = item?.thaiTitle && item.thaiTitle !== englishTitle ? item.thaiTitle : "";
   const typeLabel = item?.contentType === "series" ? "SERIES" : "MOVIE";
   const year = item?.year ? String(item.year) : "REAL2FREE";
@@ -196,44 +196,14 @@ function SocialCard({ item }: { item: PublicCatalogItem | null }) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div
-                style={{
-                  display: "flex",
-                  padding: "8px 14px",
-                  borderRadius: 999,
-                  background: "rgba(255,255,255,.12)",
-                  border: "1px solid rgba(255,255,255,.16)",
-                  fontSize: 17,
-                  fontWeight: 800,
-                }}
-              >
+              <div style={{ display: "flex", padding: "8px 14px", borderRadius: 999, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.16)", fontSize: 17, fontWeight: 800 }}>
                 {typeLabel}
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  padding: "8px 14px",
-                  borderRadius: 999,
-                  background: "rgba(255,255,255,.12)",
-                  border: "1px solid rgba(255,255,255,.16)",
-                  fontSize: 17,
-                  fontWeight: 800,
-                }}
-              >
+              <div style={{ display: "flex", padding: "8px 14px", borderRadius: 999, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.16)", fontSize: 17, fontWeight: 800 }}>
                 {year}
               </div>
               {item?.rating ? (
-                <div
-                  style={{
-                    display: "flex",
-                    padding: "8px 14px",
-                    borderRadius: 999,
-                    background: "rgba(255,255,255,.12)",
-                    border: "1px solid rgba(255,255,255,.16)",
-                    fontSize: 17,
-                    fontWeight: 800,
-                  }}
-                >
+                <div style={{ display: "flex", padding: "8px 14px", borderRadius: 999, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.16)", fontSize: 17, fontWeight: 800 }}>
                   ★ {item.rating.toFixed(1)}
                 </div>
               ) : null}
@@ -259,20 +229,33 @@ function SocialCard({ item }: { item: PublicCatalogItem | null }) {
   );
 }
 
+async function loadCatalogItem(request: Request, id: string): Promise<PublicCatalogItem | null> {
+  if (!UUID_PATTERN.test(id)) return null;
+
+  try {
+    const catalogUrl = new URL(`/api/catalog/${encodeURIComponent(id)}`, request.url);
+    const response = await fetch(catalogUrl, {
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        "x-real2free-catalog": "1",
+      },
+    });
+    if (!response.ok) return null;
+
+    const payload = await response.json() as { item?: PublicCatalogItem };
+    return payload.item || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  let item: PublicCatalogItem | null = null;
-
-  if (UUID_PATTERN.test(id)) {
-    try {
-      item = (await loadCatalogDetailById(id))?.item || null;
-    } catch {
-      item = null;
-    }
-  }
+  const item = await loadCatalogItem(request, id);
 
   return new ImageResponse(<SocialCard item={item} />, {
     ...size,
