@@ -6,10 +6,11 @@ import {
   buildCatalogMetadata,
   buildCatalogSchemas,
   jsonLd,
-  loadCatalogDetailBySlug,
 } from "@/lib/catalog-detail-page";
+import { loadPublicCatalogDetailBySlug } from "@/lib/public-catalog-detail";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
+export const revalidate = 21_600;
 export const runtime = "nodejs";
 
 export async function generateMetadata({
@@ -18,7 +19,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const detail = await loadCatalogDetailBySlug(slug, "series");
+  const detail = await loadPublicCatalogDetailBySlug(slug, "series");
   if (!detail) notFound();
   return buildCatalogMetadata(detail.item);
 }
@@ -29,7 +30,7 @@ export default async function SeriesInfoPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const detail = await loadCatalogDetailBySlug(slug, "series");
+  const detail = await loadPublicCatalogDetailBySlug(slug, "series");
   if (!detail) notFound();
 
   const { item, episodes } = detail;
