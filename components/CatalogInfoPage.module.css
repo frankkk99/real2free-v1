@@ -361,37 +361,34 @@
 
 .factCard strong {
   color: #eef5ff;
-  font-weight: 800;
+  font-size: .94rem;
 }
 
 .seriesSummary {
   margin-top: 18px;
-  padding: 24px;
+  padding: 22px;
   border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 22px;
   background: rgba(7, 19, 35, .7);
-}
-
-.seriesSummary > div:first-child {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
 }
 
 .seriesSummary > div:first-child span {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #8bd1ff;
-  font-size: .78rem;
+  color: #8fd3ff;
+  font-size: .8rem;
   font-weight: 800;
-  text-transform: uppercase;
+}
+
+.seriesSummary > div:first-child svg {
+  width: 16px;
+  height: 16px;
 }
 
 .seriesSummary h2 {
-  margin: 0;
-  font-size: 1.3rem;
+  margin: 7px 0 0;
+  font-size: 1.25rem;
 }
 
 .seriesSummary dl {
@@ -402,97 +399,116 @@
 }
 
 .seriesSummary dl div {
-  padding: 14px;
-  border-radius: 15px;
-  background: rgba(255, 255, 255, .045);
+  padding: 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .04);
 }
 
 .seriesSummary dt {
-  color: #8396ad;
-  font-size: .76rem;
+  color: #8092aa;
+  font-size: .75rem;
 }
 
 .seriesSummary dd {
-  margin: 5px 0 0;
-  color: #eef6ff;
+  margin: 4px 0 0;
+  font-size: 1.08rem;
   font-weight: 800;
 }
 
 .seriesSummary p {
   margin: 16px 0 0;
-  color: #aebed2;
-  line-height: 1.75;
+  color: #a7b7ca;
+  line-height: 1.65;
+  font-size: .9rem;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 820px) {
   .header {
+    width: min(100% - 24px, 1180px);
     grid-template-columns: 1fr auto;
-    width: min(100% - 28px, 1180px);
     padding-top: 16px;
   }
 
   .brandLink {
+    justify-self: end;
+  }
+
+  .headerType {
+    display: none;
+  }
+
+  .backLink span {
     display: none;
   }
 
   .content {
-    width: min(100% - 28px, 1180px);
-    padding-top: 20px;
+    width: min(100% - 24px, 1180px);
+    padding-top: 22px;
   }
 
   .heroCard {
-    grid-template-columns: 104px minmax(0, 1fr);
-    gap: 16px;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 18px;
     align-items: start;
-    padding: 15px;
-    border-radius: 20px;
+    padding: 16px;
+    border-radius: 22px;
   }
 
   .poster {
-    border-radius: 14px;
+    border-radius: 15px;
   }
 
   .heroBody {
-    padding: 0;
+    padding: 2px 0 0;
   }
 
   .heroBody h1 {
-    font-size: clamp(1.5rem, 8vw, 2.45rem);
+    font-size: clamp(1.55rem, 8vw, 2.5rem);
+    line-height: 1.03;
   }
 
   .heroBody h2 {
-    font-size: .9rem;
+    margin-top: 7px;
+    font-size: .84rem;
+  }
+
+  .eyebrow {
+    margin-bottom: 8px;
+    font-size: .7rem;
   }
 
   .metaRow {
     margin-top: 12px;
+    gap: 6px;
   }
 
   .metaRow span,
   .badges span,
   .genres span,
   .genres a {
-    font-size: .72rem;
+    font-size: .7rem;
   }
 
   .overview,
+  .genres,
   .actions,
-  .genres {
+  .badges {
     grid-column: 1 / -1;
   }
 
   .overview {
-    margin-top: 16px;
+    margin-top: 18px;
+    font-size: .92rem;
+    line-height: 1.7;
   }
 
   .actions {
-    margin-top: 18px;
+    width: 100%;
   }
 
   .watchButton,
-  .secondaryButton,
-  .unavailable {
-    width: 100%;
+  .secondaryButton {
+    flex: 1 1 100%;
     justify-content: center;
   }
 
@@ -500,15 +516,31 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .seriesSummary {
-    padding: 18px;
-  }
-
-  .seriesSummary > div:first-child {
-    display: grid;
-  }
-
   .seriesSummary dl {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .heroCard {
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 14px;
+    padding: 13px;
+  }
+
+  .heroBody h1 {
+    font-size: 1.45rem;
+  }
+
+  .metaRow span:nth-child(n+4) {
+    display: none;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .factCard {
+    min-height: 78px;
   }
 }
