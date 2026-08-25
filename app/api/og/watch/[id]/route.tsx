@@ -204,7 +204,7 @@ function SocialCard({ item }: { item: PublicCatalogItem | null }) {
               </div>
               {item?.rating ? (
                 <div style={{ display: "flex", padding: "8px 14px", borderRadius: 999, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.16)", fontSize: 17, fontWeight: 800 }}>
-                  ★ {item.rating.toFixed(1)}
+                  RATING {item.rating.toFixed(1)}
                 </div>
               ) : null}
             </div>
@@ -213,7 +213,7 @@ function SocialCard({ item }: { item: PublicCatalogItem | null }) {
               <div style={{ display: "flex", gap: 10, color: "rgba(255,255,255,.66)", fontSize: 17 }}>
                 {genres.map((genre, index) => (
                   <div key={genre} style={{ display: "flex" }}>
-                    {index ? "• " : ""}{genre}
+                    {index ? "/ " : ""}{genre}
                   </div>
                 ))}
               </div>
