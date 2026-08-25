@@ -60,6 +60,19 @@ export default function CatalogInfoPage({
     item.isOngoing ? "กำลังอัปเดต" : "",
   ].filter(Boolean);
 
+  const relatedLinks = [
+    { href: categoryPath, label: `${typeLabel}ทั้งหมด` },
+    { href: "/new", label: "รายการมาใหม่" },
+    { href: "/popular", label: "รายการยอดนิยม" },
+    item.year ? { href: `/search?q=${encodeURIComponent(String(item.year))}`, label: `${typeLabel}ปี ${item.year}` } : null,
+    ...item.genres.slice(0, 5).map((genre) => ({
+      href: `/search?q=${encodeURIComponent(genre)}`,
+      label: `${typeLabel}แนว${genre}`,
+    })),
+    item.hasDubThai ? { href: `/search?q=${encodeURIComponent(`${typeLabel}พากย์ไทย`)}`, label: `${typeLabel}พากย์ไทย` } : null,
+    item.hasSubThai ? { href: `/search?q=${encodeURIComponent(`${typeLabel}ซับไทย`)}`, label: `${typeLabel}ซับไทย` } : null,
+  ].filter((value): value is { href: string; label: string } => Boolean(value));
+
   return (
     <main className={styles.page}>
       <div className={styles.backdrop}>
@@ -98,7 +111,9 @@ export default function CatalogInfoPage({
             ) : null}
 
             <div className={styles.genres}>
-              {item.genres.map((genre) => <span key={genre}>{genre}</span>)}
+              {item.genres.map((genre) => (
+                <Link key={genre} href={`/search?q=${encodeURIComponent(genre)}`} prefetch={false}>{genre}</Link>
+              ))}
             </div>
 
             <p className={styles.overview}>{item.overview || `ยังไม่มีเรื่องย่อสำหรับ${typeLabel}เรื่องนี้`}</p>
@@ -170,6 +185,31 @@ export default function CatalogInfoPage({
             <p>หน้านี้ใช้สำหรับข้อมูลเรื่องและการค้นหา ส่วนการเลือกตอนและ Player จะอยู่ในหน้ารับชมโดยเฉพาะ</p>
           </section>
         ) : null}
+
+        <section className={styles.seriesSummary} aria-label={`สำรวจรายการที่เกี่ยวข้องกับ ${item.thaiTitle}`}>
+          <div>
+            <span><Info /> สำรวจต่อ</span>
+            <h2>รายการที่เกี่ยวข้องกับ {item.thaiTitle}</h2>
+          </div>
+          <p>
+            {item.thaiTitle}{item.year ? ` เป็น${typeLabel}ปี ${item.year}` : ` เป็น${typeLabel}`}
+            {item.genres.length ? ` ในแนว ${item.genres.slice(0, 3).join(" • ")}` : ""}
+            {item.hasDubThai || item.hasSubThai ? ` พร้อมข้อมูล${[item.hasDubThai ? "พากย์ไทย" : "", item.hasSubThai ? "ซับไทย" : ""].filter(Boolean).join(" และ ")}` : ""}
+            {" "}ใช้ลิงก์ด้านล่างเพื่อค้นหารายการที่มีปี แนว หรือรูปแบบใกล้เคียงกัน
+          </p>
+          <nav aria-label="ลิงก์รายการที่เกี่ยวข้อง" style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {relatedLinks.map((link) => (
+              <Link
+                key={`${link.href}-${link.label}`}
+                href={link.href}
+                prefetch={false}
+                style={{ padding: "7px 11px", borderRadius: 999, border: "1px solid rgba(255,255,255,.12)", textDecoration: "none" }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </section>
       </div>
     </main>
   );
