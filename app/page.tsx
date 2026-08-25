@@ -3,7 +3,7 @@ import MovieHomeV2 from "@/components/MovieHomeV2";
 import SeoCatalogLinks from "@/components/SeoCatalogLinks";
 import { absoluteCatalogUrl, getSeoCatalogPreview } from "@/lib/seo-catalog";
 
-export const revalidate = 600;
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: "ดูหนังออนไลน์ ซีรีส์ใหม่ และอนิเมะ",
