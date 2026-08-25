@@ -6,6 +6,7 @@ import HomeBottomInfiniteFeed from "@/components/HomeBottomInfiniteFeed";
 import HomeSectionPagination from "@/components/HomeSectionPagination";
 import "./globals.css";
 import "./home-enhancements.css";
+import "./spatial-ux.css";
 
 const bodyFont = Prompt({
   subsets: ["thai", "latin"],
