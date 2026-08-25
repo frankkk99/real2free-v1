@@ -25,7 +25,11 @@ const displayFont = Bebas_Neue({
 const SITE_URL = "https://www.real2free.online";
 const SITE_DESCRIPTION =
   "ค้นหาหนัง ซีรีส์ และอนิเมะ พร้อมชื่อไทย ชื่อต้นฉบับ ปี ประเภท คะแนน จำนวนตอน และข้อมูลอัปเดตล่าสุดบน REAL2FREE";
-const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+const googleVerification = (
+  process.env.GOOGLE_SITE_VERIFICATION
+  || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+  || ""
+).trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

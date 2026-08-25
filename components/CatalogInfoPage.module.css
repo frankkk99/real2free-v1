@@ -205,7 +205,8 @@
 
 .metaRow span,
 .badges span,
-.genres span {
+.genres span,
+.genres a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -243,11 +244,13 @@
   margin-top: 16px;
 }
 
-.genres span {
+.genres span,
+.genres a {
   padding: 6px 10px;
   border: 1px solid rgba(255, 255, 255, .1);
   color: #c8d6e8;
   font-size: .8rem;
+  text-decoration: none;
 }
 
 .overview {
@@ -481,7 +484,8 @@
 
   .metaRow span,
   .badges span,
-  .genres span {
+  .genres span,
+  .genres a {
     font-size: .7rem;
   }
 
