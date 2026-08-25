@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { catalogPath } from "@/lib/catalog-url";
+import { catalogPath, watchPath } from "@/lib/catalog-url";
 import {
   addStoredId,
   FAVORITES_KEY,
@@ -88,6 +88,7 @@ export default function WatchExperience({
   episodes: PublicEpisode[];
 }) {
   const infoPath = catalogPath(item);
+  const sharePath = watchPath(item);
   const playableEpisodes = useMemo(
     () => episodes.filter((episode) => episode.playerCount > 0),
     [episodes],
@@ -339,9 +340,9 @@ export default function WatchExperience({
   };
 
   const shareMovie = useCallback(async () => {
-    const url = `${window.location.origin}${infoPath}`;
+    const url = `${window.location.origin}${sharePath}`;
     const shareTitle = item.thaiTitle;
-    const shareText = "ข้อมูล" + contentTypeLabel(item.contentType) + "เรื่องนี้บน REAL2FREE";
+    const shareText = "รับชม" + contentTypeLabel(item.contentType) + "เรื่องนี้บน REAL2FREE";
 
     if (navigator.share) {
       try {
@@ -373,7 +374,7 @@ export default function WatchExperience({
     } catch {
       setShareCopied(false);
     }
-  }, [infoPath, item.contentType, item.thaiTitle]);
+  }, [item.contentType, item.thaiTitle, sharePath]);
 
   const seasonCount = useMemo(
     () => new Set(playableEpisodes.map((episode) => episode.seasonNumber)).size,
