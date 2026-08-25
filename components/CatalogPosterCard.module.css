@@ -11,6 +11,40 @@
   contain-intrinsic-size: 180px 310px;
 }
 
+.rankedCard {
+  isolation: isolate;
+  overflow: visible;
+}
+
+.rankBackdrop {
+  position: absolute;
+  z-index: 0;
+  top: 46%;
+  left: -0.17em;
+  color: color-mix(in srgb, var(--primary-bright) 10%, transparent);
+  font-family: var(--font-display), Impact, sans-serif;
+  font-size: clamp(82px, 8.4vw, 132px);
+  font-weight: 900;
+  line-height: .72;
+  letter-spacing: -.12em;
+  pointer-events: none;
+  transform: translate3d(-12%, -50%, -34px) rotateY(-7deg) scaleY(1.08);
+  transform-origin: center;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--primary-bright) 42%, var(--border));
+  text-shadow:
+    0 16px 34px rgba(0, 0, 0, .2),
+    0 0 28px color-mix(in srgb, var(--primary) 12%, transparent);
+  opacity: .92;
+}
+
+.rankedCard .posterButton,
+.rankedCard .cardTitles,
+.rankedCard .cardMeta,
+.rankedCard .cardFavorite {
+  position: relative;
+  z-index: 2;
+}
+
 .posterButton {
   display: block;
   width: 100%;
@@ -306,6 +340,50 @@
 .cardMeta span:last-child { display: inline-flex; align-items: center; gap: 3px; }
 .cardMeta svg { width: 11px; height: 11px; color: #ffc83d; }
 
+:global([data-spatial-carousel="true"]) {
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 14px !important;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 9px 4px 24px;
+  scroll-padding-inline: 4px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+  perspective: 1320px;
+  perspective-origin: 50% 42%;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+
+:global([data-spatial-carousel="true"])::-webkit-scrollbar { display: none; }
+
+:global([data-spatial-carousel="true"]) > .card {
+  flex: 0 0 clamp(132px, 12.2vw, 182px);
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  transform-style: preserve-3d;
+  transition: transform 280ms cubic-bezier(.2, .82, .24, 1), filter 240ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :global([data-spatial-carousel="true"]) > .card:nth-child(odd) {
+    transform: rotateY(1.55deg) translateZ(-7px);
+  }
+
+  :global([data-spatial-carousel="true"]) > .card:nth-child(even) {
+    transform: rotateY(-1.55deg) translateZ(-7px);
+  }
+
+  :global([data-spatial-carousel="true"]) > .card:hover {
+    z-index: 5;
+    filter: saturate(1.025);
+    transform: rotateY(0deg) translate3d(0, -3px, 22px);
+  }
+}
+
 @media (max-width: 820px), (hover: none), (pointer: coarse) {
   .card { perspective: none; }
   .cardFavorite { opacity: 1; transform: none; }
@@ -322,6 +400,20 @@
   }
 
   .poster::after { display: none; }
+
+  :global([data-spatial-carousel="true"]) {
+    gap: 10px !important;
+    padding: 5px 3px 18px;
+    scroll-snap-type: x mandatory;
+    perspective: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 7px, #000 calc(100% - 7px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 7px, #000 calc(100% - 7px), transparent 100%);
+  }
+
+  :global([data-spatial-carousel="true"]) > .card {
+    flex-basis: clamp(108px, 29vw, 144px);
+    transform: none;
+  }
 }
 
 @media (max-width: 560px) {
@@ -347,6 +439,13 @@
     font-size: 6.5px;
   }
 
+  .rankBackdrop {
+    left: -0.11em;
+    font-size: clamp(66px, 25vw, 96px);
+    -webkit-text-stroke-width: 1.5px;
+    transform: translate3d(-9%, -50%, 0) rotateY(0deg) scaleY(1.05);
+  }
+
   .rankBadge { min-width: 20px; font-size: 8px; }
   .languageBadge { min-width: 20px; }
   .cardFavorite { right: 4px; bottom: 42px; width: 26px; height: 26px; }
@@ -359,10 +458,12 @@
 @media (prefers-reduced-motion: reduce) {
   .poster,
   .poster img,
+  .rankBackdrop,
   .cardFavorite,
   .cardTitles,
   .playHover,
-  .playHover svg {
+  .playHover svg,
+  :global([data-spatial-carousel="true"]) > .card {
     transform: none !important;
     transition-duration: 0.01ms !important;
   }
