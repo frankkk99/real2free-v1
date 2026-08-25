@@ -4,7 +4,7 @@ import path from "node:path";
 const configPath = path.join(process.cwd(), "vercel.json");
 
 if (!fs.existsSync(configPath)) {
-  console.error("[cost-guard] vercel.json is missing.");
+  console.error("[cost-guard] vercel.json is missing. Keep Vercel Git auto-deploy disabled and deploy manually when ready.");
   process.exit(1);
 }
 
@@ -16,12 +16,9 @@ try {
   process.exit(1);
 }
 
-const deploymentEnabled = config?.git?.deploymentEnabled;
-if (deploymentEnabled !== false && deploymentEnabled !== true) {
-  console.error("[cost-guard] BLOCKED: git.deploymentEnabled must be false or controlled boolean true during rollout.");
+if (config?.git?.deploymentEnabled !== false) {
+  console.error("[cost-guard] BLOCKED: git.deploymentEnabled must stay false. Use a manual production deploy instead of temporarily enabling Git auto-deploy.");
   process.exit(1);
 }
 
-console.log(deploymentEnabled === true
-  ? "[cost-guard] OK: controlled production rollout enabled."
-  : "[cost-guard] OK: Vercel Git auto-deploy is disabled.");
+console.log("[cost-guard] OK: Vercel Git auto-deploy is disabled.");
