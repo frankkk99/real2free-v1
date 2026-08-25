@@ -1,0 +1,25 @@
+name: Validate unicode redirect fix
+
+on:
+  push:
+    branches: [fix/unicode-location-header]
+    paths: [.github/workflows/unicode-redirect-validate.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Unicode path assertion
+        run: node -e "const s='내일도-출근-2026'; const p='/series/'+encodeURIComponent(s); if (/[^\\x00-\\x7F]/.test(p) || !p.includes('%EB%82%B4')) process.exit(1); console.log(p)"
+      - name: Build
+        run: npm run build
