@@ -42,3 +42,7 @@ export function catalogPath(item: CatalogUrlItem) {
   const root = item.contentType === "series" ? "series" : "movie";
   return `/${root}/${encodeURIComponent(catalogSlug(item))}`;
 }
+
+export function watchPath(item: CatalogUrlItem) {
+  return `/watch/${encodeURIComponent(catalogSlug(item))}`;
+}

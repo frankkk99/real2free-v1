@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import WatchExperience from "@/components/WatchExperience";
-import { catalogPath } from "@/lib/catalog-url";
+import { catalogSlug, normalizeCatalogSlug, watchPath } from "@/lib/catalog-url";
 import {
   loadCatalogDetailById,
   UUID_PATTERN,
@@ -11,8 +11,9 @@ import { resolveSeoCatalogSlug } from "@/lib/seo-catalog";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function resolveLegacyWatchSlug(reference: string) {
-  if (UUID_PATTERN.test(reference)) return null;
+async function resolveWatchReference(reference: string) {
+  if (UUID_PATTERN.test(reference)) return loadCatalogDetailById(reference);
+
   const resolved = await resolveSeoCatalogSlug(reference, null);
   if (!resolved) return null;
   return loadCatalogDetailById(resolved.id);
@@ -24,19 +25,22 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const detail = UUID_PATTERN.test(id)
-    ? await loadCatalogDetailById(id)
-    : await resolveLegacyWatchSlug(id);
+  const detail = await resolveWatchReference(id);
   if (!detail) notFound();
 
   const { item } = detail;
   const typeLabel = item.contentType === "series" ? "ซีรีส์" : "หนัง";
   const yearLabel = item.year ? ` (${item.year})` : "";
-  const canonical = catalogPath(item);
+  const canonical = watchPath(item);
+  const title = `ดู ${item.thaiTitle}${yearLabel}`;
+  const description = item.overview?.trim()
+    ? item.overview.replace(/\s+/g, " ").trim().slice(0, 180)
+    : `รับชม${typeLabel} ${item.thaiTitle}${yearLabel} บน REAL2FREE`;
+  const image = item.posterUrl || item.backdropUrl || undefined;
 
   return {
-    title: `รับชม ${item.thaiTitle}${yearLabel}`,
-    description: `หน้ารับชม${typeLabel} ${item.thaiTitle}${yearLabel} บน REAL2FREE`,
+    title,
+    description,
     alternates: { canonical },
     robots: {
       index: false,
@@ -44,10 +48,25 @@ export async function generateMetadata({
       googleBot: {
         index: false,
         follow: true,
-        "max-image-preview": "none",
-        "max-snippet": 0,
-        "max-video-preview": 0,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
       },
+    },
+    openGraph: {
+      title: `${title} | REAL2FREE`,
+      description,
+      url: canonical,
+      siteName: "REAL2FREE",
+      locale: "th_TH",
+      type: "website",
+      images: image ? [{ url: image, alt: `โปสเตอร์ ${item.thaiTitle}` }] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: `${title} | REAL2FREE`,
+      description,
+      images: image ? [image] : undefined,
     },
   };
 }
@@ -58,15 +77,15 @@ export default async function WatchPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
-  if (!UUID_PATTERN.test(id)) {
-    const legacyDetail = await resolveLegacyWatchSlug(id);
-    if (!legacyDetail) notFound();
-    permanentRedirect(catalogPath(legacyDetail.item));
-  }
-
-  const detail = await loadCatalogDetailById(id);
+  const detail = await resolveWatchReference(id);
   if (!detail) notFound();
 
-  return <WatchExperience item={detail.item} episodes={detail.episodes} />;
+  const { item, episodes } = detail;
+  const canonicalSlug = catalogSlug(item);
+
+  if (UUID_PATTERN.test(id) || normalizeCatalogSlug(id) !== canonicalSlug) {
+    permanentRedirect(watchPath(item));
+  }
+
+  return <WatchExperience item={item} episodes={episodes} />;
 }
