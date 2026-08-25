@@ -40,5 +40,5 @@ export function normalizeCatalogSlug(value: string) {
 
 export function catalogPath(item: CatalogUrlItem) {
   const root = item.contentType === "series" ? "series" : "movie";
-  return `/${root}/${catalogSlug(item)}`;
+  return `/${root}/${encodeURIComponent(catalogSlug(item))}`;
 }
