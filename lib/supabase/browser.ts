@@ -19,6 +19,9 @@ const CACHEABLE_PUBLIC_RESOURCES = new Set([
   "real2free_public_smart_cards",
   "real2free_public_heroes",
   "real2free_public_home_sections",
+  "real2free_public_titles",
+  "real2free_public_episodes",
+  "real2free_public_series_summary",
 ]);
 
 async function sameOriginPublicFetch(input: RequestInfo | URL, init?: RequestInit) {
