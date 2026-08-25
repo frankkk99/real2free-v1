@@ -63,6 +63,7 @@ export default function CatalogPosterCard({
     if (grid.dataset.spatialCarousel === "true") return;
 
     grid.dataset.spatialCarousel = "true";
+    grid.classList.add(styles.spatialCarousel);
 
     const handleWheel = (event: WheelEvent) => {
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
@@ -198,7 +199,7 @@ export default function CatalogPosterCard({
           easing: "ease-out",
           fill: "forwards",
         });
-        void fade.finished.finally(() => ghost.remove());
+        void fade.finished.catch(() => undefined).finally(() => ghost.remove());
         return;
       }
 
