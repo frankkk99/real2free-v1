@@ -3,13 +3,10 @@ import "server-only";
 import { cache } from "react";
 import {
   mapPublicCatalogRow,
-  mapPublicEpisodeRow,
   PUBLIC_CATALOG_FIELDS,
-  PUBLIC_EPISODE_FIELDS,
   type PublicCatalogItem,
   type PublicCatalogRow,
   type PublicEpisode,
-  type PublicEpisodeRow,
 } from "@/lib/public-catalog";
 import { resolveSeoCatalogSlug } from "@/lib/seo-catalog";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
@@ -21,7 +18,6 @@ export type PublicCatalogDetail = {
 
 const DETAIL_REVALIDATE_SECONDS = 21_600;
 const TITLES_VIEW = "real2free_public_titles";
-const EPISODES_VIEW = "real2free_public_episodes";
 
 function publicViewUrl(view: string, params: URLSearchParams) {
   return `${SUPABASE_URL}/rest/v1/${view}?${params.toString()}`;
@@ -56,22 +52,11 @@ export const loadPublicCatalogDetailById = cache(async (
   const item = mapPublicCatalogRow(titleRow);
   if (!item) return null;
 
-  if (item.contentType !== "series") {
-    return { item, episodes: [] };
-  }
-
-  const episodeParams = new URLSearchParams({
-    select: PUBLIC_EPISODE_FIELDS,
-    series_id: `eq.${id}`,
-    order: "season_number.asc,episode_number.asc",
-    limit: "1000",
-  });
-  const episodeRows = await fetchRows<PublicEpisodeRow>(EPISODES_VIEW, episodeParams);
-  const episodes = episodeRows
-    .map(mapPublicEpisodeRow)
-    .filter((episode): episode is PublicEpisode => Boolean(episode));
-
-  return { item, episodes };
+  // The public series metadata view already exposes episode/season/latest counts and
+  // aggregate player availability. Do not query a public episodes view here: that
+  // relation is not guaranteed to exist, while the actual Watch page still resolves
+  // secure episode/player data through the request-bound gateway.
+  return { item, episodes: [] };
 });
 
 export const loadPublicCatalogDetailBySlug = cache(async (
