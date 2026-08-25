@@ -1,6 +1,8 @@
 "use client";
 
 import { Bookmark, Film, Play, Star } from "lucide-react";
+import { useRef } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { contentTypeLabel, type PublicCatalogItem } from "@/lib/public-catalog";
 import styles from "./CatalogPosterCard.module.css";
 
@@ -38,17 +40,62 @@ export default function CatalogPosterCard({
   onFavorite: () => void;
   onPrefetch: () => void;
 }) {
+  const cardRef = useRef<HTMLElement | null>(null);
+  const tiltFrameRef = useRef<number | null>(null);
   const recent = isRecentlyAdded(movie);
   const languages = cardLanguageBadges(movie);
   const hasDistinctEnglishTitle = Boolean(movie.title.trim())
     && normalizedTitle(movie.title) !== normalizedTitle(movie.thaiTitle);
 
+  const resetTilt = () => {
+    if (tiltFrameRef.current !== null) {
+      window.cancelAnimationFrame(tiltFrameRef.current);
+      tiltFrameRef.current = null;
+    }
+
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.setProperty("--tilt-x", "0deg");
+    card.style.setProperty("--tilt-y", "0deg");
+    card.style.setProperty("--glow-x", "50%");
+    card.style.setProperty("--glow-y", "45%");
+  };
+
+  const updateTilt = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== "mouse") return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+    const rotateY = (x - 0.5) * 9;
+    const rotateX = (0.5 - y) * 7;
+
+    if (tiltFrameRef.current !== null) window.cancelAnimationFrame(tiltFrameRef.current);
+    tiltFrameRef.current = window.requestAnimationFrame(() => {
+      const card = cardRef.current;
+      if (!card) return;
+      card.style.setProperty("--tilt-x", `${rotateX.toFixed(2)}deg`);
+      card.style.setProperty("--tilt-y", `${rotateY.toFixed(2)}deg`);
+      card.style.setProperty("--glow-x", `${(x * 100).toFixed(1)}%`);
+      card.style.setProperty("--glow-y", `${(y * 100).toFixed(1)}%`);
+      tiltFrameRef.current = null;
+    });
+  };
+
   return (
-    <article className={styles.card}>
+    <article ref={cardRef} className={styles.card}>
       <button
         className={styles.posterButton}
         type="button"
         onPointerDown={onPrefetch}
+        onPointerMove={updateTilt}
+        onPointerLeave={resetTilt}
+        onPointerCancel={resetTilt}
+        onBlur={resetTilt}
         onClick={onOpen}
         aria-label={`ดูข้อมูล ${movie.thaiTitle}`}
       >

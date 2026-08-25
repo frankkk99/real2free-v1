@@ -1,0 +1,240 @@
+/* REAL2FREE spatial UX layer
+   Keep motion composited (transform/opacity) and disable it for reduced-motion/coarse pointers. */
+
+.r2f-home-hero {
+  perspective: 1400px;
+  transform-style: preserve-3d;
+}
+
+.r2f-hero-content-enter {
+  transform-style: preserve-3d;
+}
+
+.r2f-hero-content-enter h1,
+.r2f-hero-content-enter h2,
+.r2f-hero-content-enter p,
+.r2f-hero-content-enter [class*="heroMeta"],
+.r2f-hero-content-enter [class*="heroActions"] {
+  backface-visibility: hidden;
+}
+
+@media (min-width: 821px) and (hover: hover) and (pointer: fine) {
+  .r2f-hero-backdrops {
+    transform: translateZ(-22px) scale(1.018);
+    transform-origin: center center;
+  }
+
+  .r2f-hero-content-enter h1 {
+    transform: translateZ(56px);
+    text-shadow: 0 18px 36px rgba(0, 0, 0, .32);
+  }
+
+  .r2f-hero-content-enter h2,
+  .r2f-hero-content-enter p {
+    transform: translateZ(38px);
+  }
+
+  .r2f-hero-content-enter [class*="heroMeta"] {
+    transform: translateZ(46px);
+  }
+
+  .r2f-hero-content-enter [class*="heroActions"] {
+    transform: translateZ(64px);
+  }
+
+  .r2f-hero-content-enter [class*="heroActions"] button {
+    transition: transform 180ms cubic-bezier(.2,.82,.24,1), box-shadow 180ms ease, background 180ms ease;
+  }
+
+  .r2f-hero-content-enter [class*="heroActions"] button:hover {
+    transform: translate3d(0, -3px, 0) scale(1.018);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .24);
+  }
+
+  .r2f-hero-content-enter [class*="heroActions"] button:active {
+    transform: translate3d(0, 1px, 0) scale(.965);
+  }
+}
+
+/* Detail modal: desktop gets a camera-push entrance and real depth between backdrop/poster/content. */
+[class*="CatalogDetailModal_backdrop__"] {
+  perspective: 1600px;
+}
+
+@media (min-width: 681px) {
+  [class*="CatalogDetailModal_modal__"] {
+    transform-style: preserve-3d;
+    transform-origin: center 58%;
+    animation: r2fModalSpatialIn 360ms cubic-bezier(.16,.84,.22,1) both !important;
+  }
+
+  [class*="CatalogDetailModal_hero__"] {
+    transform-style: preserve-3d;
+  }
+
+  [class*="CatalogDetailModal_hero__"] > img {
+    transform: translateZ(-24px) scale(1.055);
+    animation: r2fModalBackdropSettle 700ms cubic-bezier(.16,.84,.22,1) both;
+  }
+
+  [class*="CatalogDetailModal_heroContent__"] {
+    transform: translateZ(36px);
+  }
+
+  [class*="CatalogDetailModal_body__"] {
+    transform-style: preserve-3d;
+  }
+
+  [class*="CatalogDetailModal_poster__"] {
+    transform: translate3d(0, -2px, 34px) rotateY(-1.6deg);
+    box-shadow: 0 25px 56px rgba(0, 0, 0, .42), 0 0 0 1px rgba(255,255,255,.05);
+    transition: transform 240ms cubic-bezier(.2,.82,.24,1), box-shadow 240ms ease;
+  }
+
+  [class*="CatalogDetailModal_summary__"]:hover [class*="CatalogDetailModal_poster__"] {
+    transform: translate3d(0, -5px, 46px) rotateY(0deg) scale(1.012);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, .48), 0 10px 28px rgba(12,134,255,.12);
+  }
+
+  [class*="CatalogDetailModal_details__"] {
+    transform: translateZ(16px);
+  }
+
+  [class*="CatalogDetailModal_quickFact__"] {
+    transition: transform 180ms cubic-bezier(.2,.82,.24,1), border-color 180ms ease, background 180ms ease;
+  }
+
+  [class*="CatalogDetailModal_quickFact__"]:hover {
+    transform: translate3d(0, -3px, 22px);
+    border-color: rgba(85,171,255,.24);
+    background: rgba(85,171,255,.075);
+  }
+}
+
+[class*="CatalogDetailModal_watchButton__"],
+[class*="CatalogDetailModal_utilityActions__"] button,
+[class*="CatalogDetailModal_close__"] {
+  transition: transform 170ms cubic-bezier(.2,.82,.24,1), box-shadow 170ms ease, border-color 170ms ease, background 170ms ease;
+}
+
+[class*="CatalogDetailModal_watchButton__"]:hover {
+  transform: translateY(-2px) scale(1.008);
+  box-shadow: 0 20px 42px rgba(12,134,255,.32);
+}
+
+[class*="CatalogDetailModal_watchButton__"]:active,
+[class*="CatalogDetailModal_utilityActions__"] button:active,
+[class*="CatalogDetailModal_close__"]:active {
+  transform: scale(.96);
+}
+
+/* Watch page: cinematic entrance only; no continuous animation while a movie is playing. */
+[class*="WatchExperience_titleBlock__"] {
+  animation: r2fWatchTitleIn 420ms cubic-bezier(.16,.84,.22,1) both;
+}
+
+[class*="WatchExperience_playerStage__"] {
+  transform-origin: center top;
+  animation: r2fPlayerStageIn 520ms cubic-bezier(.16,.84,.22,1) 80ms both;
+  will-change: transform, opacity;
+}
+
+[class*="WatchExperience_playbackNote__"] {
+  transition: transform 190ms cubic-bezier(.2,.82,.24,1), border-color 190ms ease, box-shadow 190ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [class*="WatchExperience_playbackNote__"]:hover {
+    transform: translateY(-2px);
+    border-color: rgba(85,171,255,.18);
+    box-shadow: 0 20px 54px rgba(0,0,0,.24);
+  }
+
+  [class*="WatchExperience_infoCard__"],
+  [class*="WatchExperience_choiceCard__"] {
+    transition: transform 220ms cubic-bezier(.2,.82,.24,1), border-color 220ms ease, box-shadow 220ms ease;
+  }
+
+  [class*="WatchExperience_infoCard__"]:hover,
+  [class*="WatchExperience_choiceCard__"]:hover {
+    transform: translateY(-3px);
+    border-color: rgba(85,171,255,.15);
+    box-shadow: 0 26px 68px rgba(0,0,0,.28);
+  }
+
+  [class*="WatchExperience_backButton__"],
+  [class*="WatchExperience_favoriteButton__"],
+  [class*="WatchExperience_shareButton__"] {
+    transition: transform 170ms cubic-bezier(.2,.82,.24,1), border-color 170ms ease, background 170ms ease, color 170ms ease;
+  }
+
+  [class*="WatchExperience_backButton__"]:hover,
+  [class*="WatchExperience_favoriteButton__"]:hover,
+  [class*="WatchExperience_shareButton__"]:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes r2fModalSpatialIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, -90px) rotateX(2.2deg) scale(.952);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes r2fModalBackdropSettle {
+  from { transform: translateZ(-42px) scale(1.11); filter: saturate(.82) contrast(.96); }
+  to { transform: translateZ(-24px) scale(1.055); filter: saturate(1) contrast(1); }
+}
+
+@keyframes r2fWatchTitleIn {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); filter: blur(3px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+
+@keyframes r2fPlayerStageIn {
+  from { opacity: 0; transform: perspective(1200px) translate3d(0, 20px, -70px) rotateX(2.4deg) scale(.965); }
+  to { opacity: 1; transform: perspective(1200px) translate3d(0, 0, 0) rotateX(0) scale(1); }
+}
+
+@media (max-width: 820px), (hover: none), (pointer: coarse) {
+  .r2f-home-hero {
+    perspective: none;
+  }
+
+  [class*="CatalogDetailModal_watchButton__"]:active {
+    transform: scale(.975);
+  }
+
+  [class*="WatchExperience_playerStage__"] {
+    animation-duration: 380ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .r2f-home-hero,
+  .r2f-hero-backdrops,
+  .r2f-hero-content-enter,
+  .r2f-hero-content-enter *,
+  [class*="CatalogDetailModal_modal__"],
+  [class*="CatalogDetailModal_hero__"] > img,
+  [class*="CatalogDetailModal_poster__"],
+  [class*="CatalogDetailModal_quickFact__"],
+  [class*="CatalogDetailModal_watchButton__"],
+  [class*="WatchExperience_titleBlock__"],
+  [class*="WatchExperience_playerStage__"],
+  [class*="WatchExperience_playbackNote__"],
+  [class*="WatchExperience_infoCard__"],
+  [class*="WatchExperience_choiceCard__"] {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+    filter: none !important;
+  }
+}
