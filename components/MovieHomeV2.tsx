@@ -145,7 +145,7 @@ const CACHE_MS = 5 * 60 * 1000;
 const CURRENT_RELEASE_YEAR = 2026;
 const HERO_SLIDE_LIMIT = 10;
 const HERO_ROTATION_MS = 6800;
-const HOME_SECTION_LIMIT = 18;
+const HOME_SECTION_LIMIT = 24;
 
 const mainNav: Array<{ mode: ViewMode; label: string; icon: typeof Home }> = [
   { mode: "home", label: "หน้าแรก", icon: Home },
