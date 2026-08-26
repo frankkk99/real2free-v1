@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { catalogTitleMatchScore, rankCatalogTitleMatches } from "@/lib/fuzzy-catalog-search";
 import type { PublicCatalogItem } from "@/lib/public-catalog";
 import {
   languageFilterOptions,
@@ -132,13 +133,13 @@ export default function SmartCatalogHeader({
   void onOpenMenu;
 
   const suggestions = useMemo(() => {
-    const needle = (parsedSearch.text || queryInput).trim().toLocaleLowerCase("th-TH");
+    const needle = parsedSearch.text.trim();
     if (!needle) return [];
 
-    return items
-      .filter((item) => `${item.thaiTitle} ${item.title}`.toLocaleLowerCase("th-TH").includes(needle))
+    return rankCatalogTitleMatches(items, needle)
+      .filter((item) => catalogTitleMatchScore(needle, item.thaiTitle, item.title) >= 0.3)
       .slice(0, 5);
-  }, [items, parsedSearch.text, queryInput]);
+  }, [items, parsedSearch.text]);
 
   const selectedFilterCount = [
     activeViewMode !== "home",
