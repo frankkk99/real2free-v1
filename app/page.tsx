@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import HomeBottomInfiniteLoader from "@/components/HomeBottomInfiniteLoader";
 import MovieHomeV2 from "@/components/MovieHomeV2";
 import SeoCatalogLinks from "@/components/SeoCatalogLinks";
 import { absoluteCatalogUrl, getSeoCatalogPreview } from "@/lib/seo-catalog";
@@ -64,6 +65,7 @@ export default async function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(websiteSchema) }} />
       {items.length ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(itemListSchema) }} /> : null}
       <MovieHomeV2 />
+      <HomeBottomInfiniteLoader />
       <SeoCatalogLinks items={items} />
     </>
   );
