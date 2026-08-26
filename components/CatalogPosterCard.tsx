@@ -249,7 +249,7 @@ export default function CatalogPosterCard({
           )}
           <span className={styles.posterShade} />
 
-          <span className={styles.posterTopBadges}>
+          <span className={styles.posterTopBadges} style={{ right: 42 }}>
             <span className={styles.badgeCluster}>
               {recent ? <span className={styles.newBadge}>ใหม่</span> : null}
             </span>
@@ -280,11 +280,19 @@ export default function CatalogPosterCard({
         type="button"
         onClick={onFavorite}
         aria-label={favorite ? "นำออกจากรายการโปรด" : "บันทึกในรายการโปรด"}
-        style={favorite ? {
-          color: "var(--primary-bright)",
-          background: "color-mix(in srgb, var(--primary-soft) 88%, rgba(2, 9, 19, .68))",
-          borderColor: "color-mix(in srgb, var(--primary) 48%, rgba(255, 255, 255, .18))",
-        } : undefined}
+        style={{
+          position: "absolute",
+          zIndex: 8,
+          top: 7,
+          right: 7,
+          bottom: "auto",
+          borderRadius: 999,
+          ...(favorite ? {
+            color: "var(--primary-bright)",
+            background: "color-mix(in srgb, var(--primary-soft) 88%, rgba(2, 9, 19, .68))",
+            borderColor: "color-mix(in srgb, var(--primary) 48%, rgba(255, 255, 255, .18))",
+          } : {}),
+        }}
       >
         <Bookmark fill={favorite ? "currentColor" : "none"} />
       </button>
