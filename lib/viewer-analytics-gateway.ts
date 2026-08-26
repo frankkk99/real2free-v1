@@ -18,7 +18,7 @@ export class ViewerAnalyticsGatewayError extends Error {
   }
 }
 
-export async function sendViewerAnalyticsEvent(event: Record<string, unknown>) {
+async function sendAnalyticsGatewayAction(action: string, payloadKey: string, payload: Record<string, unknown>) {
   let token: string;
   try {
     token = await getVercelOidcToken({ project: PROJECT_ID, team: TEAM_ID });
@@ -35,11 +35,19 @@ export async function sendViewerAnalyticsEvent(event: Record<string, unknown>) {
       "content-type": "application/json",
       "x-real2free-analytics-server": "1",
     },
-    body: JSON.stringify({ action: "event", event }),
+    body: JSON.stringify({ action, [payloadKey]: payload }),
   });
 
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    throw new ViewerAnalyticsGatewayError(response.status, payload?.error || "gateway_error");
+    const responsePayload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new ViewerAnalyticsGatewayError(response.status, responsePayload?.error || "gateway_error");
   }
+}
+
+export async function sendViewerAnalyticsEvent(event: Record<string, unknown>) {
+  await sendAnalyticsGatewayAction("event", "event", event);
+}
+
+export async function sendSearchMissAnalytics(searchMiss: Record<string, unknown>) {
+  await sendAnalyticsGatewayAction("search_miss", "searchMiss", searchMiss);
 }

@@ -113,6 +113,40 @@ function eventRow(raw: unknown): JsonRecord | null {
   };
 }
 
+function containsObviousPersonalData(value: string): boolean {
+  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(value)) return true;
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 8;
+}
+
+function searchMissRow(raw: unknown): JsonRecord | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const event = raw as JsonRecord;
+  if (typeof event.eventId !== "string" || !UUID_RE.test(event.eventId)) return null;
+
+  const query = cleanText(event.query, 120);
+  const path = cleanText(event.path, 500);
+  const resultCount = typeof event.resultCount === "number" && Number.isInteger(event.resultCount) ? event.resultCount : -1;
+  if (!query || query.length < 2 || containsObviousPersonalData(query)) return null;
+  if (!path?.startsWith("/") || path.startsWith("/admin") || path.startsWith("/api/")) return null;
+  if (resultCount !== 0) return null;
+
+  const queryNormalized = query
+    .normalize("NFKC")
+    .toLocaleLowerCase("th-TH")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (queryNormalized.length < 2) return null;
+
+  return {
+    event_id: event.eventId,
+    query,
+    query_normalized: queryNormalized,
+    path,
+    result_count: 0,
+  };
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return response({ error: "method_not_allowed" }, 405);
   if (!serviceRoleKey || !supabaseUrl) return response({ error: "gateway_not_configured" }, 503);
@@ -127,18 +161,34 @@ Deno.serve(async (request: Request) => {
   } catch {
     return response({ error: "invalid_json" }, 400);
   }
-  if (body.action !== "event") return response({ error: "unknown_action" }, 400);
 
-  const row = eventRow(body.event);
-  if (!row) return response({ error: "invalid_event" }, 400);
+  if (body.action === "event") {
+    const row = eventRow(body.event);
+    if (!row) return response({ error: "invalid_event" }, 400);
 
-  const { error } = await db
-    .from("real2free_viewer_events")
-    .upsert(row, { onConflict: "event_id", ignoreDuplicates: true });
-  if (error) {
-    console.error("[real2free-analytics] event write failed", String(error));
-    return response({ error: "gateway_error" }, 500);
+    const { error } = await db
+      .from("real2free_viewer_events")
+      .upsert(row, { onConflict: "event_id", ignoreDuplicates: true });
+    if (error) {
+      console.error("[real2free-analytics] event write failed", String(error));
+      return response({ error: "gateway_error" }, 500);
+    }
+    return response({ ok: true }, 202);
   }
 
-  return response({ ok: true }, 202);
+  if (body.action === "search_miss") {
+    const row = searchMissRow(body.searchMiss);
+    if (!row) return response({ error: "invalid_search_miss" }, 400);
+
+    const { error } = await db
+      .from("real2free_search_misses")
+      .upsert(row, { onConflict: "event_id", ignoreDuplicates: true });
+    if (error) {
+      console.error("[real2free-analytics] search miss write failed", String(error));
+      return response({ error: "gateway_error" }, 500);
+    }
+    return response({ ok: true }, 202);
+  }
+
+  return response({ error: "unknown_action" }, 400);
 });

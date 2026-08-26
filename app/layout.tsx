@@ -4,6 +4,7 @@ import AdContactModal from "@/components/AdContactModal";
 import DevToolsGuard from "@/components/DevToolsGuard";
 import HomeBottomInfiniteFeed from "@/components/HomeBottomInfiniteFeed";
 import HomeSectionPagination from "@/components/HomeSectionPagination";
+import SearchMissTelemetry from "@/components/SearchMissTelemetry";
 import { ViewerAnalytics } from "@/components/ViewerAnalytics";
 import "./globals.css";
 import "./home-enhancements.css";
@@ -114,6 +115,7 @@ export default function RootLayout({
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <DevToolsGuard />
         <ViewerAnalytics />
+        <SearchMissTelemetry />
         {children}
         <HomeSectionPagination />
         <HomeBottomInfiniteFeed />
