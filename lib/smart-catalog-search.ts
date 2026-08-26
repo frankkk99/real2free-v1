@@ -33,53 +33,84 @@ type AliasRule<T extends string> = {
 };
 
 const viewRules: Array<AliasRule<SmartCatalogView>> = [
-  { value: "series", label: "ซีรีส์", aliases: ["ซีรีส์", "ซีรี่ส์", "ซีรี่ย์", "series"] },
-  { value: "anime", label: "อนิเมะ", aliases: ["อนิเมะ", "anime"] },
-  { value: "movie", label: "ภาพยนตร์", aliases: ["ภาพยนตร์", "หนัง", "movie", "film"] },
+  {
+    value: "series",
+    label: "ซีรีส์",
+    aliases: ["ซีรีส์", "ซีรี่ส์", "ซีรี่ย์", "ซีรีย์", "ซีรี่", "ละครซีรีส์", "ละคร", "tv series", "series"],
+  },
+  { value: "anime", label: "อนิเมะ", aliases: ["อนิเมะ", "อะนิเมะ", "anime"] },
+  { value: "movie", label: "ภาพยนตร์", aliases: ["ภาพยนตร์", "ภาพยนต์", "หนัง", "movie", "movies", "film"] },
 ];
 
 const brandRules: Array<AliasRule<Exclude<CatalogBrandFilter, "ทั้งหมด">>> = [
-  { value: "netflix", label: "Netflix", aliases: ["netflix", "เน็ตฟลิกซ์"] },
-  { value: "disney", label: "Disney+", aliases: ["disney+", "disney", "ดิสนีย์"] },
-  { value: "hbo", label: "HBO / Max", aliases: ["hbo max", "hbo", "max"] },
-  { value: "marvel", label: "Marvel", aliases: ["marvel"] },
-  { value: "dc", label: "DC", aliases: ["dc"] },
-  { value: "prime", label: "Prime Video", aliases: ["prime video", "prime"] },
-  { value: "apple", label: "Apple TV+", aliases: ["apple tv+", "apple tv", "apple"] },
-  { value: "iqiyi", label: "iQIYI", aliases: ["iqiyi", "i qiyi"] },
-  { value: "viu", label: "Viu", aliases: ["viu"] },
-  { value: "wetv", label: "WeTV", aliases: ["wetv", "we tv"] },
+  { value: "netflix", label: "Netflix", aliases: ["netflix", "net flix", "เน็ตฟลิกซ์", "เน็ตฟลิก", "เนตฟลิกซ์"] },
+  { value: "disney", label: "Disney+", aliases: ["disney+", "disney plus", "disney", "ดิสนีย์พลัส", "ดิสนีย์"] },
+  { value: "hbo", label: "HBO / Max", aliases: ["hbo max", "hbo", "max", "เอชบีโอ", "แม็กซ์"] },
+  { value: "marvel", label: "Marvel", aliases: ["marvel", "มาร์เวล"] },
+  { value: "dc", label: "DC", aliases: ["dc", "ดีซี"] },
+  { value: "prime", label: "Prime Video", aliases: ["amazon prime video", "amazon prime", "prime video", "prime", "ไพรม์วิดีโอ", "ไพรม์"] },
+  { value: "apple", label: "Apple TV+", aliases: ["apple tv+", "apple tv plus", "apple tv", "apple", "แอปเปิลทีวี", "แอปเปิล"] },
+  { value: "iqiyi", label: "iQIYI", aliases: ["iqiyi", "i qiyi", "อ้ายฉีอี้", "อ้ายฉีอี"] },
+  { value: "viu", label: "Viu", aliases: ["viu", "วิว"] },
+  { value: "wetv", label: "WeTV", aliases: ["wetv", "we tv", "วีทีวี", "เวทีวี"] },
 ];
 
 const countryRules: Array<AliasRule<Exclude<CatalogCountryFilter, "ทั้งหมด">>> = [
-  { value: "TH", label: "ไทย", aliases: ["ไทย", "thai", "thailand"] },
-  { value: "KR", label: "เกาหลี", aliases: ["เกาหลีใต้", "เกาหลี", "korean", "korea"] },
-  { value: "CN", label: "จีน", aliases: ["จีนแผ่นดินใหญ่", "จีน", "chinese", "china"] },
-  { value: "JP", label: "ญี่ปุ่น", aliases: ["ญี่ปุ่น", "japanese", "japan"] },
-  { value: "US", label: "อเมริกา", aliases: ["อเมริกา", "อเมริกัน", "american", "usa"] },
+  { value: "TH", label: "ไทย", aliases: ["ประเทศไทย", "หนังไทย", "ไทย", "thai", "thailand"] },
+  { value: "KR", label: "เกาหลี", aliases: ["เกาหลีใต้", "เกาหลี", "korean", "south korea", "korea", "k-drama", "kdrama"] },
+  { value: "CN", label: "จีน", aliases: ["จีนแผ่นดินใหญ่", "จีน", "chinese", "mainland china", "china", "c-drama", "cdrama"] },
+  { value: "JP", label: "ญี่ปุ่น", aliases: ["ญี่ปุ่น", "japanese", "japan", "j-drama", "jdrama"] },
+  { value: "US", label: "อเมริกา", aliases: ["สหรัฐอเมริกา", "อเมริกา", "อเมริกัน", "american", "united states", "usa", "u.s."] },
 ];
 
 const genreRules: Array<AliasRule<string>> = [
   { value: "Science Fiction", label: "ไซไฟ", aliases: ["science fiction", "sci-fi", "scifi", "ไซไฟ", "วิทยาศาสตร์"] },
-  { value: "Animation", label: "แอนิเมชัน", aliases: ["แอนิเมชัน", "แอนิเมชั่น", "การ์ตูน", "animation"] },
+  { value: "Animation", label: "แอนิเมชัน", aliases: ["แอนิเมชัน", "แอนิเมชั่น", "การ์ตูน", "animation", "animated"] },
   { value: "Adventure", label: "ผจญภัย", aliases: ["ผจญภัย", "adventure"] },
-  { value: "Thriller", label: "ระทึกขวัญ", aliases: ["ระทึกขวัญ", "thriller"] },
-  { value: "Romance", label: "โรแมนติก", aliases: ["โรแมนติก", "ความรัก", "romance"] },
+  { value: "Thriller", label: "ระทึกขวัญ", aliases: ["ระทึกขวัญ", "ทริลเลอร์", "thriller"] },
+  { value: "Romance", label: "โรแมนติก", aliases: ["โรแมนติก", "โรแมนซ์", "รอมคอม", "rom-com", "romcom", "romance", "romantic"] },
   { value: "Fantasy", label: "แฟนตาซี", aliases: ["แฟนตาซี", "fantasy"] },
   { value: "Action", label: "แอ็กชัน", aliases: ["แอ็กชัน", "แอ็กชั่น", "แอคชั่น", "แอ็คชั่น", "บู๊", "action"] },
-  { value: "Comedy", label: "ตลก", aliases: ["คอมเมดี้", "ตลก", "comedy"] },
-  { value: "Horror", label: "สยองขวัญ", aliases: ["สยองขวัญ", "หนังผี", "ผี", "horror"] },
-  { value: "Drama", label: "ดราม่า", aliases: ["ดราม่า", "drama"] },
-  { value: "Crime", label: "อาชญากรรม", aliases: ["อาชญากรรม", "crime"] },
-  { value: "Mystery", label: "ลึกลับ", aliases: ["ลึกลับ", "mystery"] },
+  { value: "Comedy", label: "ตลก", aliases: ["คอมเมดี้", "ตลก", "ฮา", "comedy"] },
+  {
+    value: "Horror",
+    label: "สยองขวัญ",
+    // Keep "หนัง" out of the genre alias so a query like "หนังผี" can still
+    // be interpreted as both movie + horror instead of losing the movie intent.
+    aliases: ["สยองขวัญ", "สยอง", "หลอน", "ผี", "horror", "ghost"],
+  },
+  { value: "Drama", label: "ดราม่า", aliases: ["ดราม่า", "ละครชีวิต", "drama"] },
+  { value: "Crime", label: "อาชญากรรม", aliases: ["อาชญากรรม", "สืบสวนอาชญากรรม", "crime"] },
+  { value: "Mystery", label: "ลึกลับ", aliases: ["ลึกลับ", "ปริศนา", "mystery"] },
   { value: "Family", label: "ครอบครัว", aliases: ["ครอบครัว", "family"] },
 ];
 
 const languageRules: Array<AliasRule<Exclude<CatalogLanguageFilter, "ทั้งหมด">>> = [
-  { value: "dub_th", label: "พากย์ไทย", aliases: ["พากย์ไทย", "เสียงไทย", "thai audio", "thai dub", "dub thai"] },
-  { value: "sub_th", label: "ซับไทย", aliases: ["ซับไทย", "บรรยายไทย", "thai sub", "thai subtitle", "sub thai"] },
-  { value: "backup", label: "มีสำรอง", aliases: ["มีสำรอง", "ตัวสำรอง", "สำรอง", "backup"] },
+  {
+    value: "dub_th",
+    label: "พากย์ไทย",
+    aliases: ["พากย์ไทย", "พากษ์ไทย", "ไทยพากย์", "เสียงไทย", "เสียงภาษาไทย", "thai audio", "thai dub", "dub thai"],
+  },
+  {
+    value: "sub_th",
+    label: "ซับไทย",
+    aliases: ["ซับไทย", "ซับภาษาไทย", "บรรยายไทย", "คำบรรยายไทย", "thai sub", "thai subtitle", "sub thai"],
+  },
+  {
+    value: "backup",
+    label: "มีสำรอง",
+    aliases: ["มีสำรอง", "ตัวสำรอง", "ลิงก์สำรอง", "ลิ้งสำรอง", "เซิร์ฟสำรอง", "สำรอง", "backup"],
+  },
 ];
+
+export const SMART_SEARCH_EXAMPLES = [
+  "หนังเกาหลี 2025 พากย์ไทย",
+  "ซีรีส์จีนโรแมนติก",
+  "Netflix 2026",
+  "หนังผี 2026",
+  "อนิเมะญี่ปุ่น ซับไทย",
+  "หนังแอ็กชัน 2025",
+] as const;
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
