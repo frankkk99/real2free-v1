@@ -365,7 +365,6 @@ export default function MovieHomeV2() {
     [effectiveBrand, effectiveCountry, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, titleQuery],
   );
 
-
   const fetchCatalog = useCallback(async (targetPage: number, append: boolean) => {
     const requestId = ++requestRef.current;
 
@@ -599,14 +598,16 @@ export default function MovieHomeV2() {
           .order("year", { ascending: false, nullsFirst: false })
           .order("updated_at", { ascending: false })
           .order("rating", { ascending: false, nullsFirst: false })
-          .order("vote_count", { ascending: false, nullsFirst: false });
+          .order("vote_count", { ascending: false, nullsFirst: false })
+          .order("id", { ascending: true });
       } else {
         builder = builder
           .order("updated_at", { ascending: false })
           .order("release_date", { ascending: false, nullsFirst: false })
           .order("year", { ascending: false, nullsFirst: false })
           .order("rating", { ascending: false, nullsFirst: false })
-          .order("vote_count", { ascending: false, nullsFirst: false });
+          .order("vote_count", { ascending: false, nullsFirst: false })
+          .order("id", { ascending: true });
       }
 
       const { data, error } = await builder.range(offset, offset + HOME_SECTION_LIMIT);
@@ -653,7 +654,6 @@ export default function MovieHomeV2() {
 
     void fetchHomeSections();
   }, [fetchHomeSections, isDefaultHome, storageReady]);
-
 
   const canLoadMore = !isDefaultHome && hasMore && items.length > 0;
 
@@ -717,7 +717,6 @@ export default function MovieHomeV2() {
   const featuredHero = activeHeroSlide?.kind === "featured" ? activeHeroSlide.featured : null;
   const fallbackHero = activeHeroSlide?.kind === "catalog" ? activeHeroSlide.fallback : null;
   const activeHeroCount = heroSlides.length;
-
 
   useEffect(() => {
     if (activeHeroCount < 2) return;
