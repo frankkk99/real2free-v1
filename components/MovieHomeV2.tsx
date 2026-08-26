@@ -101,6 +101,7 @@ type PublicHomeSectionRow = PublicCatalogCardRow & {
 };
 
 type HomeSectionsState = Record<HomeSectionKey, PublicCatalogItem[]>;
+type HomeSectionFlags = Record<HomeSectionKey, boolean>;
 
 const HOME_SECTION_KEYS: HomeSectionKey[] = ["new", "series", "vertical", "thai"];
 const HOME_SECTION_FIELDS = "section_key,section_rank,id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
@@ -111,6 +112,15 @@ function createEmptyHomeSections(): HomeSectionsState {
     series: [],
     vertical: [],
     thai: [],
+  };
+}
+
+function createHomeSectionFlags(value = false): HomeSectionFlags {
+  return {
+    new: value,
+    series: value,
+    vertical: value,
+    thai: value,
   };
 }
 
@@ -230,6 +240,8 @@ export default function MovieHomeV2() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [homeSections, setHomeSections] = useState<HomeSectionsState>(createEmptyHomeSections);
   const [homeSectionsLoading, setHomeSectionsLoading] = useState(false);
+  const [homeSectionHasMore, setHomeSectionHasMore] = useState<HomeSectionFlags>(createHomeSectionFlags);
+  const [homeSectionLoadingMore, setHomeSectionLoadingMore] = useState<HomeSectionFlags>(createHomeSectionFlags);
 
   const requestRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -238,6 +250,7 @@ export default function MovieHomeV2() {
   const detailCacheRef = useRef(new Map<string, PublicCatalogItem>());
   const detailRequestsRef = useRef(new Map<string, Promise<PublicCatalogItem | null>>());
   const homeSectionsRequestRef = useRef(0);
+  const homeSectionLoadingMoreRef = useRef<HomeSectionFlags>(createHomeSectionFlags());
 
   useEffect(() => {
     const savedTheme = readStoredString(THEME_KEY);
@@ -351,7 +364,6 @@ export default function MovieHomeV2() {
     () => `real2free-cards-v4:${effectiveViewMode}:${titleQuery}:${effectiveGenre}:${effectiveBrand}:${effectiveCountry}:${effectiveYear}:${effectiveLanguage}:${effectiveSort}`,
     [effectiveBrand, effectiveCountry, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, titleQuery],
   );
-
 
   const fetchCatalog = useCallback(async (targetPage: number, append: boolean) => {
     const requestId = ++requestRef.current;
@@ -543,25 +555,105 @@ export default function MovieHomeV2() {
         if (item) next[row.section_key].push(item);
       });
       setHomeSections(next);
+      setHomeSectionHasMore({
+        new: next.new.length >= HOME_SECTION_LIMIT,
+        series: next.series.length >= HOME_SECTION_LIMIT,
+        vertical: next.vertical.length >= HOME_SECTION_LIMIT,
+        thai: next.thai.length >= HOME_SECTION_LIMIT,
+      });
     } catch {
-      if (requestId === homeSectionsRequestRef.current) setHomeSections(createEmptyHomeSections());
+      if (requestId === homeSectionsRequestRef.current) {
+        setHomeSections(createEmptyHomeSections());
+        setHomeSectionHasMore(createHomeSectionFlags());
+      }
     } finally {
       if (requestId === homeSectionsRequestRef.current) setHomeSectionsLoading(false);
     }
   }, []);
+
+  const loadMoreHomeSection = useCallback(async (key: HomeSectionKey) => {
+    if (!homeSectionHasMore[key] || homeSectionLoadingMoreRef.current[key]) return;
+
+    const offset = homeSections[key].length;
+    homeSectionLoadingMoreRef.current[key] = true;
+    setHomeSectionLoadingMore((current) => ({ ...current, [key]: true }));
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      let builder = supabase
+        .from("real2free_public_smart_cards")
+        .select(PUBLIC_CATALOG_CARD_FIELDS);
+
+      if (key === "series") {
+        builder = builder.eq("content_type", "series").eq("is_vertical", false);
+      } else if (key === "vertical") {
+        builder = builder.eq("content_type", "series").eq("is_vertical", true);
+      } else if (key === "thai") {
+        builder = builder.eq("content_type", "movie").eq("is_thai", true);
+      }
+
+      if (key === "new" || key === "thai") {
+        builder = builder
+          .order("release_date", { ascending: false, nullsFirst: false })
+          .order("year", { ascending: false, nullsFirst: false })
+          .order("updated_at", { ascending: false })
+          .order("rating", { ascending: false, nullsFirst: false })
+          .order("vote_count", { ascending: false, nullsFirst: false })
+          .order("id", { ascending: true });
+      } else {
+        builder = builder
+          .order("updated_at", { ascending: false })
+          .order("release_date", { ascending: false, nullsFirst: false })
+          .order("year", { ascending: false, nullsFirst: false })
+          .order("rating", { ascending: false, nullsFirst: false })
+          .order("vote_count", { ascending: false, nullsFirst: false })
+          .order("id", { ascending: true });
+      }
+
+      const { data, error } = await builder.range(offset, offset + HOME_SECTION_LIMIT);
+      if (error) throw error;
+
+      const mapped = ((data || []) as unknown as PublicCatalogCardRow[])
+        .map(mapPublicCatalogCardRow)
+        .filter((item): item is PublicCatalogItem => Boolean(item));
+      const batch = mapped.slice(0, HOME_SECTION_LIMIT);
+
+      if (!batch.length) {
+        setHomeSectionHasMore((current) => ({ ...current, [key]: false }));
+        return;
+      }
+
+      setHomeSections((current) => {
+        const merged = new Map(current[key].map((item) => [item.id, item]));
+        batch.forEach((item) => merged.set(item.id, item));
+        return { ...current, [key]: [...merged.values()] };
+      });
+      setHomeSectionHasMore((current) => ({
+        ...current,
+        [key]: mapped.length > HOME_SECTION_LIMIT,
+      }));
+    } catch {
+      // Keep the button available so a transient network failure can be retried.
+    } finally {
+      homeSectionLoadingMoreRef.current[key] = false;
+      setHomeSectionLoadingMore((current) => ({ ...current, [key]: false }));
+    }
+  }, [homeSectionHasMore, homeSections]);
 
   useEffect(() => {
     if (!storageReady) return;
     if (!isDefaultHome) {
       homeSectionsRequestRef.current += 1;
       setHomeSections(createEmptyHomeSections());
+      setHomeSectionHasMore(createHomeSectionFlags());
+      setHomeSectionLoadingMore(createHomeSectionFlags());
+      homeSectionLoadingMoreRef.current = createHomeSectionFlags();
       setHomeSectionsLoading(false);
       return;
     }
 
     void fetchHomeSections();
   }, [fetchHomeSections, isDefaultHome, storageReady]);
-
 
   const canLoadMore = !isDefaultHome && hasMore && items.length > 0;
 
@@ -625,7 +717,6 @@ export default function MovieHomeV2() {
   const featuredHero = activeHeroSlide?.kind === "featured" ? activeHeroSlide.featured : null;
   const fallbackHero = activeHeroSlide?.kind === "catalog" ? activeHeroSlide.fallback : null;
   const activeHeroCount = heroSlides.length;
-
 
   useEffect(() => {
     if (activeHeroCount < 2) return;
@@ -766,11 +857,20 @@ export default function MovieHomeV2() {
   );
 
   const renderHomeSection = (key: HomeSectionKey, title: string, subtitle: string, Icon: typeof Clock3) => (
-    <div key={key}>
+    <div key={key} data-r2f-real-pagination="1">
       <div className={styles.sectionTitle}>
         <div><Icon /><span><strong>{title}</strong><small>{subtitle}</small></span></div>
       </div>
       {renderCards(homeSections[key])}
+      {homeSectionHasMore[key] ? (
+        <div className={styles.loadMoreArea}>
+          {homeSectionLoadingMore[key] ? (
+            <span><LoaderCircle /> กำลังแสดงรายการเพิ่ม...</span>
+          ) : (
+            <button type="button" onClick={() => void loadMoreHomeSection(key)}>แสดงเพิ่มเติม</button>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 

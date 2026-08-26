@@ -187,6 +187,16 @@ function renderSection(wrapper: HTMLElement, title: string, href: string) {
   }
 
   cleanupMobileCarousel(wrapper, heading, grid);
+
+  if (wrapper.dataset.r2fRealPagination === "1") {
+    wrapper.querySelector(":scope > .r2f-section-pagination")?.remove();
+    delete wrapper.dataset.r2fVisibleCount;
+    cards.forEach((card) => {
+      card.style.display = "";
+    });
+    return;
+  }
+
   const batchSize = Math.max(1, getColumnCount(grid) * 2);
   renderDesktopLoadMore(wrapper, cards, batchSize, title);
 }
