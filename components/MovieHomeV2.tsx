@@ -36,6 +36,7 @@ import {
   writeStoredJson,
   writeStoredString,
 } from "@/lib/client-storage";
+import { buildFuzzyTitleOrFilter, rankCatalogTitleMatches } from "@/lib/fuzzy-catalog-search";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   cleanCatalogSearch,
@@ -347,7 +348,7 @@ export default function MovieHomeV2() {
   const effectiveSort: CatalogSortMode = viewMode === "new" ? "release" : sortMode;
 
   const cacheKey = useMemo(
-    () => `real2free-cards-v3:${effectiveViewMode}:${titleQuery}:${effectiveGenre}:${effectiveBrand}:${effectiveCountry}:${effectiveYear}:${effectiveLanguage}:${effectiveSort}`,
+    () => `real2free-cards-v4:${effectiveViewMode}:${titleQuery}:${effectiveGenre}:${effectiveBrand}:${effectiveCountry}:${effectiveYear}:${effectiveLanguage}:${effectiveSort}`,
     [effectiveBrand, effectiveCountry, effectiveGenre, effectiveLanguage, effectiveSort, effectiveViewMode, effectiveYear, titleQuery],
   );
 
@@ -389,7 +390,10 @@ export default function MovieHomeV2() {
       const countOptions = targetPage === 0 ? { count: "exact" as const } : undefined;
       let builder = supabase.from("real2free_public_smart_cards").select(PUBLIC_CATALOG_CARD_FIELDS, countOptions);
 
-      if (titleQuery) builder = builder.or(`title_th.ilike.%${titleQuery}%,title_en.ilike.%${titleQuery}%`);
+      if (titleQuery) {
+        const fuzzyTitleFilter = buildFuzzyTitleOrFilter(titleQuery);
+        if (fuzzyTitleFilter) builder = builder.or(fuzzyTitleFilter);
+      }
       if (effectiveGenre !== "ทั้งหมด") builder = builder.contains("genres", [effectiveGenre]);
       if (effectiveBrand !== "ทั้งหมด") builder = builder.contains("brand_tags", [effectiveBrand]);
       if (effectiveCountry !== "ทั้งหมด") builder = builder.contains("countries", [effectiveCountry]);
@@ -462,7 +466,9 @@ export default function MovieHomeV2() {
         .map(mapPublicCatalogCardRow)
         .filter((item): item is PublicCatalogItem => Boolean(item));
 
-      if (viewMode === "history") {
+      if (titleQuery) {
+        mapped = rankCatalogTitleMatches(mapped, titleQuery);
+      } else if (viewMode === "history") {
         const order = new Map(history.map((entryId, index): [string, number] => [entryId, index]));
         mapped = mapped.sort((a, b) => (order.get(a.id) ?? 9999) - (order.get(b.id) ?? 9999));
       }
