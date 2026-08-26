@@ -40,6 +40,8 @@ export function buildFuzzyTitleFragments(value: string) {
 
   const compact = normalized.replace(/\s+/g, "");
   const chars = Array.from(compact);
+  if (chars.length < 3) return [normalized];
+
   const words = normalized
     .split(" ")
     .map((word) => word.trim())
