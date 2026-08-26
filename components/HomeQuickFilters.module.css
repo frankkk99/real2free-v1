@@ -4,19 +4,12 @@
   top: 66px;
   width: 100%;
   margin: 0;
-  padding: 11px max(20px, calc((100vw - 1460px) / 2)) 12px;
+  padding: 10px max(20px, calc((100vw - 1460px) / 2)) 11px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
   box-shadow: 0 14px 34px rgba(0, 0, 0, .11);
   color: var(--text);
   backdrop-filter: blur(22px) saturate(145%);
-}
-
-.brandSection {
-  display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
-  align-items: center;
-  gap: 13px;
 }
 
 .sectionLabel,
@@ -28,89 +21,11 @@
   white-space: nowrap;
 }
 
-.brandGrid {
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 7px;
-  min-width: 0;
-}
-
-.brandButton {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 100%;
-  min-width: 0;
-  height: 49px;
-  padding: 8px 13px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: 13px;
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  color: var(--text);
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
-  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
-}
-
-.brandButton::after {
-  content: "";
-  position: absolute;
-  right: 13px;
-  bottom: 4px;
-  left: 13px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--primary-bright);
-  opacity: 0;
-  transform: scaleX(.3);
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-
-.brandButton img {
-  display: block;
-  width: auto;
-  max-width: 100%;
-  height: auto;
-  max-height: 28px;
-  object-fit: contain;
-  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, .26));
-}
-
-.brandButton:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
-  transform: translateY(-2px);
-}
-
-.brandButton.brandActive {
-  border-color: color-mix(in srgb, var(--primary) 62%, var(--border));
-  background: color-mix(in srgb, var(--primary-soft) 82%, var(--surface));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 11%, transparent);
-}
-
-.brandButton.brandActive::after {
-  opacity: 1;
-  transform: scaleX(1);
-}
-
-.brandFallback {
-  overflow: hidden;
-  max-width: 100%;
-  color: var(--muted-strong);
-  font-size: 11px;
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .filterRail {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, .82fr) minmax(0, 1.08fr) auto;
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.55fr) minmax(0, .92fr) auto;
   align-items: end;
-  gap: 12px;
-  margin-top: 9px;
+  gap: 10px;
 }
 
 .filterCluster {
@@ -119,10 +34,14 @@
   min-width: 0;
 }
 
+.genreCluster {
+  min-width: 0;
+}
+
 .optionGrid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(64px, 1fr);
+  grid-auto-columns: minmax(66px, max-content);
   gap: 5px;
   min-width: 0;
   overflow-x: auto;
@@ -131,7 +50,8 @@
   scroll-snap-type: x proximity;
 }
 
-.optionGrid::-webkit-scrollbar {
+.optionGrid::-webkit-scrollbar,
+.brandGrid::-webkit-scrollbar {
   display: none;
 }
 
@@ -143,7 +63,7 @@
   justify-content: center;
   gap: 6px;
   min-width: 0;
-  min-height: 40px;
+  min-height: 39px;
   padding: 0 12px;
   border: 1px solid transparent;
   border-radius: 11px;
@@ -210,37 +130,110 @@
   color: var(--danger);
 }
 
+.brandSection {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+}
+
+.brandGrid {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+
+.brandButton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 96px;
+  height: 36px;
+  padding: 6px 11px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  scroll-snap-align: start;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.brandButton::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 3px;
+  left: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--primary-bright);
+  opacity: 0;
+  transform: scaleX(.3);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.brandButton img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 21px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, .26));
+}
+
+.brandButton:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .1);
+  transform: translateY(-1px);
+}
+
+.brandButton.brandActive {
+  border-color: color-mix(in srgb, var(--primary) 62%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 82%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 11%, transparent);
+}
+
+.brandButton.brandActive::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.brandFallback {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--muted-strong);
+  font-size: 10px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 1180px) {
-  .brandSection {
-    grid-template-columns: 94px minmax(0, 1fr);
-  }
-
-  .brandGrid {
-    gap: 5px;
-  }
-
-  .brandButton {
-    height: 45px;
-    padding-inline: 9px;
-  }
-
-  .brandButton img {
-    max-height: 24px;
-  }
-
   .filterRail {
-    grid-template-columns: minmax(0, 1fr) minmax(0, .78fr) minmax(0, 1fr) auto;
-    gap: 8px;
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.35fr) minmax(0, .85fr) auto;
+    gap: 7px;
   }
 
   .optionGrid {
-    grid-auto-columns: minmax(58px, 1fr);
+    grid-auto-columns: minmax(60px, max-content);
   }
 
   .optionGrid button,
   .moreButton,
   .clearButton {
-    min-height: 38px;
+    min-height: 37px;
     padding-inline: 9px;
     font-size: 9px;
   }
@@ -256,6 +249,14 @@
   .clearButton span {
     display: none;
   }
+
+  .brandSection {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .brandButton {
+    flex-basis: 88px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -264,29 +265,10 @@
     padding-inline: 12px;
   }
 
-  .brandSection {
-    grid-template-columns: 1fr;
-    gap: 7px;
-  }
-
-  .sectionLabel {
-    display: none;
-  }
-
-  .brandGrid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .brandButton {
-    height: 43px;
-  }
-
   .filterRail {
     display: flex;
     align-items: stretch;
     gap: 5px;
-    margin-top: 7px;
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scrollbar-width: none;
@@ -311,8 +293,8 @@
   .moreButton,
   .clearButton {
     flex: 0 0 auto;
-    min-width: 82px;
-    min-height: 38px;
+    min-width: 80px;
+    min-height: 37px;
     padding: 0 11px;
     border-color: var(--border);
     scroll-snap-align: start;
@@ -320,11 +302,27 @@
 
   .moreButton,
   .clearButton {
-    min-width: 94px;
+    min-width: 92px;
   }
 
   .clearButton span {
     display: inline;
+  }
+
+  .brandSection {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-top: 7px;
+    padding-top: 7px;
+  }
+
+  .sectionLabel {
+    font-size: 9px;
+  }
+
+  .brandButton {
+    flex-basis: 86px;
+    height: 34px;
   }
 }
 
@@ -332,28 +330,6 @@
   .dock {
     top: 56px;
     padding: 7px 10px 8px;
-  }
-
-  .brandGrid {
-    gap: 5px;
-  }
-
-  .brandButton {
-    height: 38px;
-    padding: 6px 8px;
-    border-radius: 10px;
-  }
-
-  .brandButton img {
-    max-height: 21px;
-  }
-
-  .brandFallback {
-    font-size: 9px;
-  }
-
-  .filterRail {
-    margin-top: 6px;
   }
 
   .optionGrid button,
@@ -369,5 +345,33 @@
   .moreButton,
   .clearButton {
     min-width: 84px;
+  }
+
+  .brandSection {
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+
+  .sectionLabel {
+    display: none;
+  }
+
+  .brandGrid {
+    gap: 5px;
+  }
+
+  .brandButton {
+    flex-basis: 78px;
+    height: 31px;
+    padding: 5px 8px;
+    border-radius: 9px;
+  }
+
+  .brandButton img {
+    max-height: 18px;
+  }
+
+  .brandFallback {
+    font-size: 8px;
   }
 }
