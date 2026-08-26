@@ -1,0 +1,42 @@
+name: One-shot Production Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-human-viewer-analytics.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real2free-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_ORG_ID: team_lZ0lAYrRy4KqgupCAuTiNMDD
+      VERCEL_PROJECT_ID: prj_GzUmZY7KJlNqmO5AWgwOk0wvca5X
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Require Vercel token
+        shell: bash
+        run: test -n "$VERCEL_TOKEN"
+      - name: Link exact Vercel project
+        shell: bash
+        run: |
+          mkdir -p .vercel
+          printf '%s\n' '{"orgId":"team_lZ0lAYrRy4KqgupCAuTiNMDD","projectId":"prj_GzUmZY7KJlNqmO5AWgwOk0wvca5X"}' > .vercel/project.json
+      - name: Pull production environment
+        run: npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN" --scope=dev2u
+      - name: Build production bundle
+        run: npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN" --scope=dev2u
+      - name: Deploy production bundle
+        run: npx --yes vercel@latest deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN" --scope=dev2u
