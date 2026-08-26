@@ -1,0 +1,35 @@
+name: Viewer Analytics Production Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/smoke-viewer-analytics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test Real2free analytics POST
+        shell: bash
+        run: |
+          body='{"eventId":"45dc8921-6981-4756-a4da-5090987ae7e3","visitorId":"5aaf36eb-6d39-47ee-b709-40b56189b02a","sessionId":"18803cb9-1b38-47f4-8403-f7e21e69f0aa","eventType":"engaged_visit","path":"/__analytics_smoke","titleLabel":"analytics-smoke-test-20260826","referrer":null,"sourceKind":"unknown","verification":"interaction","automationHint":true}'
+          status=$(curl -sS -o /tmp/real2free.json -w '%{http_code}' -X POST 'https://www.real2free.online/api/analytics/viewer' -H 'origin: https://www.real2free.online' -H 'content-type: application/json' --data "$body")
+          cat /tmp/real2free.json
+          echo
+          echo "status=$status"
+          test "$status" = "202"
+
+      - name: Test Dofree analytics POST
+        shell: bash
+        run: |
+          body='{"eventId":"431d571a-7c52-454d-b802-dd35fb7602e6","visitorId":"90af71de-3919-4e98-b6fe-02fe3eaea0a2","sessionId":"3b5fa8b9-31eb-4db0-9e95-d968ed513be8","eventType":"engaged_visit","path":"/__analytics_smoke","titleLabel":"analytics-smoke-test-20260826","referrer":null,"sourceKind":"unknown","verification":"interaction","automationHint":true}'
+          status=$(curl -sS -o /tmp/dofree.json -w '%{http_code}' -X POST 'https://www.xn--l3caa5kbu.online/api/analytics/viewer' -H 'origin: https://www.xn--l3caa5kbu.online' -H 'content-type: application/json' --data "$body")
+          cat /tmp/dofree.json
+          echo
+          echo "status=$status"
+          test "$status" = "202"
