@@ -8,19 +8,6 @@ import styles from "./CatalogPosterCard.module.css";
 
 const SHARED_POSTER_GHOST_ID = "catalog-shared-poster-ghost";
 
-function isRecentlyAdded(item: PublicCatalogItem) {
-  const updated = new Date(item.updatedAt).getTime();
-  return Number.isFinite(updated) && Date.now() - updated <= 30 * 24 * 60 * 60 * 1000;
-}
-
-function cardLanguageBadges(movie: PublicCatalogItem) {
-  const badges: string[] = [];
-  if (movie.hasDubThai) badges.push("TH");
-  if (movie.languageCode && movie.languageCode !== "TH") badges.push(movie.languageCode);
-  if (movie.hasSubThai) badges.push("SUB");
-  return [...new Set(badges)].slice(0, 3);
-}
-
 function normalizedTitle(value: string) {
   return value.normalize("NFKC").replace(/\s+/gu, " ").trim().toLocaleLowerCase("th-TH");
 }
@@ -50,8 +37,6 @@ export default function CatalogPosterCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const posterMediaRef = useRef<HTMLSpanElement | null>(null);
   const tiltFrameRef = useRef<number | null>(null);
-  const recent = isRecentlyAdded(movie);
-  const languages = cardLanguageBadges(movie);
   const hasDistinctEnglishTitle = Boolean(movie.title.trim())
     && normalizedTitle(movie.title) !== normalizedTitle(movie.thaiTitle);
 
@@ -249,24 +234,13 @@ export default function CatalogPosterCard({
           )}
           <span className={styles.posterShade} />
 
-          <span className={styles.posterTopBadges} style={{ right: 42 }}>
-            <span className={styles.badgeCluster}>
-              {recent ? <span className={styles.newBadge}>ใหม่</span> : null}
-            </span>
-            {movie.contentType === "series" ? (
+          {movie.contentType === "series" && movie.episodeCount ? (
+            <span className={styles.posterTopBadges} style={{ right: 42, justifyContent: "flex-end" }}>
               <span className={`${styles.badgeCluster} ${styles.badgeClusterRight}`}>
-                {movie.episodeCount ? <span className={styles.episodeBadge}>EP {movie.episodeCount.toLocaleString("th-TH")}</span> : null}
-                {movie.isOngoing ? <span className={styles.ongoingBadge}>ยังไม่จบ</span> : null}
+                <span className={styles.episodeBadge}>EP {movie.episodeCount.toLocaleString("th-TH")}</span>
               </span>
-            ) : null}
-          </span>
-
-          <span className={styles.posterBottomBadges}>
-            <span className={styles.badgeCluster}>
-              {languages.map((language) => <span key={language} className={styles.languageBadge}>{language}</span>)}
             </span>
-            {movie.hasBackup ? <span className={styles.backupBadge}>สำรอง</span> : null}
-          </span>
+          ) : null}
 
           <span className={styles.playHover} onClick={(event) => { event.stopPropagation(); onPlay(); }}>
             <Play fill="currentColor" />
