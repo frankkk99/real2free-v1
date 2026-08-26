@@ -1,3 +1,5 @@
+import { buildThaiTitleTransliterationAliases } from "@/lib/thai-title-transliteration";
+
 type CatalogTitleCandidate = {
   thaiTitle: string;
   title: string;
@@ -31,16 +33,17 @@ function sliceChars(value: string, start: number, end?: number) {
 
 /**
  * Build a small set of robust title fragments for the existing Supabase request.
- * The goal is to tolerate one or two mistyped characters without adding another
- * network request or requiring a heavyweight fuzzy-search package in the client.
+ * The goal is to tolerate one or two mistyped characters and Thai phonetic title
+ * aliases without adding another network request or a heavyweight client package.
  */
 export function buildFuzzyTitleFragments(value: string) {
   const normalized = normalizeCatalogTitle(value);
   if (!normalized) return [];
 
+  const transliterationAliases = buildThaiTitleTransliterationAliases(normalized);
   const compact = normalized.replace(/\s+/g, "");
   const chars = Array.from(compact);
-  if (chars.length < 3) return [normalized];
+  if (chars.length < 3) return unique([normalized, ...transliterationAliases]).slice(0, 8);
 
   const words = normalized
     .split(" ")
@@ -49,7 +52,7 @@ export function buildFuzzyTitleFragments(value: string) {
     .sort((a, b) => Array.from(b).length - Array.from(a).length)
     .slice(0, 2);
 
-  const fragments = [normalized, ...words];
+  const fragments = [normalized, ...transliterationAliases, ...words];
 
   if (chars.length >= 5) {
     const anchorLength = chars.length >= 10 ? 4 : 3;
@@ -65,7 +68,7 @@ export function buildFuzzyTitleFragments(value: string) {
   return unique(fragments)
     .map((fragment) => fragment.trim())
     .filter((fragment) => Array.from(fragment.replace(/\s+/g, "")).length >= 3)
-    .slice(0, 6);
+    .slice(0, 10);
 }
 
 export function buildFuzzyTitleOrFilter(value: string) {
@@ -132,38 +135,47 @@ function levenshteinSimilarity(leftValue: string, rightValue: string) {
   return Math.max(0, 1 - distance / Math.max(left.length, right.length));
 }
 
-export function catalogTitleMatchScore(queryValue: string, thaiTitle: string, englishTitle: string) {
-  const query = normalizeCatalogTitle(queryValue);
-  const queryCompact = compactTitle(queryValue);
-  if (!queryCompact) return 0;
+function normalizedTitleMatchScore(query: string, candidate: string) {
+  const queryCompact = query.replace(/\s+/g, "");
+  const candidateCompact = candidate.replace(/\s+/g, "");
+  if (!queryCompact || !candidateCompact) return 0;
 
+  if (candidateCompact === queryCompact) return 1;
+
+  let best = 0;
+  if (candidate === query) best = Math.max(best, 0.99);
+  if (candidateCompact.startsWith(queryCompact)) best = Math.max(best, 0.92);
+  if (candidateCompact.includes(queryCompact)) best = Math.max(best, 0.88);
+  if (queryCompact.startsWith(candidateCompact)) best = Math.max(best, 0.84);
+
+  const queryWords = query.split(" ").filter(Boolean);
+  const candidateWords = candidate.split(" ").filter(Boolean);
+  const exactWordHits = queryWords.filter((word) => candidateWords.includes(word)).length;
+  if (queryWords.length && exactWordHits) {
+    best = Math.max(best, 0.62 + 0.18 * (exactWordHits / queryWords.length));
+  }
+
+  const dice = diceSimilarity(queryCompact, candidateCompact);
+  const edit = levenshteinSimilarity(queryCompact, candidateCompact);
+  return Math.max(best, dice * 0.62 + edit * 0.38);
+}
+
+export function catalogTitleMatchScore(queryValue: string, thaiTitle: string, englishTitle: string) {
+  const directQuery = normalizeCatalogTitle(queryValue);
+  if (!directQuery) return 0;
+
+  const queryVariants = unique([
+    directQuery,
+    ...buildThaiTitleTransliterationAliases(queryValue).map(normalizeCatalogTitle),
+  ]).filter(Boolean);
   const candidates = unique([normalizeCatalogTitle(thaiTitle), normalizeCatalogTitle(englishTitle)]).filter(Boolean);
   let best = 0;
 
-  candidates.forEach((candidate) => {
-    const candidateCompact = candidate.replace(/\s+/g, "");
-    if (!candidateCompact) return;
-
-    if (candidateCompact === queryCompact) {
-      best = Math.max(best, 1);
-      return;
-    }
-
-    if (candidate === query) best = Math.max(best, 0.99);
-    if (candidateCompact.startsWith(queryCompact)) best = Math.max(best, 0.92);
-    if (candidateCompact.includes(queryCompact)) best = Math.max(best, 0.88);
-    if (queryCompact.startsWith(candidateCompact)) best = Math.max(best, 0.84);
-
-    const queryWords = query.split(" ").filter(Boolean);
-    const candidateWords = candidate.split(" ").filter(Boolean);
-    const exactWordHits = queryWords.filter((word) => candidateWords.includes(word)).length;
-    if (queryWords.length && exactWordHits) {
-      best = Math.max(best, 0.62 + 0.18 * (exactWordHits / queryWords.length));
-    }
-
-    const dice = diceSimilarity(queryCompact, candidateCompact);
-    const edit = levenshteinSimilarity(queryCompact, candidateCompact);
-    best = Math.max(best, dice * 0.62 + edit * 0.38);
+  queryVariants.forEach((query, queryIndex) => {
+    const variantWeight = queryIndex === 0 ? 1 : 0.96;
+    candidates.forEach((candidate) => {
+      best = Math.max(best, normalizedTitleMatchScore(query, candidate) * variantWeight);
+    });
   });
 
   return best;
