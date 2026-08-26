@@ -56,7 +56,7 @@ const brandRules: Array<AliasRule<Exclude<CatalogBrandFilter, "ทั้งห�
 ];
 
 const countryRules: Array<AliasRule<Exclude<CatalogCountryFilter, "ทั้งหมด">>> = [
-  { value: "TH", label: "ไทย", aliases: ["ประเทศไทย", "หนังไทย", "ไทย", "thai", "thailand"] },
+  { value: "TH", label: "ไทย", aliases: ["ประเทศไทย", "ไทย", "thai", "thailand"] },
   { value: "KR", label: "เกาหลี", aliases: ["เกาหลีใต้", "เกาหลี", "korean", "south korea", "korea", "k-drama", "kdrama"] },
   { value: "CN", label: "จีน", aliases: ["จีนแผ่นดินใหญ่", "จีน", "chinese", "mainland china", "china", "c-drama", "cdrama"] },
   { value: "JP", label: "ญี่ปุ่น", aliases: ["ญี่ปุ่น", "japanese", "japan", "j-drama", "jdrama"] },
