@@ -235,8 +235,8 @@ export default function CatalogPosterCard({
           <span className={styles.posterShade} />
 
           {movie.contentType === "series" && movie.episodeCount ? (
-            <span className={styles.posterTopBadges} style={{ right: 42, justifyContent: "flex-end" }}>
-              <span className={`${styles.badgeCluster} ${styles.badgeClusterRight}`}>
+            <span className={styles.posterTopBadges} style={{ left: 7, right: "auto", justifyContent: "flex-start" }}>
+              <span className={styles.badgeCluster}>
                 <span className={styles.episodeBadge}>EP {movie.episodeCount.toLocaleString("th-TH")}</span>
               </span>
             </span>
