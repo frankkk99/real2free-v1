@@ -17,16 +17,16 @@ export default function SearchMissTelemetry() {
   const reportedRef = useRef(new Set<string>());
 
   useEffect(() => {
-    const input = document.getElementById("catalog-search-input") as HTMLInputElement | null;
-    const catalog = document.getElementById("catalog");
-    if (!input || !catalog) return;
-
     let timer: number | null = null;
 
     const scheduleCheck = () => {
       if (timer != null) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         if (document.visibilityState !== "visible") return;
+
+        const input = document.getElementById("catalog-search-input") as HTMLInputElement | null;
+        const catalog = document.getElementById("catalog");
+        if (!input || !catalog) return;
 
         const query = input.value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
         const normalized = normalizeQuery(query);
@@ -55,14 +55,18 @@ export default function SearchMissTelemetry() {
       }, STABLE_MISS_MS);
     };
 
+    const handleInput = (event: Event) => {
+      if (event.target instanceof HTMLInputElement && event.target.id === "catalog-search-input") scheduleCheck();
+    };
+
     const observer = new MutationObserver(scheduleCheck);
-    observer.observe(catalog, { childList: true, subtree: true, characterData: true });
-    input.addEventListener("input", scheduleCheck, { passive: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    document.addEventListener("input", handleInput, true);
     scheduleCheck();
 
     return () => {
       observer.disconnect();
-      input.removeEventListener("input", scheduleCheck);
+      document.removeEventListener("input", handleInput, true);
       if (timer != null) window.clearTimeout(timer);
     };
   }, []);
