@@ -16,19 +16,9 @@ try {
   process.exit(1);
 }
 
-const ref = process.env.VERCEL_GIT_COMMIT_REF || "";
-const env = process.env.VERCEL_ENV || "";
-const commitMessage = process.env.VERCEL_GIT_COMMIT_MESSAGE || "";
-const explicitDeploy = /\[(?:vercel deploy|deploy vercel)\]/i.test(commitMessage);
-const supervisedProductionDeploy = env === "production" && ref === "main" && explicitDeploy;
-
-if (config?.git?.deploymentEnabled !== false && !supervisedProductionDeploy) {
-  console.error("[cost-guard] BLOCKED: git.deploymentEnabled must stay false except for an explicit supervised production deploy on main.");
+if (config?.git?.deploymentEnabled !== false) {
+  console.error("[cost-guard] BLOCKED: git.deploymentEnabled must stay false. Deploy production manually when ready.");
   process.exit(1);
 }
 
-if (supervisedProductionDeploy) {
-  console.log("[cost-guard] OK: explicit supervised production deploy is allowed for this commit only.");
-} else {
-  console.log("[cost-guard] OK: Vercel Git auto-deploy is disabled.");
-}
+console.log("[cost-guard] OK: Vercel Git auto-deploy is disabled.");
