@@ -4,6 +4,7 @@ import AdContactModal from "@/components/AdContactModal";
 import DevToolsGuard from "@/components/DevToolsGuard";
 import HomeBottomInfiniteFeed from "@/components/HomeBottomInfiniteFeed";
 import HomeSectionPagination from "@/components/HomeSectionPagination";
+import { ViewerAnalytics } from "@/components/ViewerAnalytics";
 import "./globals.css";
 import "./home-enhancements.css";
 import "./spatial-ux.css";
@@ -112,6 +113,7 @@ export default function RootLayout({
     <html lang="th" suppressHydrationWarning>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <DevToolsGuard />
+        <ViewerAnalytics />
         {children}
         <HomeSectionPagination />
         <HomeBottomInfiniteFeed />
