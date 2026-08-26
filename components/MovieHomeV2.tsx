@@ -584,7 +584,9 @@ export default function MovieHomeV2() {
         .from("real2free_public_smart_cards")
         .select(PUBLIC_CATALOG_CARD_FIELDS);
 
-      if (key === "series") {
+      if (key === "new") {
+        builder = builder.eq("content_type", "movie");
+      } else if (key === "series") {
         builder = builder.eq("content_type", "series").eq("is_vertical", false);
       } else if (key === "vertical") {
         builder = builder.eq("content_type", "series").eq("is_vertical", true);
@@ -1048,11 +1050,11 @@ export default function MovieHomeV2() {
           <SkeletonGrid />
         ) : isDefaultHome ? (
           <>
-            {renderHomeSection("new", "มาใหม่", "ทุกเรื่อง เรียงตามวันที่ฉายล่าสุด", Clock3)}
+            {renderHomeSection("new", "หนังใหม่", "ภาพยนตร์เท่านั้น เรียงตามวันที่ฉายล่าสุด", Film)}
             <AdSlot
               code="AD-03"
-              name="แบนเนอร์คั่นหมวดมาใหม่"
-              placement="ระหว่างหมวด มาใหม่ และ ซีรีส์"
+              name="แบนเนอร์คั่นหมวดหนังใหม่"
+              placement="ระหว่างหมวด หนังใหม่ และ ซีรีส์"
               desktopSize="728×90 px"
               mobileSize="320×100 px"
               variant="compact"
