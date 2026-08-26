@@ -17,6 +17,7 @@ import {
   brandFilterOptions,
   countryFilterOptions,
   parseSmartCatalogSearch,
+  SMART_SEARCH_EXAMPLES,
   sortModeOptions,
   type CatalogBrandFilter,
   type CatalogCountryFilter,
@@ -176,6 +177,13 @@ export default function SmartCatalogHeader({
     onQueryChange(title);
     setSearchOpen(false);
     inputRef.current?.blur();
+    window.requestAnimationFrame(() => document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  const submitSearch = () => {
+    setSearchOpen(false);
+    inputRef.current?.blur();
+    window.requestAnimationFrame(() => document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   const chooseMenuView = (value: HomeQuickView) => {
@@ -215,16 +223,13 @@ export default function SmartCatalogHeader({
             }}
             onFocus={() => setSearchOpen(true)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                setSearchOpen(false);
-                event.currentTarget.blur();
-              }
+              if (event.key === "Enter") submitSearch();
               if (event.key === "Escape") {
                 setSearchOpen(false);
                 event.currentTarget.blur();
               }
             }}
-            placeholder="ค้นหา เช่น แอ็กชัน 2025"
+            placeholder="ค้นชื่อ หรือพิมพ์ เช่น หนังเกาหลี 2025 พากย์ไทย"
             autoComplete="off"
           />
           {queryInput ? (
@@ -237,11 +242,14 @@ export default function SmartCatalogHeader({
             {parsedSearch.labels.length ? (
               <div className={styles.interpreted}>
                 <Sparkles />
-                <span><small>ค้นหาแบบฉลาด</small><strong>{parsedSearch.labels.join(" • ")}</strong></span>
+                <span>
+                  <small>ระบบเข้าใจคำค้นเป็นตัวกรอง</small>
+                  <strong>{parsedSearch.labels.join(" • ")}{parsedSearch.text ? ` • ชื่อ “${parsedSearch.text}”` : ""}</strong>
+                </span>
               </div>
             ) : (
               <div className={styles.searchTip}>
-                <Sparkles /> ลองพิมพ์ “หนังแอ็กชัน 2025 พากย์ไทย”
+                <Sparkles /> ค้นได้ทั้งชื่อเรื่องและภาษาคน เช่น “หนังเกาหลี 2025 พากย์ไทย”
               </div>
             )}
 
@@ -257,10 +265,19 @@ export default function SmartCatalogHeader({
                 ))}
               </div>
             ) : queryInput ? (
-              <div className={styles.searchAction}><Search /><span>ค้นหาทุกเรื่องด้วย “{queryInput}”</span></div>
+              <div className={styles.searchAction}>
+                <Search />
+                <span>
+                  {parsedSearch.labels.length && !parsedSearch.text
+                    ? `กรองรายการตาม ${parsedSearch.labels.join(" • ")}`
+                    : parsedSearch.labels.length
+                      ? `ค้นชื่อ “${parsedSearch.text}” พร้อมกรอง ${parsedSearch.labels.join(" • ")}`
+                      : `ค้นหาทุกเรื่องด้วย “${queryInput}”`}
+                </span>
+              </div>
             ) : (
               <div className={styles.examples}>
-                {["พากย์ไทย 2026", "ซีรีส์เกาหลี", "หนังสยองขวัญ", "มีสำรอง"].map((example) => (
+                {SMART_SEARCH_EXAMPLES.map((example) => (
                   <button key={example} type="button" onClick={() => chooseSuggestion(example)}>{example}</button>
                 ))}
               </div>
@@ -417,9 +434,10 @@ export default function SmartCatalogHeader({
                 if (event.key === "Enter") {
                   setMenuOpen(false);
                   event.currentTarget.blur();
+                  window.requestAnimationFrame(() => document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" }));
                 }
               }}
-              placeholder="ค้นหาหนัง ซีรีส์ อนิเมะ"
+              placeholder="ค้นชื่อ หรือ หนังเกาหลี 2025 พากย์ไทย"
               autoComplete="off"
             />
             {queryInput ? <button type="button" onClick={() => onQueryChange("")} aria-label="ล้างคำค้น"><X /></button> : null}
