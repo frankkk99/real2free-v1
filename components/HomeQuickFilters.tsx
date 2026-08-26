@@ -35,8 +35,6 @@ const viewOptions: Array<QuickOption<HomeQuickView>> = [
   { value: "anime", label: "อนิเมะ" },
   { value: "new", label: "มาใหม่" },
   { value: "popular", label: "ยอดนิยม" },
-  { value: "favorites", label: "รายการโปรด" },
-  { value: "history", label: "ดูล่าสุด" },
 ];
 
 export const homeBrandOptions: BrandOption[] = [
@@ -52,16 +50,21 @@ export const homeBrandOptions: BrandOption[] = [
   { value: "wetv", label: "WeTV", logo: "https://image.tmdb.org/t/p/w154/mPsCbXC5k20bpKErrbOQd1fG0L7.png" },
 ];
 
-const yearOptions = ["2026", "2025", "2024", "2023", "2022", "ก่อน 2020"];
+const yearOptions = ["2026", "2025", "2024", "2023", "2022", "2021", "2020", "ก่อน 2020"];
 
 const genreOptions: Array<QuickOption<string>> = [
   { value: "Action", label: "แอ็กชัน" },
-  { value: "Drama", label: "ดราม่า" },
+  { value: "Adventure", label: "ผจญภัย" },
   { value: "Comedy", label: "ตลก" },
+  { value: "Crime", label: "อาชญากรรม" },
+  { value: "Drama", label: "ดราม่า" },
+  { value: "Family", label: "ครอบครัว" },
+  { value: "Fantasy", label: "แฟนตาซี" },
   { value: "Horror", label: "สยองขวัญ" },
+  { value: "Mystery", label: "ลึกลับ" },
   { value: "Romance", label: "โรแมนติก" },
   { value: "Science Fiction", label: "ไซไฟ" },
-  { value: "Fantasy", label: "แฟนตาซี" },
+  { value: "Thriller", label: "ระทึกขวัญ" },
   { value: "Animation", label: "แอนิเมชัน" },
 ];
 
@@ -107,29 +110,10 @@ export default function HomeQuickFilters({
   const hasSelection = viewMode !== "home" || year !== "ทั้งหมด" || genre !== "ทั้งหมด" || brand !== "ทั้งหมด";
 
   return (
-    <section className={styles.dock} aria-label="ค้นหาด่วน">
-      <div className={styles.brandSection}>
-        <span className={styles.sectionLabel}>ค่ายหนังและสตรีมมิง</span>
-        <div className={styles.brandGrid}>
-          {homeBrandOptions.map((option) => (
-            <button
-              key={option.value}
-              className={`${styles.brandButton} ${brand === option.value ? styles.brandActive : ""}`}
-              type="button"
-              title={option.label}
-              aria-label={`แสดงรายการจาก ${option.label}`}
-              aria-pressed={brand === option.value}
-              onClick={() => onBrandChange(brand === option.value ? "ทั้งหมด" : option.value)}
-            >
-              <BrandLogo option={option} />
-            </button>
-          ))}
-        </div>
-      </div>
-
+    <section className={styles.dock} aria-label="ค้นหาและกรองรายการ">
       <div className={styles.filterRail}>
         <div className={styles.filterCluster}>
-          <span className={styles.clusterLabel}>ดู</span>
+          <span className={styles.clusterLabel}>เลือกดู</span>
           <div className={styles.optionGrid}>
             {viewOptions.map((option) => (
               <button
@@ -137,6 +121,22 @@ export default function HomeQuickFilters({
                 className={viewMode === option.value ? styles.active : ""}
                 type="button"
                 onClick={() => onViewChange(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={`${styles.filterCluster} ${styles.genreCluster}`}>
+          <span className={styles.clusterLabel}>แนว</span>
+          <div className={styles.optionGrid}>
+            {genreOptions.map((option) => (
+              <button
+                key={option.value}
+                className={genre === option.value ? styles.active : ""}
+                type="button"
+                onClick={() => onGenreChange(genre === option.value ? "ทั้งหมด" : option.value)}
               >
                 {option.label}
               </button>
@@ -160,22 +160,6 @@ export default function HomeQuickFilters({
           </div>
         </div>
 
-        <div className={styles.filterCluster}>
-          <span className={styles.clusterLabel}>แนว</span>
-          <div className={styles.optionGrid}>
-            {genreOptions.map((option) => (
-              <button
-                key={option.value}
-                className={genre === option.value ? styles.active : ""}
-                type="button"
-                onClick={() => onGenreChange(genre === option.value ? "ทั้งหมด" : option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className={styles.filterActions}>
           <button className={styles.moreButton} type="button" onClick={onOpenMore} aria-label="เปิดตัวกรองเพิ่มเติม">
             <SlidersHorizontal />
@@ -188,6 +172,25 @@ export default function HomeQuickFilters({
               <span>ล้าง</span>
             </button>
           ) : null}
+        </div>
+      </div>
+
+      <div className={styles.brandSection}>
+        <span className={styles.sectionLabel}>ค่าย / สตรีมมิง</span>
+        <div className={styles.brandGrid}>
+          {homeBrandOptions.map((option) => (
+            <button
+              key={option.value}
+              className={`${styles.brandButton} ${brand === option.value ? styles.brandActive : ""}`}
+              type="button"
+              title={option.label}
+              aria-label={`แสดงรายการจาก ${option.label}`}
+              aria-pressed={brand === option.value}
+              onClick={() => onBrandChange(brand === option.value ? "ทั้งหมด" : option.value)}
+            >
+              <BrandLogo option={option} />
+            </button>
+          ))}
         </div>
       </div>
     </section>
