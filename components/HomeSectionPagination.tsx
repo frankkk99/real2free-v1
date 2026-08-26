@@ -12,6 +12,7 @@ const SECTION_LINKS: Record<string, string> = {
 
 const DESKTOP_QUERY = "(min-width: 821px)";
 const SWIPE_HINT_CLASS = "r2f-mobile-swipe-hint";
+const REAL_PAGINATION_ROWS = 3;
 
 function getColumnCount(grid: HTMLElement) {
   const template = window.getComputedStyle(grid).gridTemplateColumns.trim();
@@ -169,6 +170,100 @@ function cleanupMobileCarousel(wrapper: HTMLElement, heading: HTMLElement, grid:
   if (grid.scrollLeft) grid.scrollLeft = 0;
 }
 
+function createLocalRealPaginationControl(
+  wrapper: HTMLElement,
+  title: string,
+  batchSize: number,
+) {
+  let controls = wrapper.querySelector(":scope > .r2f-section-pagination") as HTMLElement | null;
+  if (controls) return controls;
+
+  controls = document.createElement("div");
+  controls.className = `r2f-section-pagination r2f-section-load-controls ${styles.loadControls}`;
+  controls.setAttribute("aria-label", `แสดงเพิ่มอีก 3 แถวในหมวด${title}`);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = styles.loadMore;
+  button.innerHTML = `<span>แสดงเพิ่มอีก 3 แถว</span><span class="${styles.loadIcon}" aria-hidden="true">↓</span>`;
+  button.setAttribute("aria-label", `แสดงเพิ่มอีก 3 แถวในหมวด${title}`);
+  button.addEventListener("click", () => {
+    const currentVisible = Number(wrapper.dataset.r2fVisibleCount || String(batchSize));
+    wrapper.dataset.r2fVisibleCount = String(currentVisible + batchSize);
+    renderSection(wrapper, title, SECTION_LINKS[title]);
+  });
+
+  controls.appendChild(button);
+  wrapper.appendChild(controls);
+  return controls;
+}
+
+function renderRealPagination(
+  wrapper: HTMLElement,
+  heading: HTMLElement,
+  grid: HTMLElement,
+  cards: HTMLElement[],
+  title: string,
+) {
+  cleanupMobileCarousel(wrapper, heading, grid);
+
+  const batchSize = Math.max(1, getColumnCount(grid) * REAL_PAGINATION_ROWS);
+  const previousBatchSize = Math.max(1, Number(wrapper.dataset.r2fRowBatchSize || String(batchSize)));
+  const previousRequested = Math.max(previousBatchSize, Number(wrapper.dataset.r2fVisibleCount || String(previousBatchSize)));
+  const loadedBatches = Math.max(1, Math.ceil(previousRequested / previousBatchSize));
+  const requestedVisible = previousBatchSize === batchSize
+    ? previousRequested
+    : loadedBatches * batchSize;
+  const visibleCount = Math.min(cards.length, Math.max(batchSize, requestedVisible));
+
+  wrapper.dataset.r2fRowBatchSize = String(batchSize);
+  wrapper.dataset.r2fVisibleCount = String(requestedVisible);
+
+  cards.forEach((card, index) => {
+    card.style.display = index < visibleCount ? "" : "none";
+  });
+
+  const reactLoadHost = grid.nextElementSibling as HTMLElement | null;
+  const reactLoadButton = reactLoadHost?.querySelector(":scope > button") as HTMLButtonElement | null;
+  const generatedControls = wrapper.querySelector(":scope > .r2f-section-pagination") as HTMLElement | null;
+
+  if (reactLoadButton) {
+    generatedControls?.remove();
+    reactLoadButton.textContent = "แสดงเพิ่มอีก 3 แถว";
+    reactLoadButton.setAttribute("aria-label", `แสดงเพิ่มอีก 3 แถวในหมวด${title}`);
+
+    if (reactLoadButton.dataset.r2fThreeRowBound !== "1") {
+      reactLoadButton.dataset.r2fThreeRowBound = "1";
+      reactLoadButton.addEventListener("click", (event) => {
+        const liveCards = Array.from(grid.children) as HTMLElement[];
+        const liveBatchSize = Math.max(1, getColumnCount(grid) * REAL_PAGINATION_ROWS);
+        const currentVisible = Math.max(
+          liveBatchSize,
+          Number(wrapper.dataset.r2fVisibleCount || String(liveBatchSize)),
+        );
+        const nextVisible = currentVisible + liveBatchSize;
+
+        wrapper.dataset.r2fRowBatchSize = String(liveBatchSize);
+        wrapper.dataset.r2fVisibleCount = String(nextVisible);
+
+        if (liveCards.length >= nextVisible) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          renderSection(wrapper, title, SECTION_LINKS[title]);
+        }
+      }, true);
+    }
+    return;
+  }
+
+  if (visibleCount < cards.length) {
+    createLocalRealPaginationControl(wrapper, title, batchSize);
+  } else {
+    generatedControls?.remove();
+  }
+}
+
 function renderSection(wrapper: HTMLElement, title: string, href: string) {
   const heading = wrapper.firstElementChild as HTMLElement | null;
   const grid = heading?.nextElementSibling as HTMLElement | null;
@@ -179,6 +274,11 @@ function renderSection(wrapper: HTMLElement, title: string, href: string) {
   const cards = Array.from(grid.children) as HTMLElement[];
   if (!cards.length) return;
 
+  if (wrapper.dataset.r2fRealPagination === "1") {
+    renderRealPagination(wrapper, heading, grid, cards, title);
+    return;
+  }
+
   const desktop = window.matchMedia(DESKTOP_QUERY).matches;
 
   if (!desktop) {
@@ -187,16 +287,6 @@ function renderSection(wrapper: HTMLElement, title: string, href: string) {
   }
 
   cleanupMobileCarousel(wrapper, heading, grid);
-
-  if (wrapper.dataset.r2fRealPagination === "1") {
-    wrapper.querySelector(":scope > .r2f-section-pagination")?.remove();
-    delete wrapper.dataset.r2fVisibleCount;
-    cards.forEach((card) => {
-      card.style.display = "";
-    });
-    return;
-  }
-
   const batchSize = Math.max(1, getColumnCount(grid) * 2);
   renderDesktopLoadMore(wrapper, cards, batchSize, title);
 }
