@@ -34,11 +34,6 @@ function isEmbedSource(source: PlaybackSource): boolean {
   }
 }
 
-function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
-  if (isGetplayEmbedSource(source)) return "inline";
-  return (source as PlaybackSourceWithPolicy).delivery || "inline";
-}
-
 function isGetplayEmbedSource(source: PlaybackSource): boolean {
   if (!source.url) return false;
 
@@ -48,6 +43,26 @@ function isGetplayEmbedSource(source: PlaybackSource): boolean {
   } catch {
     return false;
   }
+}
+
+function isOkHdEmbedSource(source: PlaybackSource): boolean {
+  if (!source.url) return false;
+
+  try {
+    const hostname = new URL(source.url).hostname.toLowerCase();
+    return hostname === "ok-hd.com" || hostname.endsWith(".ok-hd.com");
+  } catch {
+    return false;
+  }
+}
+
+function isDirectInlineEmbedSource(source: PlaybackSource): boolean {
+  return isGetplayEmbedSource(source) || isOkHdEmbedSource(source);
+}
+
+function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
+  if (isDirectInlineEmbedSource(source)) return "inline";
+  return (source as PlaybackSourceWithPolicy).delivery || "inline";
 }
 
 function isGetplayOrigin(value: string): boolean {
@@ -230,7 +245,8 @@ function EmbedFrame({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const onFatalRef = useRef(onFatal);
   const isGetplayEmbed = isGetplayEmbedSource(source);
-  const referrerPolicy = isGetplayEmbed
+  const isDirectInlineEmbed = isDirectInlineEmbedSource(source);
+  const referrerPolicy = isDirectInlineEmbed
     ? "no-referrer"
     : sourceReferrerPolicy(source, "origin");
 
@@ -267,7 +283,7 @@ function EmbedFrame({
     };
   }, [isGetplayEmbed, source.id, source.url]);
 
-  if (isGetplayEmbed) {
+  if (isDirectInlineEmbed) {
     return (
       <div className="player-shell">
         {!frameLoaded ? (
@@ -431,8 +447,8 @@ export default function WatchPlayer({
     return <ExternalPlaybackFallback source={source} poster={poster} title={title} />;
   }
 
-  const getplayEmbed = isGetplayEmbedSource(source);
-  const embedSource = getplayEmbed || isEmbedSource(source);
+  const directInlineEmbed = isDirectInlineEmbedSource(source);
+  const embedSource = directInlineEmbed || isEmbedSource(source);
 
   return (
     <div className={styles.shell}>
@@ -442,7 +458,7 @@ export default function WatchPlayer({
         <HlsVideo source={source} poster={poster} onReady={handleReady} onFatal={handleFailed} />
       )}
 
-      {!getplayEmbed && (switching || !ready) ? (
+      {!directInlineEmbed && (switching || !ready) ? (
         <div className={styles.loadingLayer}>
           {poster ? <img src={poster} alt="" referrerPolicy="no-referrer" /> : null}
           <span />
