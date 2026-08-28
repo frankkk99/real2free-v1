@@ -182,6 +182,8 @@ export async function fetchVip6Playback(titleId: string, episodeId: string | nul
   const players = Array.isArray(payload.data?.players) ? payload.data.players : [];
   const selected = players[index] || null;
   return {
+    fallback_url: null,
+    fallback_kind: null,
     found: Boolean(selected?.url),
     id: selected?.id || "",
     label: selected?.label || (index === 0 ? "ตัวหลัก" : `สำรอง ${index}`),
