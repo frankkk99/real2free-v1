@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { NextRequest, NextResponse } from "next/server";
 import type { PlaybackSource } from "@/lib/public-catalog";
+import { fetchVip6Playback, vip6ApiConfigured } from "@/lib/apiplayer-vip6";
 import {
   callReal2freeGateway,
   hashGatewayClient,
@@ -450,12 +451,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await callReal2freeGateway<PlaybackResponse>({
-      action: "playback",
-      titleId,
-      episodeId,
-      index,
-    }, hashGatewayClient("playback", ip));
+    const result = vip6ApiConfigured()
+      ? await fetchVip6Playback(titleId, episodeId, index)
+      : await callReal2freeGateway<PlaybackResponse>({
+          action: "playback",
+          titleId,
+          episodeId,
+          index,
+        }, hashGatewayClient("playback", ip));
 
     if (!result.found || !result.url || !result.id || !result.kind) {
       const response = NextResponse.json({
