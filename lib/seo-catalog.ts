@@ -13,6 +13,7 @@ import {
   type CatalogUrlItem,
 } from "@/lib/catalog-url";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
+import { fetchVip6Catalog, vip6ApiConfigured, vip6Card } from "@/lib/apiplayer-vip6";
 
 export type SeoCatalogFilter = "all" | "movie" | "series" | "anime" | "new" | "popular" | "vertical" | "thai";
 
@@ -101,6 +102,12 @@ export async function getSeoCatalogPreview(
   filter: SeoCatalogFilter = "all",
 ): Promise<PublicCatalogItem[]> {
   const targetLimit = Math.max(1, Math.min(limit, SEO_PREVIEW_MAX_ROWS));
+
+  if (vip6ApiConfigured()) {
+    const type = filter === "movie" ? "movie" : filter === "series" || filter === "vertical" ? "series" : "all";
+    const response = await fetchVip6Catalog({ page: 1, limit: Math.min(targetLimit, 100), type, player: "all" });
+    return response.items.map(vip6Card).filter((item): item is PublicCatalogItem => Boolean(item));
+  }
   const rows: PublicCatalogCardRow[] = [];
 
   for (let offset = 0; offset < targetLimit; offset += SEO_PREVIEW_BATCH_SIZE) {
@@ -208,6 +215,16 @@ export async function resolveSeoCatalogSlug(
 ): Promise<SeoSlugResolution | null> {
   const targetSlug = normalizeCatalogSlug(slug);
   if (!targetSlug) return null;
+
+  if (vip6ApiConfigured()) {
+    const query = targetSlug.replace(/-\d{4}$/u, "").replace(/-/g, " ").trim();
+    const type = expectedContentType === "movie" ? "movie" : expectedContentType === "series" ? "series" : "all";
+    const response = await fetchVip6Catalog({ page: 1, limit: 100, type, player: "all", q: query });
+    const match = response.items
+      .map(vip6Card)
+      .find((item) => item && catalogSlug(item) === targetSlug);
+    if (match) return { id: match.id, contentType: match.contentType };
+  }
 
   const yearMatch = targetSlug.match(/-(\d{4})$/u);
   const parsedYear = yearMatch ? Number(yearMatch[1]) : null;
