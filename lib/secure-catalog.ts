@@ -9,6 +9,7 @@ import {
   type PublicEpisodeRow,
 } from "@/lib/public-catalog";
 import { callReal2freeGateway } from "@/lib/real2free-gateway";
+import { fetchVip6Detail, vip6ApiConfigured } from "@/lib/apiplayer-vip6";
 
 type MetadataPayload = {
   title?: PublicCatalogRow;
@@ -24,6 +25,10 @@ export async function loadSecureCatalogDetail(
   id: string,
   clientHash: string,
 ): Promise<SecureCatalogDetail | null> {
+  if (vip6ApiConfigured() && /^[0-9a-f-]{36}$/i.test(id)) {
+    return fetchVip6Detail(id);
+  }
+
   const payload = await callReal2freeGateway<MetadataPayload>(
     { action: "metadata", titleId: id },
     clientHash,
