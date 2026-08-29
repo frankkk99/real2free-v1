@@ -94,14 +94,19 @@ type BrowseState = {
   sortMode: CatalogSortMode;
 };
 
-type HomeSectionKey = "new" | "series" | "vertical" | "thai";
+export type HomeSectionKey = "new" | "series" | "vertical" | "thai";
 type PublicHomeSectionRow = PublicCatalogCardRow & {
   section_key: HomeSectionKey;
   section_rank: number;
 };
 
-type HomeSectionsState = Record<HomeSectionKey, PublicCatalogItem[]>;
+export type HomeSectionsState = Record<HomeSectionKey, PublicCatalogItem[]>;
 type HomeSectionFlags = Record<HomeSectionKey, boolean>;
+
+type MovieHomeV2Props = {
+  initialItems?: PublicCatalogItem[];
+  initialHomeSections?: HomeSectionsState;
+};
 
 const HOME_SECTION_KEYS: HomeSectionKey[] = ["new", "series", "vertical", "thai"];
 const HOME_SECTION_FIELDS = "section_key,section_rank,id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
@@ -113,6 +118,19 @@ function createEmptyHomeSections(): HomeSectionsState {
     vertical: [],
     thai: [],
   };
+}
+
+function cloneHomeSections(value?: HomeSectionsState): HomeSectionsState {
+  return {
+    new: [...(value?.new || [])],
+    series: [...(value?.series || [])],
+    vertical: [...(value?.vertical || [])],
+    thai: [...(value?.thai || [])],
+  };
+}
+
+function hasHomeSectionItems(value: HomeSectionsState) {
+  return HOME_SECTION_KEYS.some((key) => value[key].length > 0);
 }
 
 function createHomeSectionFlags(value = false): HomeSectionFlags {
@@ -212,8 +230,9 @@ function SkeletonGrid() {
   );
 }
 
-export default function MovieHomeV2() {
+export default function MovieHomeV2({ initialItems = [], initialHomeSections }: MovieHomeV2Props) {
   const router = useRouter();
+  const seededHomeSections = cloneHomeSections(initialHomeSections);
   const [theme, setTheme] = useState<Theme>("dark");
   const [viewMode, setViewMode] = useState<ViewMode>("home");
   const [queryInput, setQueryInput] = useState("");
@@ -224,12 +243,12 @@ export default function MovieHomeV2() {
   const [year, setYear] = useState("ทั้งหมด");
   const [language, setLanguage] = useState<CatalogLanguageFilter>("ทั้งหมด");
   const [sortMode, setSortMode] = useState<CatalogSortMode>("updated");
-  const [items, setItems] = useState<PublicCatalogItem[]>([]);
+  const [items, setItems] = useState<PublicCatalogItem[]>(() => [...initialItems]);
   const [featuredHeroes, setFeaturedHeroes] = useState<PublicHeroItem[]>([]);
   const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(initialItems.length);
   const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialItems.length === 0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -238,9 +257,14 @@ export default function MovieHomeV2() {
   const [selectedMovie, setSelectedMovie] = useState<PublicCatalogItem | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [homeSections, setHomeSections] = useState<HomeSectionsState>(createEmptyHomeSections);
+  const [homeSections, setHomeSections] = useState<HomeSectionsState>(() => seededHomeSections);
   const [homeSectionsLoading, setHomeSectionsLoading] = useState(false);
-  const [homeSectionHasMore, setHomeSectionHasMore] = useState<HomeSectionFlags>(createHomeSectionFlags);
+  const [homeSectionHasMore, setHomeSectionHasMore] = useState<HomeSectionFlags>(() => ({
+    new: seededHomeSections.new.length >= HOME_SECTION_LIMIT,
+    series: seededHomeSections.series.length >= HOME_SECTION_LIMIT,
+    vertical: seededHomeSections.vertical.length >= HOME_SECTION_LIMIT,
+    thai: seededHomeSections.thai.length >= HOME_SECTION_LIMIT,
+  }));
   const [homeSectionLoadingMore, setHomeSectionLoadingMore] = useState<HomeSectionFlags>(createHomeSectionFlags);
 
   const requestRef = useRef(0);
@@ -562,10 +586,7 @@ export default function MovieHomeV2() {
         thai: next.thai.length >= HOME_SECTION_LIMIT,
       });
     } catch {
-      if (requestId === homeSectionsRequestRef.current) {
-        setHomeSections(createEmptyHomeSections());
-        setHomeSectionHasMore(createHomeSectionFlags());
-      }
+      // Keep the server-seeded sections visible when a browser refresh fails.
     } finally {
       if (requestId === homeSectionsRequestRef.current) setHomeSectionsLoading(false);
     }
@@ -646,8 +667,6 @@ export default function MovieHomeV2() {
     if (!storageReady) return;
     if (!isDefaultHome) {
       homeSectionsRequestRef.current += 1;
-      setHomeSections(createEmptyHomeSections());
-      setHomeSectionHasMore(createHomeSectionFlags());
       setHomeSectionLoadingMore(createHomeSectionFlags());
       homeSectionLoadingMoreRef.current = createHomeSectionFlags();
       setHomeSectionsLoading(false);
@@ -712,7 +731,7 @@ export default function MovieHomeV2() {
       });
     });
 
-    return shuffleItems(pool).slice(0, HERO_SLIDE_LIMIT);
+    return pool.slice(0, HERO_SLIDE_LIMIT);
   }, [fallbackHeroItems, featuredHeroes]);
 
   const activeHeroSlide = heroSlides[heroIndex] || heroSlides[0] || null;
@@ -938,7 +957,7 @@ export default function MovieHomeV2() {
               <p>{featuredHero.overview || "หนังฟอร์มใหญ่ที่กำลังจะเข้าฉาย"}</p>
               <div className={styles.heroActions}>
                 {featuredHero.isWatchReady && featuredHero.catalogId ? (
-                  <button type="button" onClick={() => goWatchById(featuredHero.catalogId || "")}><Play fill="currentColor" /> รับชมตอนนี้</button>
+                  <button type="button" onClick={() => goWatchById(featureuredHero.catalogId || "")}><Play fill="currentColor" /> รับชมตอนนี้</button>
                 ) : (
                   <button type="button" onClick={() => openExternal(featuredHero.trailerUrl)}><Play fill="currentColor" /> ดูตัวอย่าง</button>
                 )}
@@ -1046,7 +1065,7 @@ export default function MovieHomeV2() {
             <p>{viewMode === "favorites" ? "กดไอคอนบุ๊กมาร์กบนการ์ดเพื่อเก็บเรื่องที่อยากดู" : viewMode === "history" ? "เรื่องที่กดรับชมจะถูกเก็บไว้ให้กลับมาดูต่อได้ง่าย" : "ลองเปลี่ยนคำค้นหรือหมวดที่เลือก"}</p>
             <button type="button" onClick={clearAll}>{viewMode === "favorites" || viewMode === "history" ? "เลือกหนัง" : "แสดงทั้งหมด"}</button>
           </div>
-        ) : isDefaultHome && homeSectionsLoading ? (
+        ) : isDefaultHome && homeSectionsLoading && !hasHomeSectionItems(homeSections) ? (
           <SkeletonGrid />
         ) : isDefaultHome ? (
           <>
