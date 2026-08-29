@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import HomeBottomInfiniteLoader from "@/components/HomeBottomInfiniteLoader";
-import MovieHomeV2 from "@/components/MovieHomeV2";
+import MovieHomeV2, { type HomeSectionsState } from "@/components/MovieHomeV2";
 import SeoCatalogLinks from "@/components/SeoCatalogLinks";
+import {
+  mapPublicCatalogCardRow,
+  type PublicCatalogCardRow,
+  type PublicCatalogItem,
+} from "@/lib/public-catalog";
 import { absoluteCatalogUrl, getSeoCatalogPreview } from "@/lib/seo-catalog";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 
 export const revalidate = 1800;
 
@@ -25,12 +31,75 @@ export const metadata: Metadata = {
   },
 };
 
+const HOME_SECTION_LIMIT = 24;
+const HOME_SECTION_FIELDS = "section_key,section_rank,id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
+
+type HomeSectionKey = keyof HomeSectionsState;
+type HomeSectionRow = PublicCatalogCardRow & {
+  section_key: HomeSectionKey;
+  section_rank: number;
+};
+
+function emptyHomeSections(): HomeSectionsState {
+  return { new: [], series: [], vertical: [], thai: [] };
+}
+
+async function getInitialHomeSections(): Promise<HomeSectionsState> {
+  const params = new URLSearchParams({
+    select: HOME_SECTION_FIELDS,
+    order: "section_key.asc,section_rank.asc",
+    limit: String(HOME_SECTION_LIMIT * 4),
+  });
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/real2free_public_home_sections?${params.toString()}`, {
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      accept: "application/json",
+    },
+    next: { revalidate: 300 },
+  });
+
+  if (!response.ok) throw new Error(`Homepage sections returned HTTP ${response.status}`);
+  const payload = await response.json().catch(() => []);
+  const sections = emptyHomeSections();
+
+  (Array.isArray(payload) ? payload as HomeSectionRow[] : []).forEach((row) => {
+    if (!(row.section_key in sections)) return;
+    const item = mapPublicCatalogCardRow(row);
+    if (item && sections[row.section_key].length < HOME_SECTION_LIMIT) sections[row.section_key].push(item);
+  });
+
+  return sections;
+}
+
+function fallbackHomeSections(items: PublicCatalogItem[]): HomeSectionsState {
+  const sections = emptyHomeSections();
+  const verticalTerms = new Set(["ซีรีส์แนวตั้ง", "ละครสั้นจีน"]);
+
+  for (const item of items) {
+    if (item.contentType === "movie" && sections.new.length < HOME_SECTION_LIMIT) sections.new.push(item);
+    if (item.contentType === "series") {
+      const isVertical = item.rawGenres.some((genre) => verticalTerms.has(genre));
+      const key: HomeSectionKey = isVertical ? "vertical" : "series";
+      if (sections[key].length < HOME_SECTION_LIMIT) sections[key].push(item);
+    }
+    if (item.contentType === "movie" && (item.isThai || item.languageCode === "TH") && sections.thai.length < HOME_SECTION_LIMIT) {
+      sections.thai.push(item);
+    }
+  }
+
+  return sections;
+}
+
 function jsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 export default async function HomePage() {
-  const items = await getSeoCatalogPreview(24).catch(() => []);
+  const [items, loadedSections] = await Promise.all([
+    getSeoCatalogPreview(24).catch(() => []),
+    getInitialHomeSections().catch(() => null),
+  ]);
+  const initialHomeSections = loadedSections || fallbackHomeSections(items);
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -64,7 +133,7 @@ export default async function HomePage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(websiteSchema) }} />
       {items.length ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(itemListSchema) }} /> : null}
-      <MovieHomeV2 />
+      <MovieHomeV2 initialItems={items} initialHomeSections={initialHomeSections} />
       <HomeBottomInfiniteLoader />
       <SeoCatalogLinks items={items} />
     </>
