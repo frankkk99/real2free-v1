@@ -66,20 +66,17 @@ function buildMailto(code: string, name: string, placement: string, sizeLabel: s
 function findThaiHomeSection(): HTMLElement | null {
   const catalog = document.getElementById("catalog");
   if (!catalog) return null;
-
   for (const child of Array.from(catalog.children)) {
     if (!(child instanceof HTMLElement)) continue;
     const heading = child.querySelector("strong");
     if (heading?.textContent?.trim() === "หนังไทย") return child;
   }
-
   return null;
 }
 
 function SideRail({ side, count, height }: { side: "left" | "right"; count: number; height: number | null }) {
   const sideLabel = side === "left" ? "ซ้าย" : "ขวา";
   const sideCode = side === "left" ? "L" : "R";
-
   return (
     <aside
       className={`${styles.sideRail} ${side === "left" ? styles.sideRailLeft : styles.sideRailRight}`}
@@ -93,6 +90,7 @@ function SideRail({ side, count, height }: { side: "left" | "right"; count: numb
           <a
             key={railCode}
             className={styles.sideCard}
+            data-ad-code={railCode}
             href={buildMailto(
               railCode,
               `Side Ad แนวตั้ง ${sideLabel} ${index + 1}`,
@@ -112,14 +110,7 @@ function SideRail({ side, count, height }: { side: "left" | "right"; count: numb
   );
 }
 
-export default function AdSlot({
-  code,
-  name,
-  placement,
-  desktopSize,
-  mobileSize,
-  variant = "banner",
-}: AdSlotProps) {
+export default function AdSlot({ code, name, placement, desktopSize, mobileSize, variant = "banner" }: AdSlotProps) {
   const slotRef = useRef<HTMLElement>(null);
   const [sideRailLayout, setSideRailLayout] = useState<SideRailLayout>({ count: DEFAULT_SIDE_AD_COUNT, height: null });
   const hasDesktopSideRails = code === "AD-02";
@@ -128,11 +119,9 @@ export default function AdSlot({
 
   useEffect(() => {
     if (!hasDesktopSideRails) return;
-
     let frame = 0;
     const root = slotRef.current;
     if (!root) return;
-
     const setDefaultLayout = () => {
       setSideRailLayout((current) => (
         current.count === DEFAULT_SIDE_AD_COUNT && current.height === null
@@ -140,33 +129,22 @@ export default function AdSlot({
           : { count: DEFAULT_SIDE_AD_COUNT, height: null }
       ));
     };
-
     const measure = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        if (window.innerWidth < SIDE_AD_DESKTOP_BREAKPOINT) {
-          setDefaultLayout();
-          return;
-        }
-
+        if (window.innerWidth < SIDE_AD_DESKTOP_BREAKPOINT) { setDefaultLayout(); return; }
         const rail = root.querySelector<HTMLElement>('[data-side-rail="left"]');
         const thaiSection = findThaiHomeSection();
-        if (!rail || !thaiSection) {
-          setDefaultLayout();
-          return;
-        }
-
+        if (!rail || !thaiSection) { setDefaultLayout(); return; }
         const railRect = rail.getBoundingClientRect();
         const thaiRect = thaiSection.getBoundingClientRect();
         const targetHeight = Math.max(0, thaiRect.bottom - railRect.top);
         const railWidth = railRect.width;
         if (!targetHeight || !railWidth) return;
-
         const cardHeight = railWidth * (16 / 9);
         const fittedCount = Math.floor((targetHeight + SIDE_AD_MIN_GAP) / (cardHeight + SIDE_AD_MIN_GAP));
         const count = Math.max(DEFAULT_SIDE_AD_COUNT, Math.min(MAX_SIDE_AD_COUNT, fittedCount));
         const height = Math.round(targetHeight);
-
         setSideRailLayout((current) => (
           current.count === count && current.height !== null && Math.abs(current.height - height) < 2
             ? current
@@ -174,23 +152,12 @@ export default function AdSlot({
         ));
       });
     };
-
     measure();
-
     const catalog = document.getElementById("catalog");
     const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     if (catalog) resizeObserver?.observe(catalog);
-
-    const mutationObserver = catalog && typeof MutationObserver !== "undefined"
-      ? new MutationObserver(measure)
-      : null;
-    mutationObserver?.observe(catalog as Node, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
-
+    const mutationObserver = catalog && typeof MutationObserver !== "undefined" ? new MutationObserver(measure) : null;
+    mutationObserver?.observe(catalog as Node, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
     window.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(frame);
@@ -205,6 +172,7 @@ export default function AdSlot({
       ref={slotRef}
       className={`${styles.slot} ${variant === "compact" ? styles.compact : ""} ${hasDesktopSideRails ? styles.withSideRails : ""}`}
       aria-label={`พื้นที่โฆษณา ${name}`}
+      data-ad-code={code}
     >
       {hasDesktopSideRails ? <SideRail side="left" count={sideRailLayout.count} height={sideRailLayout.height} /> : null}
 
@@ -215,31 +183,12 @@ export default function AdSlot({
             <a
               key={panelCode}
               className={styles.desktopCard}
-              href={buildMailto(
-                panelCode,
-                `${name} ช่อง${panel.label}`,
-                `${placement} • ช่อง${panel.label}`,
-                `21:9 responsive • อ้างอิงเดิม ${desktopSize}`,
-                desktopPrice,
-              )}
+              data-ad-code={panelCode}
+              href={buildMailto(panelCode, `${name} ช่อง${panel.label}`, `${placement} • ช่อง${panel.label}`, `21:9 responsive • อ้างอิงเดิม ${desktopSize}`, desktopPrice)}
             >
-              <span className={styles.desktopTop}>
-                <span><Megaphone /> พื้นที่โฆษณา</span>
-                <em>{panelCode}</em>
-              </span>
-
-              <span className={styles.desktopCenter}>
-                <span className={styles.desktopIcon}><Megaphone /></span>
-                <span>
-                  <strong>{name}</strong>
-                  <small>ช่อง{panel.label} • สัดส่วน 21:9</small>
-                </span>
-              </span>
-
-              <span className={styles.desktopBottom}>
-                <small>{placement}</small>
-                <span className={styles.desktopPrice}>฿{formatAdPrice(desktopPrice)}<small>/เดือน</small></span>
-              </span>
+              <span className={styles.desktopTop}><span><Megaphone /> พื้นที่โฆษณา</span><em>{panelCode}</em></span>
+              <span className={styles.desktopCenter}><span className={styles.desktopIcon}><Megaphone /></span><span><strong>{name}</strong><small>ช่อง{panel.label} • สัดส่วน 21:9</small></span></span>
+              <span className={styles.desktopBottom}><small>{placement}</small><span className={styles.desktopPrice}>฿{formatAdPrice(desktopPrice)}<small>/เดือน</small></span></span>
             </a>
           );
         })}
@@ -252,30 +201,13 @@ export default function AdSlot({
             <a
               key={panelCode}
               className={styles.mobileCard}
-              href={buildMailto(
-                panelCode,
-                `${name} มือถือช่อง${panel.label}`,
-                `${placement} • มือถือช่อง${panel.label}`,
-                `21:9 responsive • เดิม ${mobileSize}`,
-                mobilePrice,
-              )}
+              data-ad-code={panelCode}
+              href={buildMailto(panelCode, `${name} มือถือช่อง${panel.label}`, `${placement} • มือถือช่อง${panel.label}`, `21:9 responsive • เดิม ${mobileSize}`, mobilePrice)}
               title={`${panelCode} • โฆษณามือถือ 21:9`}
             >
-              <span className={styles.mobileTop}>
-                <span><Megaphone /> AD</span>
-                <em>{panelCode}</em>
-              </span>
-              <span className={styles.mobileCenter}>
-                <span className={styles.mobileIcon}><Megaphone /></span>
-                <span>
-                  <strong>{name}</strong>
-                  <small>ช่อง{panel.label} • 21:9</small>
-                </span>
-              </span>
-              <span className={styles.mobileBottom}>
-                <strong>฿{formatAdPrice(mobilePrice)}<small>/เดือน</small></strong>
-                <span><Mail /> ติดต่อ</span>
-              </span>
+              <span className={styles.mobileTop}><span><Megaphone /> AD</span><em>{panelCode}</em></span>
+              <span className={styles.mobileCenter}><span className={styles.mobileIcon}><Megaphone /></span><span><strong>{name}</strong><small>ช่อง{panel.label} • 21:9</small></span></span>
+              <span className={styles.mobileBottom}><strong>฿{formatAdPrice(mobilePrice)}<small>/เดือน</small></strong><span><Mail /> ติดต่อ</span></span>
             </a>
           );
         })}
