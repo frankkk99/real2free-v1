@@ -957,7 +957,7 @@ export default function MovieHomeV2({ initialItems = [], initialHomeSections }: 
               <p>{featuredHero.overview || "หนังฟอร์มใหญ่ที่กำลังจะเข้าฉาย"}</p>
               <div className={styles.heroActions}>
                 {featuredHero.isWatchReady && featuredHero.catalogId ? (
-                  <button type="button" onClick={() => goWatchById(featureuredHero.catalogId || "")}><Play fill="currentColor" /> รับชมตอนนี้</button>
+                  <button type="button" onClick={() => goWatchById(featuredHero.catalogId || "")}><Play fill="currentColor" /> รับชมตอนนี้</button>
                 ) : (
                   <button type="button" onClick={() => openExternal(featuredHero.trailerUrl)}><Play fill="currentColor" /> ดูตัวอย่าง</button>
                 )}
