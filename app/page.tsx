@@ -33,6 +33,11 @@ export const metadata: Metadata = {
 
 const HOME_SECTION_LIMIT = 24;
 const HOME_SECTION_FIELDS = "section_key,section_rank,id,content_type,title_th,title_en,release_date,year,poster_url,backdrop_url,genres,rating,vote_count,updated_at,episode_count,season_count,latest_episode,player_count,has_dub_th,has_sub_th,has_backup,language_code,is_ongoing";
+const RESET_HOME_BROWSE_STATE_SCRIPT = `
+try {
+  window.localStorage.removeItem("real2free-browse-state-v1");
+} catch {}
+`;
 
 type HomeSectionKey = keyof HomeSectionsState;
 type HomeSectionRow = PublicCatalogCardRow & {
@@ -131,6 +136,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: RESET_HOME_BROWSE_STATE_SCRIPT }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(websiteSchema) }} />
       {items.length ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(itemListSchema) }} /> : null}
       <MovieHomeV2 initialItems={items} initialHomeSections={initialHomeSections} />
