@@ -38,6 +38,7 @@ type ApiPlayer = {
   label?: string | null;
   url: string;
   kind?: "embed" | "hls" | string | null;
+  type?: "embed" | "hls" | "video" | string | null;
   group_key?: string | null;
   role?: string | null;
   backup_index?: number | null;
@@ -181,6 +182,7 @@ export async function fetchVip6Playback(titleId: string, episodeId: string | nul
   const payload = await apiFetch<{ data?: { players?: ApiPlayer[] } }>(path);
   const players = Array.isArray(payload.data?.players) ? payload.data.players : [];
   const selected = players[index] || null;
+  const selectedType = String(selected?.kind || selected?.type || '').toLowerCase();
   return {
     fallback_url: null,
     fallback_kind: null,
@@ -188,7 +190,7 @@ export async function fetchVip6Playback(titleId: string, episodeId: string | nul
     id: selected?.id || "",
     label: selected?.label || (index === 0 ? "ตัวหลัก" : `สำรอง ${index}`),
     url: selected?.url || "",
-    kind: selected?.kind === "hls" ? "hls" as const : "embed" as const,
+    kind: selectedType === "hls" ? "hls" as const : "embed" as const,
     group_key: selected?.group_key === "dub_th" || selected?.group_key === "sub_th" ? selected.group_key : "default" as const,
     role: selected?.role === "backup" ? "backup" as const : "primary" as const,
     backup_index: Number(selected?.backup_index || index),

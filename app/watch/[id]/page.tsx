@@ -94,5 +94,13 @@ export default async function WatchPage({
     permanentRedirect(watchPath(item));
   }
 
-  return <WatchExperience item={item} episodes={episodes} />;
+  // VIP6 detail responses intentionally do not need to embed live player URLs.
+  // A canonical episode id is enough to let the uncached playback endpoint
+  // determine current availability when the user actually presses play.
+  const selectableEpisodes = episodes.map((episode) => ({
+    ...episode,
+    playerCount: episode.id ? Math.max(1, Number(episode.playerCount || 0)) : episode.playerCount,
+  }));
+
+  return <WatchExperience item={item} episodes={selectableEpisodes} />;
 }
