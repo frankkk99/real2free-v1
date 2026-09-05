@@ -1,0 +1,248 @@
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid #294858;
+  border-radius: 11px;
+  padding: 0 13px;
+  background: #10212a;
+  color: #eaf8ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondaryButton svg,
+.domainForm svg,
+.simulatorNote svg,
+.matrixRow svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.clientPresets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.clientPreset {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 13px 14px;
+  border: 1px solid #1f3945;
+  border-radius: 14px;
+  background: #08151b;
+  color: #f1fbff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clientPreset:hover,
+.clientPresetActive {
+  border-color: #42cfee;
+  background: #0d2029;
+}
+
+.clientPreset:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.clientPreset strong {
+  font-size: 13px;
+}
+
+.clientPreset span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #89a1ad;
+  font-size: 11px;
+}
+
+.clientPreset small {
+  color: #51d9f7;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.domainForm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #29404c;
+  background: #071118;
+  border-radius: 15px;
+  padding: 7px 8px 7px 14px;
+}
+
+.domainForm > svg {
+  color: #55717f;
+}
+
+.domainForm input {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+}
+
+.domainForm button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 11px;
+  padding: 0 15px;
+  background: #eaf8ff;
+  color: #081319;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.domainForm button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.simulatorNote {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #173847;
+  border-radius: 12px;
+  background: rgba(15, 55, 71, 0.24);
+  color: #91aab6;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.simulatorNote svg {
+  margin-top: 1px;
+  color: #51d9f7;
+}
+
+.simulatorNote b {
+  color: #dff9ff;
+}
+
+.matrixTable {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.matrixRow {
+  display: grid;
+  grid-template-columns: 20px minmax(180px, 1fr) 90px 80px 120px minmax(120px, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 11px;
+  border: 1px solid #18313c;
+  border-radius: 11px;
+  background: #08141a;
+  color: #eaf8ff;
+  text-align: left;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.matrixRow:hover {
+  border-color: #2c6072;
+  background: #0b1a21;
+}
+
+.matrixRow span,
+.matrixRow code {
+  color: #829aa6;
+  font-size: 10px;
+}
+
+.matrixRow code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domainBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  max-width: 360px;
+  padding: 0 10px;
+  border: 1px solid #244654;
+  border-radius: 999px;
+  background: #0b1b22;
+  color: #63dff8 !important;
+  font-size: 10px !important;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .clientPresets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .matrixRow {
+    grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  }
+
+  .matrixRow span:nth-of-type(3),
+  .matrixRow code {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .clientPresets {
+    grid-template-columns: 1fr;
+  }
+
+  .domainForm {
+    grid-template-columns: auto 1fr;
+  }
+
+  .domainForm button {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .matrixRow {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+  }
+
+  .matrixRow span:nth-of-type(2) {
+    display: none;
+  }
+}
