@@ -63,12 +63,15 @@ const API_ORIGIN = (process.env.APIPLAYER_API_URL || "https://www.apiplayer.onli
 const API_DOMAIN = process.env.APIPLAYER_CLIENT_DOMAIN || "real2free.online";
 
 export function vip6ApiConfigured() {
-  return Boolean(process.env.APIPLAYER_API_KEY?.trim());
+  // real2free is the APIPlayer reference client. Always select the APIPlayer path so
+  // a missing/invalid credential fails closed instead of silently falling back to
+  // the legacy real2free gateway and producing a false-positive playback test.
+  return true;
 }
 
 async function apiFetch<T>(path: string, params?: URLSearchParams): Promise<T> {
   const key = process.env.APIPLAYER_API_KEY?.trim();
-  if (!key) throw new Error("Missing APIPLAYER_API_KEY");
+  if (!key) throw new Error("APIPlayer wrapper misconfigured: missing APIPLAYER_API_KEY");
   const url = new URL(path, API_ORIGIN);
   if (params) url.search = params.toString();
   const response = await fetch(url, {
@@ -81,7 +84,7 @@ async function apiFetch<T>(path: string, params?: URLSearchParams): Promise<T> {
   });
   const payload = await response.json().catch(() => null) as (T & { ok?: boolean; error?: string }) | null;
   if (!response.ok || !payload || payload.ok === false) {
-    throw new Error(payload?.error || `APIPlayer VIP6 HTTP ${response.status}`);
+    throw new Error(payload?.error || `APIPlayer wrapper HTTP ${response.status} on ${path}`);
   }
   return payload;
 }
