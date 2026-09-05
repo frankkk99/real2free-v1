@@ -20,6 +20,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import styles from "./ApiPlayerReferenceTest.module.css";
+import simStyles from "./ApiPlayerClientSimulator.module.css";
 
 type CredentialMode = "CLIENT_SPECIFIC_KEY" | "REFERENCE_KEY" | "MISSING_KEY";
 
@@ -390,17 +391,17 @@ export default function ApiPlayerReferenceTest() {
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
           <div><span>CLIENT SIMULATOR</span><h2>เลือกเว็บลูกค้าที่ต้องการจำลอง</h2></div>
-          <button className={styles.secondaryButton} type="button" onClick={() => void testDomainMatrix()} disabled={testingMatrix}>
+          <button className={simStyles.secondaryButton} type="button" onClick={() => void testDomainMatrix()} disabled={testingMatrix}>
             {testingMatrix ? <LoaderCircle className={styles.spin} /> : <Activity />} ทดสอบทุกโดเมน
           </button>
         </div>
 
-        <div className={styles.clientPresets}>
+        <div className={simStyles.clientPresets}>
           {(health?.presets || []).map((preset) => (
             <button
               key={preset.domain}
               type="button"
-              className={`${styles.clientPreset} ${selectedDomain === preset.domain ? styles.clientPresetActive : ""}`}
+              className={`${simStyles.clientPreset} ${selectedDomain === preset.domain ? simStyles.clientPresetActive : ""}`}
               onClick={() => void checkClientDomain(preset.domain)}
               disabled={checkingDomain}
             >
@@ -411,7 +412,7 @@ export default function ApiPlayerReferenceTest() {
           ))}
         </div>
 
-        <form className={styles.domainForm} onSubmit={(event) => { event.preventDefault(); void checkClientDomain(customDomain); }}>
+        <form className={simStyles.domainForm} onSubmit={(event) => { event.preventDefault(); void checkClientDomain(customDomain); }}>
           <Globe2 />
           <input value={customDomain} onChange={(event) => setCustomDomain(event.target.value)} placeholder="โดเมนอื่น เช่น customer-site.com" />
           <button type="submit" disabled={checkingDomain || !customDomain.trim()}>
@@ -419,15 +420,15 @@ export default function ApiPlayerReferenceTest() {
           </button>
         </form>
 
-        <div className={styles.simulatorNote}>
+        <div className={simStyles.simulatorNote}>
           <ShieldCheck />
           <span><b>REFERENCE KEY</b> = ใช้ key ของ REAL2FREE แต่เปลี่ยน x-client-domain เพื่อเช็ก whitelist · <b>CLIENT KEY</b> = มี key เฉพาะลูกค้าถูกตั้งบน server และจำลองได้ใกล้เคียงลูกค้าจริงที่สุด</span>
         </div>
 
         {matrix ? (
-          <div className={styles.matrixTable}>
+          <div className={simStyles.matrixTable}>
             {matrix.rows.map((row) => (
-              <button key={row.clientDomain} type="button" className={styles.matrixRow} onClick={() => void checkClientDomain(row.clientDomain)}>
+              <button key={row.clientDomain} type="button" className={simStyles.matrixRow} onClick={() => void checkClientDomain(row.clientDomain)}>
                 {row.ok ? <CheckCircle2 className={styles.okIcon} /> : <XCircle className={styles.failIcon} />}
                 <strong>{row.clientDomain}</strong>
                 <span>HTTP {row.status}</span>
@@ -445,7 +446,7 @@ export default function ApiPlayerReferenceTest() {
       <section className={styles.panel}>
         <div className={styles.panelHeading}>
           <div><span>STEP 1</span><h2>ค้นหาเรื่องจาก APIPlayer</h2></div>
-          <span className={styles.domainBadge}>{selectedDomain || "เลือก Client Domain ก่อน"}</span>
+          <span className={simStyles.domainBadge}>{selectedDomain || "เลือก Client Domain ก่อน"}</span>
         </div>
         <form className={styles.searchForm} onSubmit={searchCatalog}>
           <Search />
