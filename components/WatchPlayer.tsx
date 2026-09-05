@@ -34,30 +34,49 @@ function isEmbedSource(source: PlaybackSource): boolean {
   }
 }
 
-function isGetplayEmbedSource(source: PlaybackSource): boolean {
+function sourceHostMatches(source: PlaybackSource, host: string): boolean {
   if (!source.url) return false;
-
   try {
     const hostname = new URL(source.url).hostname.toLowerCase();
-    return hostname === "getplay-cdn.com" || hostname.endsWith(".getplay-cdn.com");
+    return hostname === host || hostname.endsWith(`.${host}`);
   } catch {
     return false;
   }
 }
 
-function isOkHdEmbedSource(source: PlaybackSource): boolean {
-  if (!source.url) return false;
+function isGetplayEmbedSource(source: PlaybackSource): boolean {
+  return sourceHostMatches(source, "getplay-cdn.com");
+}
 
+function isOkHdEmbedSource(source: PlaybackSource): boolean {
+  return sourceHostMatches(source, "ok-hd.com");
+}
+
+function isMeePlayerEmbedSource(source: PlaybackSource): boolean {
+  return sourceHostMatches(source, "meeplayer.com");
+}
+
+function isApiPlayerWrapperSource(source: PlaybackSource): boolean {
+  if (!source.url) return false;
   try {
-    const hostname = new URL(source.url).hostname.toLowerCase();
-    return hostname === "ok-hd.com" || hostname.endsWith(".ok-hd.com");
+    const url = new URL(source.url);
+    const hostname = url.hostname.toLowerCase();
+    const apiPlayerHost = hostname === "apiplayer.online" || hostname.endsWith(".apiplayer.online");
+    return apiPlayerHost && (
+      url.pathname.startsWith("/p/")
+      || url.pathname.startsWith("/r/")
+      || url.pathname.startsWith("/hls-wrapper/")
+    );
   } catch {
     return false;
   }
 }
 
 function isDirectInlineEmbedSource(source: PlaybackSource): boolean {
-  return isGetplayEmbedSource(source) || isOkHdEmbedSource(source);
+  return isGetplayEmbedSource(source)
+    || isOkHdEmbedSource(source)
+    || isMeePlayerEmbedSource(source)
+    || isApiPlayerWrapperSource(source);
 }
 
 function sourceDelivery(source: PlaybackSource): PlaybackDelivery {
@@ -297,7 +316,7 @@ function EmbedFrame({
           title={source.label || "หน้ารับชม"}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
-          referrerPolicy="no-referrer"
+          referrerPolicy={referrerPolicy}
           loading="eager"
           onLoad={() => {
             loadedRef.current = true;
