@@ -102,14 +102,12 @@ export async function getSeoCatalogPreview(
   filter: SeoCatalogFilter = "all",
 ): Promise<PublicCatalogItem[]> {
   const targetLimit = Math.max(1, Math.min(limit, SEO_PREVIEW_MAX_ROWS));
-
-  if (vip6ApiConfigured()) {
-    const type = filter === "movie" ? "movie" : filter === "series" || filter === "vertical" ? "series" : "all";
-    const response = await fetchVip6Catalog({ page: 1, limit: Math.min(targetLimit, 100), type, player: "all" });
-    return response.items.map(vip6Card).filter((item): item is PublicCatalogItem => Boolean(item));
-  }
   const rows: PublicCatalogCardRow[] = [];
 
+  // Homepage/SEO cards are public metadata and should come from the local
+  // materialized catalog cache. Do not add an APIPlayer network round-trip to
+  // the initial page render; APIPlayer remains authoritative for secure detail
+  // and playback after a title has been resolved.
   for (let offset = 0; offset < targetLimit; offset += SEO_PREVIEW_BATCH_SIZE) {
     const batchLimit = Math.min(SEO_PREVIEW_BATCH_SIZE, targetLimit - offset);
     const batch = await fetchRows<PublicCatalogCardRow>(
@@ -216,6 +214,22 @@ export async function resolveSeoCatalogSlug(
   const targetSlug = normalizeCatalogSlug(slug);
   if (!targetSlug) return null;
 
+  const yearMatch = targetSlug.match(/-(\d{4})$/u);
+  const parsedYear = yearMatch ? Number(yearMatch[1]) : null;
+  const targetYear = parsedYear !== null && parsedYear >= 1900 && parsedYear <= 2200
+    ? parsedYear
+    : null;
+
+  // Canonical URLs normally include a year. Resolve those against the local
+  // indexed materialized catalog first, avoiding a remote APIPlayer search on
+  // every movie/watch navigation.
+  if (targetYear !== null) {
+    const yearMatchResult = await findSlugMatch(targetSlug, expectedContentType, targetYear);
+    if (yearMatchResult) return yearMatchResult;
+  }
+
+  // Keep APIPlayer as a compatibility fallback for records that are newer than
+  // the local snapshot or cannot be resolved locally yet.
   if (vip6ApiConfigured()) {
     const query = targetSlug.replace(/-\d{4}$/u, "").replace(/-/g, " ").trim();
     const type = expectedContentType === "movie" ? "movie" : expectedContentType === "series" ? "series" : "all";
@@ -224,17 +238,6 @@ export async function resolveSeoCatalogSlug(
       .map(vip6Card)
       .find((item) => item && catalogSlug(item) === targetSlug);
     if (match) return { id: match.id, contentType: match.contentType };
-  }
-
-  const yearMatch = targetSlug.match(/-(\d{4})$/u);
-  const parsedYear = yearMatch ? Number(yearMatch[1]) : null;
-  const targetYear = parsedYear !== null && parsedYear >= 1900 && parsedYear <= 2200
-    ? parsedYear
-    : null;
-
-  if (targetYear !== null) {
-    const yearMatchResult = await findSlugMatch(targetSlug, expectedContentType, targetYear);
-    if (yearMatchResult) return yearMatchResult;
   }
 
   return findSlugMatch(targetSlug, expectedContentType, null);
