@@ -1,7 +1,20 @@
 import "server-only";
 
-import type { PublicCatalogItem, PublicEpisode } from "@/lib/public-catalog";
-import { fetchVip6Detail } from "@/lib/apiplayer-vip6";
+import {
+  mapPublicCatalogRow,
+  mapPublicEpisodeRow,
+  type PublicCatalogItem,
+  type PublicCatalogRow,
+  type PublicEpisode,
+  type PublicEpisodeRow,
+} from "@/lib/public-catalog";
+import { callReal2freeGateway } from "@/lib/real2free-gateway";
+import { fetchVip6Detail, vip6ApiConfigured } from "@/lib/apiplayer-vip6";
+
+type MetadataPayload = {
+  title?: PublicCatalogRow;
+  episodes?: PublicEpisodeRow[];
+};
 
 export type SecureCatalogDetail = {
   item: PublicCatalogItem;
@@ -10,12 +23,23 @@ export type SecureCatalogDetail = {
 
 export async function loadSecureCatalogDetail(
   id: string,
-  _clientHash: string,
+  clientHash: string,
 ): Promise<SecureCatalogDetail | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (vip6ApiConfigured() && /^[0-9a-f-]{36}$/i.test(id)) {
+    return fetchVip6Detail(id);
+  }
 
-  // REAL2FREE is the APIPlayer reference client. Secure watch metadata must come
-  // from APIPlayer only so a broken customer API path cannot be hidden by the
-  // legacy real2free gateway.
-  return fetchVip6Detail(id);
+  const payload = await callReal2freeGateway<MetadataPayload>(
+    { action: "metadata", titleId: id },
+    clientHash,
+  );
+
+  const item = mapPublicCatalogRow(payload.title);
+  if (!item) return null;
+
+  const episodes = (Array.isArray(payload.episodes) ? payload.episodes : [])
+    .map(mapPublicEpisodeRow)
+    .filter((episode): episode is PublicEpisode => Boolean(episode));
+
+  return { item, episodes };
 }

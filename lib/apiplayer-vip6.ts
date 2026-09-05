@@ -63,10 +63,7 @@ const API_ORIGIN = (process.env.APIPLAYER_API_URL || "https://www.apiplayer.onli
 const API_DOMAIN = process.env.APIPLAYER_CLIENT_DOMAIN || "real2free.online";
 
 export function vip6ApiConfigured() {
-  // real2free is the APIPlayer reference client. Always select the APIPlayer path so
-  // a missing/invalid credential fails closed instead of silently falling back to
-  // the legacy real2free gateway and producing a false-positive playback test.
-  return true;
+  return Boolean(process.env.APIPLAYER_API_KEY?.trim());
 }
 
 async function apiFetch<T>(path: string, params?: URLSearchParams): Promise<T> {
