@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import WatchExperience from "@/components/WatchExperience";
@@ -12,13 +13,13 @@ import { resolveSeoCatalogSlug } from "@/lib/seo-catalog";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function resolveWatchReference(reference: string) {
+const resolveWatchReference = cache(async (reference: string) => {
   if (UUID_PATTERN.test(reference)) return loadCatalogDetailById(reference);
 
   const resolved = await resolveSeoCatalogSlug(reference, null);
   if (!resolved) return null;
   return loadCatalogDetailById(resolved.id);
-}
+});
 
 export async function generateMetadata({
   params,
